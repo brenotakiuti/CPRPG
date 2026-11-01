@@ -136,7 +136,8 @@ export default function GMConsole({
         delete next[characterId];
         return next;
       });
-      setInviteMessage(`Access revoked for ${characterName}. Generate a new invitation whenever needed.`);
+      // Keep successful revocations in the developer console, not the GM UI.
+      console.debug('[GM Console] Player access revoked', { characterId, characterName });
     } catch {
       setInviteMessage('Could not reset player access. Please try again.');
     } finally {
