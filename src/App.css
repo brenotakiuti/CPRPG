@@ -1,0 +1,140 @@
+/* Night City Bank */
+
+.bank {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  width: 360px;
+  max-width: 100%;
+  padding: 30px;
+
+  background: #151b23;
+  color: white;
+  border: 1px solid #f5d742;
+  border-radius: 12px;
+
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+
+/* Bank heading */
+
+.bank h1 {
+  margin: 0;
+  font-size: 28px;
+  color: #f5d742;
+}
+
+/* Character balances */
+
+.bank p {
+  margin: 0;
+}
+
+/* Input label */
+
+.bank label {
+  text-align: left;
+}
+
+/* Transfer amount input */
+
+.bank input {
+  width: 100%;
+  padding: 12px;
+
+  background: #252d38;
+  color: white;
+  border: 1px solid #64748b;
+  border-radius: 5px;
+
+  font-size: 16px;
+}
+
+/* Transfer button */
+
+.bank button {
+  width: 100%;
+  padding: 12px;
+
+  background: #f5d742;
+  color: black;
+  border: none;
+  border-radius: 5px;
+
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.bank button:hover {
+  background: #ffe96b;
+}
+
+.bank button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Transfer status message */
+
+.transfer-message {
+  min-height: 24px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Campaign list */
+
+.campaign-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.campaign-item {
+  padding: 12px;
+  background: #252d38;
+  border: 1px solid #64748b;
+  border-radius: 5px;
+  text-align: left;
+}
+
+.bank-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bank-content h2 {
+  margin: 0;
+  color: #f5d742;
+}
+
+.bank-content select {
+  width: 100%;
+  padding: 12px;
+  background: #252d38;
+  color: white;
+  border: 1px solid #64748b;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
+.bank-content h3 {
+  margin: 8px 0 0;
+  color: #f5d742;
+}
+
+.bank-content hr {
+  width: 100%;
+  border: none;
+  border-top: 1px solid #64748b;
+}
+
+.campaign-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
