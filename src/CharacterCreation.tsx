@@ -19,17 +19,20 @@ export default function CharacterCreation({ token }: Props) {
         session = data.session;
       }
       if (!active) return;
-      if (!session?.user.is_anonymous) {
-        setStatus('Open this link in a separate browser or private window.');
-        return;
-      }
       const { data, error } = await supabase.rpc('get_character_creation_campaign', {
         p_token: token,
       });
       if (!active) return;
       if (error) { setStatus(error.message); return; }
       if (!data?.[0]) { setStatus('Invalid character creation link.'); return; }
-      if (!data[0].creation_enabled) {
+      // The GM may preview their own campaign even while creation is closed.
+      const { data: ownedCampaign } = session.user.is_anonymous
+        ? { data: null }
+        : await supabase.from('campaigns').select('id')
+            .eq('id', data[0].campaign_id)
+            .eq('gm_id', session.user.id).maybeSingle();
+      if (!active) return;
+      if (!data[0].creation_enabled && !ownedCampaign) {
         setStatus('Character creation is disabled for this campaign.');
         return;
       }
