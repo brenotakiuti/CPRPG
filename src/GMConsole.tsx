@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
@@ -15,8 +16,9 @@ export default function GMConsole({
   campaign,
   onSwitchCampaign,
 }: GMConsoleProps) {
-  const [page, setPage] = useState<'home' | 'bank'>(() => {
-    return sessionStorage.getItem('gm-page') === 'bank' ? 'bank' : 'home';
+  const [page, setPage] = useState<'home' | 'bank' | 'characters'>(() => {
+    const savedPage = sessionStorage.getItem('gm-page');
+    return savedPage === 'bank' || savedPage === 'characters' ? savedPage : 'home';
   });
 
   type CharacterOption = {
@@ -149,46 +151,26 @@ export default function GMConsole({
     sessionStorage.setItem('gm-page', page);
   }, [page]);
 
-  if (page === 'bank') {
+  // Shared page shell for GM tools. Future tools can reuse this layout.
+  function toolPage(title: string, content: ReactNode) {
     return (
-      <div className="bank">
-        <button onClick={() => setPage('home')}>← Back to GM Console</button>
-
-        <Bank campaignId={campaign.id} />
+      <div className="bank gm-tool-page">
+        <button className="gm-back-button" onClick={() => setPage('home')}>
+          ← Back to GM Console
+        </button>
+        <h1>{title}</h1>
+        {content}
       </div>
     );
   }
 
-  return (
-    <div className="bank">
-      <h1>GM Console</h1>
+  if (page === 'bank') {
+    return toolPage('Bank', <Bank campaignId={campaign.id} />);
+  }
 
-      <h2>{campaign.name}</h2>
-
-      <p>Logged in as: {session.user.email}</p>
-
-      {/* ChatGPT's first GitHub integration test: Lucide-style Wallet icon on the Bank button. */}
-      <button onClick={() => setPage('bank')}>
-        <svg
-          aria-hidden="true"
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ verticalAlign: 'middle', marginRight: '8px' }}
-        >
-          <path d="M20 8V5a2 2 0 0 0-2-2H5a3 3 0 0 0 0 6h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a3 3 0 0 1-3-3V6" />
-          <path d="M18 12h4" />
-        </svg>
-        Open Bank
-      </button>
-
-      <h2>Player Invitations</h2>
-
+  if (page === 'characters') {
+    return toolPage('Character Assignment', (
+      <>
       {characters.map((character) => (
         <div className="campaign-item" key={character.id}>
           <p>{character.name}</p>
@@ -248,10 +230,39 @@ export default function GMConsole({
         </div>
       ))}
 
-      <p className="transfer-message">{inviteMessage}</p>
+        {inviteMessage && <p className="transfer-message" role="alert">{inviteMessage}</p>}
+      </>
+    ));
+  }
+
+  return (
+    <div className="bank">
+      <h1>GM Console</h1>
+      <h2>{campaign.name}</h2>
+      <p>Logged in as: {session.user.email}</p>
+
+      <button className="gm-feature-button" onClick={() => setPage('bank')}>
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" strokeWidth="2"
+          strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 8V5a2 2 0 0 0-2-2H5a3 3 0 0 0 0 6h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a3 3 0 0 1-3-3V6" />
+          <path d="M18 12h4" />
+        </svg>
+        Open Bank
+      </button>
+
+      <button className="gm-feature-button" onClick={() => setPage('characters')}>
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" strokeWidth="2"
+          strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <circle cx="9" cy="10" r="2" />
+          <path d="M5.5 16c.7-2 6.3-2 7 0M15 9h4M15 13h4M15 17h3" />
+        </svg>
+        Character Assignment
+      </button>
 
       <button onClick={onSwitchCampaign}>Switch Campaign</button>
-
       <button onClick={() => supabase.auth.signOut()}>Log out</button>
     </div>
   );
