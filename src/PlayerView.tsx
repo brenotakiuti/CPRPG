@@ -92,9 +92,12 @@ export default function PlayerView({ token }: PlayerViewProps) {
       if (!active) return;
 
       if (error) {
+        setCharacter(null);
         setMessage(error.message);
       } else if (!data) {
-        setMessage('No character assigned to this player.');
+        // A GM may revoke access while this browser remains signed in.
+        setCharacter(null);
+        setMessage('No character assigned. Ask your GM for a new invitation.');
       } else {
         setCharacter(data);
         setMessage('');
