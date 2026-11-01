@@ -34,6 +34,49 @@ export default function GMConsole({
   const [inviteMessage, setInviteMessage] = useState('');
   const [resettingCharacterId, setResettingCharacterId] = useState<string | null>(null);
 
+  const [creationToken, setCreationToken] = useState('');
+  const [creationEnabled, setCreationEnabled] = useState(false);
+  const [creationSaving, setCreationSaving] = useState(false);
+  const [creationError, setCreationError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    setCreationToken('');
+    setCreationEnabled(false);
+    setCreationError('');
+    async function loadSettings() {
+      const { data, error } = await supabase.rpc('get_character_creation_settings', {
+        p_campaign_id: campaign.id,
+      });
+      if (!active) return;
+      if (error) setCreationError(error.message);
+      else if (data?.[0]) {
+        setCreationToken(data[0].creation_token);
+        setCreationEnabled(data[0].creation_enabled);
+      }
+    }
+    void loadSettings();
+    return () => { active = false; };
+  }, [campaign.id]);
+
+  async function toggleCreation() {
+    if (!creationToken || creationSaving) return;
+    setCreationSaving(true);
+    setCreationError('');
+    const { data, error } = await supabase.rpc('set_character_creation_enabled', {
+      p_campaign_id: campaign.id,
+      p_enabled: !creationEnabled,
+    });
+    if (error) setCreationError(error.message);
+    else setCreationEnabled(data);
+    setCreationSaving(false);
+  }
+
+  const creationLink = creationToken
+    ? window.location.origin + window.location.pathname + window.location.search + '#create=' + creationToken
+    : '';
+
+
   useEffect(() => {
     let active = true;
 
@@ -261,6 +304,43 @@ export default function GMConsole({
         </svg>
         Character Assignment
       </button>
+
+
+      <section className="creation-link-section" aria-label="Character creation">
+        <div className="creation-link-heading">
+          <span>Character Creation Link</span>
+          <div className="creation-toggle-group">
+            <span>{creationEnabled ? 'Enabled' : 'Disabled'}</span>
+            <button
+              type="button"
+              className={creationEnabled ? 'creation-switch is-enabled' : 'creation-switch'}
+              role="switch"
+              aria-checked={creationEnabled}
+              aria-label="Enable character creation"
+              disabled={!creationToken || creationSaving}
+              onClick={() => void toggleCreation()}
+            >
+              <span className="creation-switch-thumb" />
+            </button>
+          </div>
+        </div>
+        <div className="creation-link-row">
+          <input readOnly aria-label="Character creation link"
+            value={creationLink} placeholder="Loading link..." title={creationLink} />
+          <button type="button" className="creation-copy-button"
+            aria-label="Copy character creation link" title="Copy character creation link"
+            disabled={!creationLink}
+            onClick={() => void navigator.clipboard.writeText(creationLink)}>
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" strokeWidth="2"
+              strokeLinecap="round" strokeLinejoin="round">
+              <rect x="8" y="8" width="13" height="13" rx="2" />
+              <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
+            </svg>
+          </button>
+        </div>
+        {creationError && <p className="creation-error" role="alert">{creationError}</p>}
+      </section>
 
       <button onClick={onSwitchCampaign}>Switch Campaign</button>
       <button onClick={() => supabase.auth.signOut()}>Log out</button>

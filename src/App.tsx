@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import PlayerView from './PlayerView';
+import CharacterCreation from './CharacterCreation';
 import { supabase } from './supabase';
 import CampaignSelection from './CampaignSelection';
 import type { Campaign } from './CampaignSelection';
@@ -17,6 +18,9 @@ function App() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [loggingIn, setLoggingIn] = useState(false);
+
+  const [creationToken] = useState(() => window.location.hash.startsWith('#create=')
+    ? window.location.hash.slice('#create='.length) : null);
 
   const [playerRoute] = useState(() => {
     const hash = window.location.hash;
@@ -132,6 +136,10 @@ function App() {
     sessionStorage.removeItem('active-campaign');
     sessionStorage.removeItem('campaign-user');
     sessionStorage.removeItem('gm-page');
+  }
+
+  if (creationToken !== null) {
+    return <CharacterCreation token={creationToken} />;
   }
 
   if (playerRoute.isPlayer) {
