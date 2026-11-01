@@ -325,8 +325,16 @@ export default function GMConsole({
           </div>
         </div>
         <div className="creation-link-row">
-          <input readOnly aria-label="Character creation link"
-            value={creationLink} placeholder="Loading link..." title={creationLink} />
+          <input readOnly aria-label="Open character creation link"
+            value={creationLink} placeholder="Loading link..."
+            title="Click to open character creation in a new tab"
+            style={{ cursor: creationLink ? "pointer" : "default" }}
+            onClick={() => { if (creationLink) window.open(creationLink, "_blank", "noopener,noreferrer"); }}
+            onKeyDown={(event) => {
+              if (creationLink && event.key === "Enter") {
+                window.open(creationLink, "_blank", "noopener,noreferrer");
+              }
+            }} />
           <button type="button" className="creation-copy-button"
             aria-label="Copy character creation link" title="Copy character creation link"
             disabled={!creationLink}
