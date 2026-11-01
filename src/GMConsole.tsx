@@ -33,6 +33,8 @@ export default function GMConsole({
   const [resettingCharacterId, setResettingCharacterId] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
+
     async function loadCharacters() {
       const { data, error } = await supabase
         .from('characters')
@@ -40,14 +42,47 @@ export default function GMConsole({
         .eq('campaign_id', campaign.id)
         .order('name');
 
+      if (!active) return;
+
       if (error) {
         setInviteMessage(error.message);
       } else {
         setCharacters(data ?? []);
+        // Once claimed, an invitation is no longer usable; hide its old link.
+        setInvitations((previous) => {
+          const next = { ...previous };
+          for (const character of data ?? []) {
+            if (character.player_id) delete next[character.id];
+          }
+          return next;
+        });
       }
     }
 
-    loadCharacters();
+    // Listen to successful database assignments, not merely link visits.
+    const channel = supabase
+      .channel(`gm-character-assignments-${campaign.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'characters',
+          filter: `campaign_id=eq.${campaign.id}`,
+        },
+        () => {
+          void loadCharacters();
+        }
+      )
+      .subscribe();
+
+    // Fetch after subscribing to minimize the claim-between-steps race.
+    void loadCharacters();
+
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
   }, [campaign.id]);
 
   async function generateInvitation(characterId: string) {
