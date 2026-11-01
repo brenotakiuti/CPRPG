@@ -96,3 +96,35 @@ grant execute on function public.set_character_creation_enabled(uuid, boolean)
 
 -- The player-side character creation transaction and page will be added
 -- separately, after the character sheet has been designed.
+
+
+-- ============================================================
+-- 03. Player link: resolve campaign and check creation switch
+-- ============================================================
+-- A player may inspect the campaign name and availability using
+-- the permanent token, without being granted GM permissions.
+-- The creation form will later use a separate atomic RPC which
+-- rechecks this switch at submission time.
+create or replace function public.get_character_creation_campaign(p_token uuid)
+returns table (campaign_id uuid, campaign_name text, creation_enabled boolean)
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  return query
+    select c.id, c.name::text, c.character_creation_enabled
+    from public.campaigns c
+    where c.character_creation_token = p_token;
+end;
+$$;
+
+revoke all on function public.get_character_creation_campaign(uuid)
+  from public, anon, authenticated;
+grant execute on function public.get_character_creation_campaign(uuid)
+  to authenticated;
+
+create unique index if not exists campaigns_character_creation_token_key
+  on public.campaigns(character_creation_token);
