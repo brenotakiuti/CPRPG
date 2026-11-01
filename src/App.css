@@ -138,3 +138,48 @@
   flex-direction: column;
   gap: 10px;
 }
+
+/* Compact GM-only revoke control, aligned with the assignment status. */
+.character-assignment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.character-assignment-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  color: #b8c0c9;
+}
+
+.character-assignment-status svg {
+  flex-shrink: 0;
+}
+
+.bank .revoke-access-button {
+  display: inline-flex;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  color: #f5d742;
+  border: 1px solid #687380;
+  border-radius: 5px;
+}
+
+.bank .revoke-access-button:hover:not(:disabled) {
+  background: #343e4a;
+}
+
+.bank .revoke-access-button:focus-visible {
+  outline: 2px solid #f5d742;
+  outline-offset: 2px;
+}
