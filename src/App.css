@@ -183,3 +183,30 @@
   outline: 2px solid #f5d742;
   outline-offset: 2px;
 }
+
+/* Consistent navigation for GM tool pages. */
+.bank .gm-feature-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.gm-feature-button svg {
+  flex-shrink: 0;
+}
+
+.gm-tool-page {
+  text-align: center;
+}
+
+.bank .gm-back-button {
+  background: #252d38;
+  color: #f5d742;
+  border: 1px solid #64748b;
+  text-align: left;
+}
+
+.bank .gm-back-button:hover {
+  background: #343e4a;
+}
