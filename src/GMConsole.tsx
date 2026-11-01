@@ -74,15 +74,15 @@ export default function GMConsole({
 
   async function resetPlayerAccess(characterId: string, characterName: string) {
     if (!window.confirm(
-      `Revoke access to ${characterName} and generate a new invitation? The previous player will lose access.`
+      `Revoke access to ${characterName}? The previous player will lose access. You can generate a new invitation later.`
     )) return;
 
     setInviteMessage('');
     setResettingCharacterId(characterId);
 
     try {
-      // One atomic RPC revokes access and issues the replacement invitation.
-      const { data: token, error } = await supabase.rpc(
+      // Revoke access only; invitation generation remains a separate GM action.
+      const { error } = await supabase.rpc(
         'reset_character_player_access',
         { p_character_id: characterId }
       );
@@ -91,20 +91,17 @@ export default function GMConsole({
         setInviteMessage(error.message);
         return;
       }
-      if (!token) {
-        setInviteMessage('Could not generate a new invitation.');
-        return;
-      }
-
-      const url = new URL(window.location.href);
-      url.hash = `player=${token}`;
       setCharacters((previous) =>
         previous.map((character) =>
           character.id === characterId ? { ...character, player_id: null } : character
         )
       );
-      setInvitations((previous) => ({ ...previous, [characterId]: url.toString() }));
-      setInviteMessage(`Access revoked for ${characterName}. Copy the new invitation below.`);
+      setInvitations((previous) => {
+        const next = { ...previous };
+        delete next[characterId];
+        return next;
+      });
+      setInviteMessage(`Access revoked for ${characterName}. Generate a new invitation whenever needed.`);
     } catch {
       setInviteMessage('Could not reset player access. Please try again.');
     } finally {
@@ -162,15 +159,34 @@ export default function GMConsole({
 
           {character.player_id ? (
             <>
-              <p>Already assigned to a player</p>
-              <button
-                disabled={resettingCharacterId !== null}
-                onClick={() => resetPlayerAccess(character.id, character.name)}
-              >
-                {resettingCharacterId === character.id
-                  ? 'Resetting...'
-                  : 'Revoke Access & Generate New Link'}
-              </button>
+              <div className="character-assignment-row">
+                <span className="character-assignment-status">
+                  <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  Already assigned to a player
+                </span>
+                <button
+                  type="button"
+                  className="revoke-access-button"
+                  title="Revoke player access"
+                  aria-label={`Revoke player access for ${character.name}`}
+                  disabled={resettingCharacterId !== null}
+                  onClick={() => resetPlayerAccess(character.id, character.name)}
+                >
+                  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 12a9 9 0 0 1 15.36-6.36L21 8" />
+                    <path d="M21 3v5h-5" />
+                    <path d="M21 12a9 9 0 0 1-15.36 6.36L3 16" />
+                    <path d="M8 16H3v5" />
+                  </svg>
+                </button>
+              </div>
             </>
           ) : (
             <>

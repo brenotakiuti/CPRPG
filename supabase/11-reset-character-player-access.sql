@@ -1,15 +1,13 @@
 -- 11 - Reset Character Player Access
 -- Run once in Supabase SQL Editor BEFORE merging the frontend pull request.
 -- Only the campaign GM may revoke a claimed character's access.
--- Returns a fresh one-time invitation token in the same transaction.
+-- Does NOT create a new invitation. GM may generate one later.
 create or replace function public.reset_character_player_access(p_character_id uuid)
-returns uuid
+returns void
 language plpgsql
 security definer
 set search_path = ''
 as $$
-declare
-  v_token uuid;
 begin
   if auth.uid() is null then
     raise exception 'Authentication required';
@@ -37,11 +35,6 @@ begin
   delete from public.character_invitations
   where character_id = p_character_id;
 
-  insert into public.character_invitations(character_id)
-  values (p_character_id)
-  returning token into v_token;
-
-  return v_token;
 end;
 $$;
 
