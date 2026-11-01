@@ -34,6 +34,49 @@ export default function GMConsole({
   const [inviteMessage, setInviteMessage] = useState('');
   const [resettingCharacterId, setResettingCharacterId] = useState<string | null>(null);
 
+  const [creationToken, setCreationToken] = useState('');
+  const [creationEnabled, setCreationEnabled] = useState(false);
+  const [creationSaving, setCreationSaving] = useState(false);
+  const [creationError, setCreationError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    setCreationToken('');
+    setCreationEnabled(false);
+    setCreationError('');
+    async function loadSettings() {
+      const { data, error } = await supabase.rpc('get_character_creation_settings', {
+        p_campaign_id: campaign.id,
+      });
+      if (!active) return;
+      if (error) setCreationError(error.message);
+      else if (data?.[0]) {
+        setCreationToken(data[0].creation_token);
+        setCreationEnabled(data[0].creation_enabled);
+      }
+    }
+    void loadSettings();
+    return () => { active = false; };
+  }, [campaign.id]);
+
+  async function toggleCreation() {
+    if (!creationToken || creationSaving) return;
+    setCreationSaving(true);
+    setCreationError('');
+    const { data, error } = await supabase.rpc('set_character_creation_enabled', {
+      p_campaign_id: campaign.id,
+      p_enabled: !creationEnabled,
+    });
+    if (error) setCreationError(error.message);
+    else setCreationEnabled(data);
+    setCreationSaving(false);
+  }
+
+  const creationLink = creationToken
+    ? window.location.origin + window.location.pathname + window.location.search + '#create=' + creationToken
+    : '';
+
+
   useEffect(() => {
     let active = true;
 
