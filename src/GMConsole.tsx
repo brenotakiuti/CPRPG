@@ -30,6 +30,7 @@ export default function GMConsole({
   const [invitations, setInvitations] = useState<Record<string, string>>({});
 
   const [inviteMessage, setInviteMessage] = useState('');
+  const [resettingCharacterId, setResettingCharacterId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadCharacters() {
@@ -69,6 +70,46 @@ export default function GMConsole({
       ...previous,
       [characterId]: url.toString(),
     }));
+  }
+
+  async function resetPlayerAccess(characterId: string, characterName: string) {
+    if (!window.confirm(
+      `Revoke access to ${characterName} and generate a new invitation? The previous player will lose access.`
+    )) return;
+
+    setInviteMessage('');
+    setResettingCharacterId(characterId);
+
+    try {
+      // One atomic RPC revokes access and issues the replacement invitation.
+      const { data: token, error } = await supabase.rpc(
+        'reset_character_player_access',
+        { p_character_id: characterId }
+      );
+
+      if (error) {
+        setInviteMessage(error.message);
+        return;
+      }
+      if (!token) {
+        setInviteMessage('Could not generate a new invitation.');
+        return;
+      }
+
+      const url = new URL(window.location.href);
+      url.hash = `player=${token}`;
+      setCharacters((previous) =>
+        previous.map((character) =>
+          character.id === characterId ? { ...character, player_id: null } : character
+        )
+      );
+      setInvitations((previous) => ({ ...previous, [characterId]: url.toString() }));
+      setInviteMessage(`Access revoked for ${characterName}. Copy the new invitation below.`);
+    } catch {
+      setInviteMessage('Could not reset player access. Please try again.');
+    } finally {
+      setResettingCharacterId(null);
+    }
   }
 
   useEffect(() => {
@@ -120,7 +161,17 @@ export default function GMConsole({
           <p>{character.name}</p>
 
           {character.player_id ? (
-            <p>Already assigned to a player</p>
+            <>
+              <p>Already assigned to a player</p>
+              <button
+                disabled={resettingCharacterId !== null}
+                onClick={() => resetPlayerAccess(character.id, character.name)}
+              >
+                {resettingCharacterId === character.id
+                  ? 'Resetting...'
+                  : 'Revoke Access & Generate New Link'}
+              </button>
+            </>
           ) : (
             <>
               <button onClick={() => generateInvitation(character.id)}>
