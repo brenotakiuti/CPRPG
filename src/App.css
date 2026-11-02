@@ -317,3 +317,25 @@
  .gm-online { font-size:11px; }
  .gm-tabs .gm-tab { padding:10px 12px; }
 }
+
+
+/* Unified GM Bank form */
+.gm-dashboard-panel .gm-bank { display:flex; flex-direction:column; gap:18px; max-width:700px; color:#f3f3f3; }
+.gm-bank-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.gm-bank-heading h2 { display:flex; align-items:center; gap:10px; margin:0; font-size:20px; }
+.gm-bank-heading h2 span { color:#e6c34d; font-size:23px; }
+.gm-bank-badge { padding:5px 10px; border-radius:18px; background:#343a44; color:#c6cbd3; font-size:11px; }
+.gm-bank-accounts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.gm-bank-field { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.gm-bank-field label { font-size:12px; font-weight:700; color:#b8c0c9; }
+.gm-dashboard-panel .gm-bank-field select,.gm-dashboard-panel .gm-bank-field input { width:100%; padding:12px; min-width:0; background:#252a32; color:#f3f3f3; border:1px solid #49515d; border-radius:8px; font-size:15px; }
+.gm-bank-field small { color:#9ba4af; font-size:12px; }
+.gm-bank-description { background:#252a32; border-radius:9px; padding:14px; }
+.gm-bank-description strong { font-size:14px; }
+.gm-bank-description p { color:#b8c0c9; font-size:13px; margin:10px 0 0; }
+.gm-bank-error { color:#ff9a9a; font-size:13px; margin:0; }
+.gm-bank-submit { display:flex; align-items:center; gap:14px; }
+.gm-dashboard-panel .gm-bank-submit button { flex:1; background:#e6c34d; color:#111; border:0; border-radius:8px; padding:13px; font-size:15px; font-weight:700; }
+.gm-dashboard-panel .gm-bank-submit button:disabled { opacity:.5; cursor:not-allowed; }
+.gm-bank-success { color:#83d6a3; display:flex; align-items:center; justify-content:center; flex:none; }
+@media(max-width:500px) { .gm-bank-accounts { grid-template-columns:1fr; } }
