@@ -59,7 +59,10 @@ export default function CharacterCreation({ token }: Props) {
       if (!active) return;
       if (ownershipError) { setStatus(ownershipError.message); return; }
       if (ownedCharacter) {
-        window.location.replace(window.location.pathname + window.location.search + '#player');
+        // App.tsx reads the hash only on mount. A hash-only replace does not
+        // remount React, so force a reload after switching to the player route.
+        window.history.replaceState(null, '', window.location.pathname + window.location.search + '#player');
+        window.location.reload();
         return;
       }
       const { data, error } = await supabase.rpc('get_character_creation_campaign', {
