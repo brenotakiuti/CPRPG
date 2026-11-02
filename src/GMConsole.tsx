@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
@@ -18,15 +19,13 @@ function statTier(value: number) {
 }
 
 function StatIcon({ number }: { number: number }) {
-  const common = { width: 23, height: 23, viewBox: '0 0 24 24', fill: 'none',
-    stroke: 'currentColor', strokeWidth: 1.9, strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const, 'aria-hidden': true as const };
+  const iconProps = { size: 23, strokeWidth: 1.9, 'aria-hidden': true as const };
   switch (number) {
-    case 1: return <svg {...common}><path d="M6.5 6.5v11m11-11v11M3 9v6m18-6v6M6.5 12h11M9 5v14m6-14v14" /></svg>;
-    case 2: return <svg {...common}><path d="m13 2-9 12h7l-1 8 10-13h-7l0-7z" /></svg>;
-    case 3: return <svg {...common}><path d="M14.7 6.3a6 6 0 0 0-7.8 7.8l-4.2 4.2a2.5 2.5 0 0 0 3.5 3.5l4.2-4.2a6 6 0 0 0 7.8-7.8l-4 4-4-1  -1-4 4-4z" /></svg>;
-    case 4: return <svg {...common}><path d="M12 18V5a4 4 0 0 0-7.5-1.9A4 4 0 0 0 3 10a4 4 0 0 0 2 7.4A4 4 0 0 0 12 18Zm0 0V5a4 4 0 0 1 7.5-1.9A4 4 0 0 1 21 10a4 4 0 0 1-2 7.4A4 4 0 0 1 12 18Z" /><path d="M8 7c-2 1-2 4 0 5m8-5c2 1 2 4 0 5" /></svg>;
-    case 5: return <svg {...common}><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></svg>;
+    case 1: return <Dumbbell {...iconProps} />;
+    case 2: return <Zap {...iconProps} />;
+    case 3: return <Wrench {...iconProps} />;
+    case 4: return <Brain {...iconProps} />;
+    case 5: return <Eye {...iconProps} />;
     default: return <span className="gm-stat-number-icon">{number}</span>;
   }
 }
@@ -278,13 +277,13 @@ export default function GMConsole({
   }, [campaign.id, selected?.id]);
 
   const visible = characters.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
-  const navigation: { id: typeof page; label: string }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'characters', label: 'Characters' },
-    { id: 'bank', label: 'Bank' },
-    { id: 'inventory', label: 'Inventory' },
-    { id: 'factions', label: 'Factions' },
-  ];
+  const navigation = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'characters', label: 'Characters', icon: Users },
+    { id: 'bank', label: 'Bank', icon: Landmark },
+    { id: 'inventory', label: 'Inventory', icon: Package },
+    { id: 'factions', label: 'Factions', icon: Shield },
+  ] as const;
   const creationControls = (
     <section className="creation-link-section" aria-label="Character creation">
       <div className="creation-link-heading">
@@ -328,6 +327,7 @@ export default function GMConsole({
         {navigation.map((item) => (
           <button key={item.id} type="button" className={page === item.id ? 'gm-tab active' : 'gm-tab'}
             aria-current={page === item.id ? 'page' : undefined} onClick={() => setPage(item.id)}>
+            <item.icon size={17} strokeWidth={1.9} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 8 }} />
             {item.label}
           </button>
         ))}
