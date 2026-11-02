@@ -24,7 +24,7 @@ function StatIcon({ number }: { number: number }) {
   switch (number) {
     case 1: return <svg {...common}><path d="M6.5 6.5v11m11-11v11M3 9v6m18-6v6M6.5 12h11M9 5v14m6-14v14" /></svg>;
     case 2: return <svg {...common}><path d="m13 2-9 12h7l-1 8 10-13h-7l0-7z" /></svg>;
-    case 3: return <svg {...common}><path d="M14.7 6.3a6 6 0 0 0-7.8 7.8l-4.2 4.2a2.5 2.5 0 0 0 3.5 3.5l4.2-4.2a6 6 0 0 0 7.8-7.8l-4 4-4-1-1-4z" /></svg>;
+    case 3: return <svg {...common}><path d="M14.7 6.3a6 6 0 0 0-7.8 7.8l-4.2 4.2a2.5 2.5 0 0 0 3.5 3.5l4.2-4.2a6 6 0 0 0 7.8-7.8l-3.2 3.2-3.2-.8-.8-3.2z" /></svg>;
     case 4: return <svg {...common}><path d="M12 18V5a4 4 0 0 0-7.5-1.9A4 4 0 0 0 3 10a4 4 0 0 0 2 7.4A4 4 0 0 0 12 18Zm0 0V5a4 4 0 0 1 7.5-1.9A4 4 0 0 1 21 10a4 4 0 0 1-2 7.4A4 4 0 0 1 12 18Z" /><path d="M8 7c-2 1-2 4 0 5m8-5c2 1 2 4 0 5" /></svg>;
     case 5: return <svg {...common}><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></svg>;
     default: return <span className="gm-stat-number-icon">{number}</span>;
