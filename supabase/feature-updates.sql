@@ -128,3 +128,53 @@ grant execute on function public.get_character_creation_campaign(uuid)
 
 create unique index if not exists campaigns_character_creation_token_key
   on public.campaigns(character_creation_token);
+
+-- ============================================================
+-- 04. GM Bank: securely withdraw money from a character
+-- ============================================================
+-- GM / Bank as recipient removes funds from circulation.
+-- Only the campaign's GM can call this function. It locks the
+-- character row to prevent simultaneous withdrawals overdrawing.
+create or replace function public.withdraw_money(
+  p_character_id uuid, p_amount bigint
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_balance bigint;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  if p_amount is null or p_amount <= 0 then
+    raise exception 'Amount must be a positive whole number';
+  end if;
+
+  select ch.balance into v_balance
+  from public.characters ch
+  join public.campaigns ca on ca.id = ch.campaign_id
+  where ch.id = p_character_id and ca.gm_id = auth.uid()
+  for update of ch;
+
+  if not found then
+    raise exception 'Character not found or access denied';
+  end if;
+
+  if v_balance < p_amount then
+    raise exception 'Insufficient funds';
+  end if;
+
+  update public.characters
+  set balance = balance - p_amount
+  where id = p_character_id;
+end;
+$$;
+
+revoke all on function public.withdraw_money(uuid, bigint)
+  from public, anon, authenticated;
+grant execute on function public.withdraw_money(uuid, bigint)
+  to authenticated;
