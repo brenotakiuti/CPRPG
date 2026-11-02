@@ -339,3 +339,11 @@
 .gm-dashboard-panel .gm-bank-submit button:disabled { opacity:.5; cursor:not-allowed; }
 .gm-bank-success { color:#83d6a3; display:flex; align-items:center; justify-content:center; flex:none; }
 @media(max-width:500px) { .gm-bank-accounts { grid-template-columns:1fr; } }
+
+/* Read-only campaign-defined stats in the GM character detail panel. */
+.gm-character-stats { padding: 10px 0; }
+.gm-stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+.gm-stat-item { display:flex; flex-direction:column; gap:10px; padding:16px; background:#252a32; border:1px solid #343a44; border-radius:10px; }
+.gm-stat-item span { color:#b8c0c9; font-size:13px; overflow-wrap:anywhere; }
+.gm-stat-item strong { color:#e6c34d; font-size:28px; }
+.gm-stats-error { color:#ff9a9a; font-size:13px; }
