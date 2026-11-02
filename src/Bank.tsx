@@ -6,224 +6,193 @@ type Character = {
   name: string;
   balance: number;
 };
+
 type BankProps = {
   campaignId: string;
 };
 
+const GM_ACCOUNT = 'gm';
+
 export default function Bank({ campaignId }: BankProps) {
   const [characters, setCharacters] = useState<Character[]>([]);
-
   const [senderId, setSenderId] = useState('');
   const [recipientId, setRecipientId] = useState('');
-  const [transferAmount, setTransferAmount] = useState('');
-
-  const [grantCharacterId, setGrantCharacterId] = useState('');
-  const [grantAmount, setGrantAmount] = useState('');
-
+  const [amount, setAmount] = useState('500');
+  const [success, setSuccess] = useState(false);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
 
-  async function loadCharacters() {
-    const { data, error } = await supabase
-      .from('characters')
-      .select('id, name, balance')
-      .eq('campaign_id', campaignId)
-      .order('name');
-
-    if (error) {
-      setMessage(error.message);
-    } else {
-      setCharacters(data ?? []);
-    }
-  }
-
   useEffect(() => {
+    let active = true;
     setCharacters([]);
     setSenderId('');
     setRecipientId('');
-    setGrantCharacterId('');
-    setTransferAmount('');
-    setGrantAmount('');
+    setAmount('500');
+    setSuccess(false);
     setMessage('');
 
-    loadCharacters();
+    async function loadCharacters() {
+      const { data, error } = await supabase
+        .from('characters')
+        .select('id, name, balance')
+        .eq('campaign_id', campaignId)
+        .order('name');
+
+      if (!active) return;
+      if (error) {
+        setMessage(error.message);
+      } else {
+        const next = data ?? [];
+        setCharacters(next);
+        setRecipientId((current) =>
+          current && (current === GM_ACCOUNT || next.some((c) => c.id === current))
+            ? current : ''
+        );
+      }
+    }
 
     const channel = supabase
       .channel(`bank-updates-${campaignId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'characters',
-          filter: `campaign_id=eq.${campaignId}`,
-        },
-        () => {
-          loadCharacters();
-        }
-      )
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'characters',
+        filter: `campaign_id=eq.${campaignId}`,
+      }, () => { void loadCharacters(); })
       .subscribe();
 
+    void loadCharacters();
     return () => {
-      supabase.removeChannel(channel);
+      active = false;
+      void supabase.removeChannel(channel);
     };
   }, [campaignId]);
 
-  function validAmount(value: string) {
-    const amount = Number(value);
+  const accounts = [
+    { id: GM_ACCOUNT, name: 'GM / Bank', balance: null as number | null },
+    ...characters.map((c) => ({ id: c.id, name: c.name, balance: c.balance })),
+  ];
+  const sender = accounts.find((a) => a.id === senderId);
+  const recipient = accounts.find((a) => a.id === recipientId);
+  const numericAmount = Number(amount);
+  const amountValid = amount.trim() !== '' && Number.isSafeInteger(numericAmount) && numericAmount > 0;
+  const insufficient = senderId !== GM_ACCOUNT && sender !== undefined &&
+    sender.balance !== null && amountValid && numericAmount > sender.balance;
+  const valid = !!sender && !!recipient && senderId !== recipientId && amountValid && !insufficient;
+  const kind = senderId === GM_ACCOUNT ? 'deposit' : recipientId === GM_ACCOUNT ? 'withdrawal' : 'transfer';
 
-    return Number.isSafeInteger(amount) && amount > 0;
-  }
+  const format = (value: number) => value.toLocaleString('en-US');
 
-  async function handleTransfer() {
-    if (!senderId || !recipientId) {
-      setMessage('Select both characters.');
-      return;
-    }
-
-    if (senderId === recipientId) {
-      setMessage('Sender and recipient must be different.');
-      return;
-    }
-
-    if (!validAmount(transferAmount)) {
-      setMessage('Enter a positive whole number.');
-      return;
-    }
-
+  async function executeTransfer() {
+    if (busy || !valid) return;
     setBusy(true);
+    setSuccess(false);
     setMessage('');
 
-    const { error } = await supabase.rpc('transfer_money', {
-      sender_id: senderId,
-      recipient_id: recipientId,
-      transfer_amount: Number(transferAmount),
-    });
+    try {
+      let error: { message: string } | null = null;
 
-    if (error) {
-      setMessage(`Transfer failed: ${error.message}`);
-    } else {
-      setMessage('Transfer completed successfully.');
-      setTransferAmount('');
-      await loadCharacters();
+      if (senderId === GM_ACCOUNT) {
+        const result = await supabase.rpc('grant_money', {
+          character_id: recipientId,
+          grant_amount: numericAmount,
+        });
+        error = result.error;
+      } else if (recipientId === GM_ACCOUNT) {
+        const result = await supabase.rpc('withdraw_money', {
+          p_character_id: senderId,
+          p_amount: numericAmount,
+        });
+        error = result.error;
+      } else {
+        const result = await supabase.rpc('transfer_money', {
+          sender_id: senderId,
+          recipient_id: recipientId,
+          transfer_amount: numericAmount,
+        });
+        error = result.error;
+      }
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      const { data, error: refreshError } = await supabase
+        .from('characters')
+        .select('id, name, balance')
+        .eq('campaign_id', campaignId)
+        .order('name');
+
+      if (!refreshError && data) setCharacters(data);
+      setSuccess(true);
+      if (refreshError) setMessage('Transaction succeeded, but balances could not be refreshed.');
+    } catch {
+      setMessage('Transaction could not be completed. Please try again.');
+    } finally {
+      setBusy(false);
     }
-
-    setBusy(false);
   }
 
-  async function handleGrant() {
-    if (!grantCharacterId) {
-      setMessage('Select a character.');
-      return;
-    }
-
-    if (!validAmount(grantAmount)) {
-      setMessage('Enter a positive whole number.');
-      return;
-    }
-
-    setBusy(true);
-    setMessage('');
-
-    const { error } = await supabase.rpc('grant_money', {
-      character_id: grantCharacterId,
-      grant_amount: Number(grantAmount),
-    });
-
-    if (error) {
-      setMessage(`Grant failed: ${error.message}`);
-    } else {
-      setMessage('Funds granted successfully.');
-      setGrantAmount('');
-      await loadCharacters();
-    }
-
-    setBusy(false);
-  }
+  const explanation = kind === 'deposit'
+    ? `Create ${format(numericAmount || 0)} E$ in ${recipient?.name ?? 'the recipient'}'s account.`
+    : kind === 'withdrawal'
+      ? `Remove ${format(numericAmount || 0)} E$ from ${sender?.name ?? 'the sender'}'s account.`
+      : `Move ${format(numericAmount || 0)} E$ from ${sender?.name ?? 'the sender'} to ${recipient?.name ?? 'the recipient'}.`;
 
   return (
-    <div className="bank-content">
-      <h2>Night City Bank</h2>
-
-      <h3>Character Balances</h3>
-
-      {characters.map((character) => (
-        <p key={character.id}>
-          {character.name}: {character.balance} €$
-        </p>
-      ))}
-
-      <h3>Transfer Funds</h3>
-
-      <label>Sender</label>
-      <select value={senderId} onChange={(e) => setSenderId(e.target.value)}>
-        <option value="">Select sender</option>
-        {characters.map((character) => (
-          <option key={character.id} value={character.id}>
-            {character.name}
-          </option>
-        ))}
-      </select>
-
-      <label>Recipient</label>
-      <select
-        value={recipientId}
-        onChange={(e) => setRecipientId(e.target.value)}
-      >
-        <option value="">Select recipient</option>
-        {characters.map((character) => (
-          <option key={character.id} value={character.id}>
-            {character.name}
-          </option>
-        ))}
-      </select>
-
-      <label>Transfer amount</label>
-      <input
-        type="number"
-        min="1"
-        step="1"
-        value={transferAmount}
-        onChange={(e) => setTransferAmount(e.target.value)}
-        placeholder="Amount"
-      />
-
-      <button onClick={handleTransfer} disabled={busy}>
-        Transfer Funds
-      </button>
-
-      <hr />
-
-      <h3>Give Funds</h3>
-
-      <label>Character</label>
-      <select
-        value={grantCharacterId}
-        onChange={(e) => setGrantCharacterId(e.target.value)}
-      >
-        <option value="">Select character</option>
-        {characters.map((character) => (
-          <option key={character.id} value={character.id}>
-            {character.name}
-          </option>
-        ))}
-      </select>
-
-      <label>Amount to give</label>
-      <input
-        type="number"
-        min="1"
-        step="1"
-        value={grantAmount}
-        onChange={(e) => setGrantAmount(e.target.value)}
-        placeholder="Amount"
-      />
-
-      <button onClick={handleGrant} disabled={busy}>
-        Give Funds
-      </button>
-
-      <p className="transfer-message">{message}</p>
-    </div>
+    <section className="gm-bank" aria-label="Bank Transfer">
+      <div className="gm-bank-heading">
+        <h2><span aria-hidden="true">▣</span> Bank Transfer</h2>
+        <span className="gm-bank-badge">GM Control</span>
+      </div>
+      <div className="gm-bank-accounts">
+        <div className="gm-bank-field">
+          <label htmlFor="bank-from">FROM</label>
+          <select id="bank-from" value={senderId} disabled={busy}
+            onChange={(event) => { const next = event.target.value; setSenderId(next); if (recipientId === next) setRecipientId(''); setSuccess(false); setMessage(''); }}>
+            <option value="" disabled>Select character</option>
+            {accounts.map((a) =>
+              <option key={a.id} value={a.id}>{a.name}</option>
+            )}
+          </select>
+          <small>{sender?.balance === null ? 'Unlimited funds' : sender ? `Balance: ${format(sender.balance!)} E$` : ''}</small>
+        </div>
+        <div className="gm-bank-field">
+          <label htmlFor="bank-to">TO</label>
+          <select id="bank-to" value={recipientId} disabled={busy || !senderId}
+            onChange={(event) => { setRecipientId(event.target.value); setSuccess(false); setMessage(''); }}>
+            <option value="" disabled>Select character</option>
+            {accounts.filter((a) => a.id !== senderId).map((a) =>
+              <option key={a.id} value={a.id}>{a.name}</option>
+            )}
+          </select>
+          <small>{recipient?.balance === null ? 'Unlimited funds' : recipient ? `Balance: ${format(recipient.balance!)} E$` : ''}</small>
+        </div>
+      </div>
+      <div className="gm-bank-field">
+        <label htmlFor="bank-amount">AMOUNT (E$)</label>
+        <input id="bank-amount" type="number" min="1" step="1" value={amount}
+          disabled={busy} onChange={(event) => { setAmount(event.target.value); setSuccess(false); setMessage(''); }}
+          placeholder="Enter amount" />
+      </div>
+      <div className="gm-bank-description">
+        <strong>{kind === 'deposit' ? '↓ Deposit funds' : kind === 'withdrawal' ? '↑ Withdraw funds' : '↔ Transfer between characters'}</strong>
+        <p>{explanation}</p>
+      </div>
+      {insufficient && <p className="gm-bank-error" role="alert">Insufficient funds in the sender's account.</p>}
+      {message && <p className="gm-bank-error" role="alert">{message}</p>}
+      <div className="gm-bank-submit">
+        <button type="button" disabled={!valid || busy} onClick={() => void executeTransfer()}>
+          {busy ? 'Processing...' : 'Execute Transfer →'}
+        </button>
+        {success && <span className="gm-bank-success" role="status" aria-label="Transaction successful" title="Transaction successful">
+          <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" /><path d="m7.5 12 3 3 6-6" />
+          </svg>
+        </span>}
+      </div>
+    </section>
   );
 }
