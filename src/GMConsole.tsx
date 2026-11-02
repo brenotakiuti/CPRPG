@@ -30,6 +30,41 @@ function StatIcon({ number }: { number: number }) {
   }
 }
 
+type StatDefinition = {
+  id: string;
+  name: string;
+  description: string;
+  display_order: number;
+  stat_number: number;
+  max_value: number;
+};
+
+// Cache shared definitions per campaign for the lifetime of this browser session.
+// Cache the in-flight promise as well, so rapid character changes share one request.
+const statDefinitionCache = new Map<string, Promise<StatDefinition[]>>();
+
+function getStatDefinitions(campaignId: string): Promise<StatDefinition[]> {
+  const cached = statDefinitionCache.get(campaignId);
+  if (cached) return cached;
+
+  const request = (async () => {
+    const { data, error } = await supabase
+      .from('stat_definitions')
+      .select('id, name, description, display_order, stat_number, max_value')
+      .eq('campaign_id', campaignId)
+      .order('display_order')
+      .order('stat_number');
+    if (error) throw error;
+    return (data ?? []) as StatDefinition[];
+  })();
+  statDefinitionCache.set(campaignId, request);
+  // Failed requests should be retried next time, not cached indefinitely.
+  void request.catch(() => {
+    if (statDefinitionCache.get(campaignId) === request) statDefinitionCache.delete(campaignId);
+  });
+  return request;
+}
+
 type GMConsoleProps = {
   campaign: Campaign;
   onSwitchCampaign: () => void;
@@ -233,32 +268,22 @@ export default function GMConsole({
 
     async function loadStats() {
       setStatsLoading(true);
-      const { data: definitions, error: definitionsError } = await supabase
-        .from('stat_definitions')
-        .select('id, name, description, display_order, stat_number, max_value')
-        .eq('campaign_id', campaign.id)
-        .order('display_order')
-        .order('stat_number');
+      try {
+        // Definitions are shared by all characters; values are character-specific.
+        // Run both independently so network latency doesn't accumulate.
+        const [definitions, { data: values, error: valuesError }] = await Promise.all([
+          getStatDefinitions(campaign.id),
+          supabase
+            .from('character_stats')
+            .select('stat_id, value')
+            .eq('campaign_id', campaign.id)
+            .eq('character_id', selected!.id),
+        ]);
+        if (!active) return;
+        if (valuesError) throw valuesError;
 
-      if (!active) return;
-      if (definitionsError) {
-        setStatsError(definitionsError.message);
-        setStatsLoading(false);
-        return;
-      }
-
-      const { data: values, error: valuesError } = await supabase
-        .from('character_stats')
-        .select('stat_id, value')
-        .eq('campaign_id', campaign.id)
-        .eq('character_id', selected!.id);
-
-      if (!active) return;
-      if (valuesError) {
-        setStatsError(valuesError.message);
-      } else {
         const byId = new Map((values ?? []).map((entry) => [entry.stat_id, entry.value]));
-        setStats((definitions ?? [])
+        setStats(definitions
           .filter((definition) => byId.has(definition.id))
           .map((definition) => ({
             id: definition.id,
@@ -268,8 +293,11 @@ export default function GMConsole({
             description: definition.description,
             maxValue: definition.max_value,
           })));
+      } catch (error) {
+        if (active) setStatsError(error instanceof Error ? error.message : 'Could not load stats');
+      } finally {
+        if (active) setStatsLoading(false);
       }
-      setStatsLoading(false);
     }
 
     void loadStats();
