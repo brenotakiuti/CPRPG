@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
@@ -16,15 +15,19 @@ export default function GMConsole({
   campaign,
   onSwitchCampaign,
 }: GMConsoleProps) {
-  const [page, setPage] = useState<'home' | 'bank' | 'characters'>(() => {
-    const savedPage = sessionStorage.getItem('gm-page');
-    return savedPage === 'bank' || savedPage === 'characters' ? savedPage : 'home';
+  const [page, setPage] = useState<'overview' | 'bank' | 'characters' | 'inventory' | 'factions'>(() => {
+    const saved = sessionStorage.getItem('gm-page');
+    return saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' ? saved : 'overview';
   });
+  const [selectedId, setSelectedId] = useState('');
+  const [detailTab, setDetailTab] = useState<'stats' | 'cyberware' | 'inventory' | 'access'>('stats');
+  const [search, setSearch] = useState('');
 
   type CharacterOption = {
     id: string;
     name: string;
     player_id: string | null;
+    balance: number;
   };
 
   const [characters, setCharacters] = useState<CharacterOption[]>([]);
@@ -83,7 +86,7 @@ export default function GMConsole({
     async function loadCharacters() {
       const { data, error } = await supabase
         .from('characters')
-        .select('id, name, player_id')
+        .select('id, name, player_id, balance')
         .eq('campaign_id', campaign.id)
         .order('name');
 
@@ -194,156 +197,154 @@ export default function GMConsole({
     sessionStorage.setItem('gm-page', page);
   }, [page]);
 
-  // Shared page shell for GM tools. Future tools can reuse this layout.
-  function toolPage(title: string, content: ReactNode) {
-    return (
-      <div className="bank gm-tool-page">
-        <button className="gm-back-button" onClick={() => setPage('home')}>
-          ← Back to GM Console
-        </button>
-        <h1>{title}</h1>
-        {content}
-      </div>
-    );
-  }
-
-  if (page === 'bank') {
-    return toolPage('Bank', <Bank campaignId={campaign.id} />);
-  }
-
-  if (page === 'characters') {
-    return toolPage('Character Assignment', (
-      <>
-      {characters.map((character) => (
-        <div className="campaign-item" key={character.id}>
-          <p>{character.name}</p>
-
-          {character.player_id ? (
-            <>
-              <div className="character-assignment-row">
-                <span className="character-assignment-status">
-                  <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24"
-                    fill="none" stroke="currentColor" strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                  Already assigned to a player
-                </span>
-                <button
-                  type="button"
-                  className="revoke-access-button"
-                  title="Revoke player access"
-                  aria-label={`Revoke player access for ${character.name}`}
-                  disabled={resettingCharacterId !== null}
-                  onClick={() => resetPlayerAccess(character.id, character.name)}
-                >
-                  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"
-                    fill="none" stroke="currentColor" strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 12a9 9 0 0 1 15.36-6.36L21 8" />
-                    <path d="M21 3v5h-5" />
-                    <path d="M21 12a9 9 0 0 1-15.36 6.36L3 16" />
-                    <path d="M8 16H3v5" />
-                  </svg>
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <button onClick={() => generateInvitation(character.id)}>
-                Generate Invitation
-              </button>
-
-              {invitations[character.id] && (
-                <>
-                  <input readOnly value={invitations[character.id]} />
-
-                  <button
-                    onClick={() =>
-                      navigator.clipboard.writeText(invitations[character.id])
-                    }
-                  >
-                    Copy Link
-                  </button>
-                </>
-              )}
-            </>
-          )}
-        </div>
-      ))}
-
-        {inviteMessage && <p className="transfer-message" role="alert">{inviteMessage}</p>}
-      </>
-    ));
-  }
-
-  return (
-    <div className="bank">
-      <h1>GM Console</h1>
-      <h2>{campaign.name}</h2>
-      <p>Logged in as: {session.user.email}</p>
-
-      <button className="gm-feature-button" onClick={() => setPage('bank')}>
-        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"
-          fill="none" stroke="currentColor" strokeWidth="2"
-          strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 8V5a2 2 0 0 0-2-2H5a3 3 0 0 0 0 6h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a3 3 0 0 1-3-3V6" />
-          <path d="M18 12h4" />
-        </svg>
-        Open Bank
-      </button>
-
-      <button className="gm-feature-button" onClick={() => setPage('characters')}>
-        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"
-          fill="none" stroke="currentColor" strokeWidth="2"
-          strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="4" width="18" height="16" rx="2" />
-          <circle cx="9" cy="10" r="2" />
-          <path d="M5.5 16c.7-2 6.3-2 7 0M15 9h4M15 13h4M15 17h3" />
-        </svg>
-        Character Assignment
-      </button>
-
-
-      <section className="creation-link-section" aria-label="Character creation">
-        <div className="creation-link-heading">
-          <span>Character Creation Link</span>
-          <div className="creation-toggle-group">
-            <span>{creationEnabled ? 'Enabled' : 'Disabled'}</span>
-            <button
-              type="button"
-              className={creationEnabled ? 'creation-switch is-enabled' : 'creation-switch'}
-              role="switch"
-              aria-checked={creationEnabled}
-              aria-label="Enable character creation"
-              disabled={!creationToken || creationSaving}
-              onClick={() => void toggleCreation()}
-            >
-              <span className="creation-switch-thumb" />
-            </button>
-          </div>
-        </div>
-        <div className="creation-link-row">
-          <input readOnly aria-label="Character creation link"
-            value={creationLink} placeholder="Loading link..." title={creationLink} />
-          <button type="button" className="creation-copy-button"
-            aria-label="Copy character creation link" title="Copy character creation link"
-            disabled={!creationLink}
-            onClick={() => void navigator.clipboard.writeText(creationLink)}>
-            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" strokeWidth="2"
-              strokeLinecap="round" strokeLinejoin="round">
-              <rect x="8" y="8" width="13" height="13" rx="2" />
-              <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
-            </svg>
+  const selected = characters.find((c) => c.id === selectedId) ?? characters[0];
+  const visible = characters.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
+  const navigation: { id: typeof page; label: string }[] = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'characters', label: 'Characters' },
+    { id: 'bank', label: 'Bank' },
+    { id: 'inventory', label: 'Inventory' },
+    { id: 'factions', label: 'Factions' },
+  ];
+  const creationControls = (
+    <section className="creation-link-section" aria-label="Character creation">
+      <div className="creation-link-heading">
+        <span>Character Creation Link</span>
+        <div className="creation-toggle-group">
+          <span>{creationEnabled ? 'Enabled' : 'Disabled'}</span>
+          <button type="button" className={creationEnabled ? 'creation-switch is-enabled' : 'creation-switch'}
+            role="switch" aria-checked={creationEnabled} aria-label="Enable character creation"
+            disabled={!creationToken || creationSaving} onClick={() => void toggleCreation()}>
+            <span className="creation-switch-thumb" />
           </button>
         </div>
-        {creationError && <p className="creation-error" role="alert">{creationError}</p>}
-      </section>
+      </div>
+      <div className="creation-link-row">
+        <input readOnly aria-label="Character creation link" value={creationLink}
+          placeholder="Loading link..." title={creationLink} />
+        <button type="button" className="creation-copy-button" aria-label="Copy character creation link"
+          title="Copy character creation link" disabled={!creationLink}
+          onClick={() => void navigator.clipboard.writeText(creationLink)}>
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="8" y="8" width="13" height="13" rx="2" />
+            <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
+          </svg>
+        </button>
+      </div>
+      {creationError && <p className="creation-error" role="alert">{creationError}</p>}
+    </section>
+  );
 
-      <button onClick={onSwitchCampaign}>Switch Campaign</button>
-      <button onClick={() => supabase.auth.signOut()}>Log out</button>
+  return (
+    <div className="gm-dashboard">
+      <header className="gm-dashboard-header">
+        <div>
+          <div className="gm-eyebrow">CYBERPUNK RPG · GM TERMINAL</div>
+          <h1>{campaign.name}</h1>
+        </div>
+        <span className="gm-online">◉ &nbsp; GM Online</span>
+      </header>
+      <nav className="gm-tabs" aria-label="GM tools">
+        {navigation.map((item) => (
+          <button key={item.id} type="button" className={page === item.id ? 'gm-tab active' : 'gm-tab'}
+            aria-current={page === item.id ? 'page' : undefined} onClick={() => setPage(item.id)}>
+            {item.label}
+          </button>
+        ))}
+      </nav>
+      {page === 'characters' ? (
+        <div className="gm-characters-layout">
+          <aside className="gm-roster">
+            <div className="gm-roster-heading"><strong>Roster</strong><span>{characters.length}</span></div>
+            <input aria-label="Search characters" placeholder="Search..." value={search}
+              onChange={(e) => setSearch(e.target.value)} />
+            {visible.map((character) => (
+              <button type="button" key={character.id}
+                className={selected?.id === character.id ? 'gm-roster-card selected' : 'gm-roster-card'}
+                onClick={() => { setSelectedId(character.id); setDetailTab('stats'); setInviteMessage(''); }}>
+                <span className="gm-roster-card-top">
+                  <span className="gm-avatar" aria-hidden="true">♙</span>
+                  <span><strong>{character.name}</strong><small>Character</small></span>
+                </span>
+                <small className={character.player_id ? 'gm-assigned' : 'gm-unassigned'}>
+                  {character.player_id ? '● Assigned to player' : '○ Unassigned'}
+                </small>
+              </button>
+            ))}
+            {visible.length === 0 && <p className="gm-muted">No matching characters.</p>}
+          </aside>
+          <main className="gm-character-details">
+            {selected ? (
+              <>
+                <div className="gm-character-header">
+                  <div><h2>{selected.name}</h2><p>Character</p></div>
+                  <div className="gm-character-balance">
+                    <strong>{selected.balance.toLocaleString('en-US')} E$</strong>
+                    <small className={selected.player_id ? 'gm-assigned' : 'gm-unassigned'}>
+                      {selected.player_id ? 'Assigned to player' : 'Unassigned'}
+                    </small>
+                  </div>
+                </div>
+                <div className="gm-detail-tabs" role="tablist" aria-label="Character details">
+                  {(['stats', 'cyberware', 'inventory', 'access'] as const).map((tab) => (
+                    <button key={tab} role="tab" aria-selected={detailTab === tab}
+                      className={detailTab === tab ? 'selected' : ''}
+                      onClick={() => setDetailTab(tab)}>{tab[0].toUpperCase() + tab.slice(1)}</button>
+                  ))}
+                </div>
+                {detailTab === 'stats' && (
+                  <div className="gm-placeholder-stats">
+                    <p>Stats will appear here when character attributes are added.</p>
+                  </div>
+                )}
+                {detailTab === 'cyberware' && <div className="gm-empty-detail">No cyberware installed</div>}
+                {detailTab === 'inventory' && <div className="gm-empty-detail">Inventory is empty</div>}
+                {detailTab === 'access' && (
+                  <div className="gm-access-panel">
+                    {selected.player_id ? (
+                      <div className="character-assignment-row">
+                        <span className="character-assignment-status">Assigned to player</span>
+                        <button type="button" className="revoke-access-button"
+                          title="Revoke player access" aria-label={`Revoke player access for ${selected.name}`}
+                          disabled={resettingCharacterId !== null}
+                          onClick={() => void resetPlayerAccess(selected.id, selected.name)}>↻</button>
+                      </div>
+                    ) : (
+                      <>
+                        <button onClick={() => void generateInvitation(selected.id)}>Generate Invitation</button>
+                        {invitations[selected.id] && (
+                          <div className="gm-invitation">
+                            <input readOnly aria-label="Character invitation" value={invitations[selected.id]} />
+                            <button onClick={() => void navigator.clipboard.writeText(invitations[selected.id])}>Copy Link</button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {inviteMessage && <p className="transfer-message" role="alert">{inviteMessage}</p>}
+                  </div>
+                )}
+              </>
+            ) : <p className="gm-muted">No characters in this campaign yet.</p>}
+          </main>
+        </div>
+      ) : page === 'bank' ? (
+        <div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>
+      ) : page === 'overview' ? (
+        <div className="gm-dashboard-panel gm-overview">
+          <h2>Campaign Overview</h2>
+          <p>{characters.length} characters in this campaign</p>
+          {creationControls}
+          <div className="gm-account-actions">
+            <button onClick={onSwitchCampaign}>Switch Campaign</button>
+            <button onClick={() => void supabase.auth.signOut()}>Log out</button>
+          </div>
+        </div>
+      ) : (
+        <div className="gm-dashboard-panel gm-empty-detail">
+          {page === 'inventory' ? 'Inventory' : 'Factions'} — coming later
+        </div>
+      )}
     </div>
   );
 }
