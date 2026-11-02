@@ -86,7 +86,7 @@ export default function CharacterCreation({ token }: Props) {
     }
     setCreated(true);
     setSubmitting(false);
-    window.history.replaceState(null, '', window.location.pathname + window.location.search + '#player');
+
   }
 
   function adjust(index: number, delta: number) {
@@ -138,7 +138,7 @@ export default function CharacterCreation({ token }: Props) {
             })}
             <div className="cc-footer"><button className="cc-secondary" onClick={() => setStep(0)}><ArrowLeft size={17} /> Back</button><button className="cc-primary" disabled={remaining !== 0} onClick={() => setStep(2)}>Review <ArrowRight size={17} /></button></div>
           </>}
-          {created ? <section className="cc-card cc-review"><div className="cc-section-label"><Check size={20} /> CHARACTER CREATED</div><h2>{name.trim()}</h2><p>Your character is ready. You can now open your player dashboard.</p><a className="cc-primary" href="#player">Open player dashboard <ArrowRight size={17} /></a></section> : step === 2 && <>
+          {created ? <section className="cc-card cc-review"><div className="cc-section-label"><Check size={20} /> CHARACTER CREATED</div><h2>{name.trim()}</h2><p>Your character is ready. You can now open your player dashboard.</p><button className="cc-primary" onClick={() => { window.location.hash = "player"; window.location.reload(); }}>Open player dashboard <ArrowRight size={17} /></button></section> : step === 2 && <>
             <section className="cc-card cc-review"><div className="cc-section-label"><Check size={20} /> CHARACTER PROFILE</div><h2>{name.trim()}</h2><div className="cc-review-list">{ATTRIBUTES.map((attribute, i) => <div className="cc-review-row" key={attribute.name}><span>{attribute.name}</span><span style={{ color: tier(values[i]).color }}>{tier(values[i]).name} <strong>{values[i]}</strong></span></div>)}</div><div className="cc-review-row"><strong>Total points</strong><strong>30 / 30</strong></div></section>
             <div className="cc-footer"><button className="cc-secondary" onClick={() => setStep(1)}><ArrowLeft size={17} /> Edit</button><button className="cc-primary" disabled={submitting || remaining !== 0} onClick={() => void createCharacter()}>{submitting ? "Creating..." : "Create character"} <Check size={17} /></button></div>
             {submitError && <p className="cc-error" role="alert">{submitError}</p>}
