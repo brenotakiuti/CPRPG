@@ -15,7 +15,7 @@ const GM_ACCOUNT = 'gm';
 
 export default function Bank({ campaignId }: BankProps) {
   const [characters, setCharacters] = useState<Character[]>([]);
-  const [senderId, setSenderId] = useState(GM_ACCOUNT);
+  const [senderId, setSenderId] = useState('');
   const [recipientId, setRecipientId] = useState('');
   const [amount, setAmount] = useState('500');
   const [success, setSuccess] = useState(false);
@@ -25,7 +25,7 @@ export default function Bank({ campaignId }: BankProps) {
   useEffect(() => {
     let active = true;
     setCharacters([]);
-    setSenderId(GM_ACCOUNT);
+    setSenderId('');
     setRecipientId('');
     setAmount('500');
     setSuccess(false);
@@ -46,7 +46,7 @@ export default function Bank({ campaignId }: BankProps) {
         setCharacters(next);
         setRecipientId((current) =>
           current && (current === GM_ACCOUNT || next.some((c) => c.id === current))
-            ? current : (next[0]?.id ?? '')
+            ? current : ''
         );
       }
     }
@@ -151,6 +151,7 @@ export default function Bank({ campaignId }: BankProps) {
           <label htmlFor="bank-from">FROM</label>
           <select id="bank-from" value={senderId} disabled={busy}
             onChange={(event) => { const next = event.target.value; setSenderId(next); if (recipientId === next) setRecipientId(''); setSuccess(false); setMessage(''); }}>
+            <option value="" disabled>Select character</option>
             {accounts.map((a) =>
               <option key={a.id} value={a.id}>{a.name}</option>
             )}
@@ -159,9 +160,9 @@ export default function Bank({ campaignId }: BankProps) {
         </div>
         <div className="gm-bank-field">
           <label htmlFor="bank-to">TO</label>
-          <select id="bank-to" value={recipientId} disabled={busy || characters.length === 0}
+          <select id="bank-to" value={recipientId} disabled={busy || !senderId}
             onChange={(event) => { setRecipientId(event.target.value); setSuccess(false); setMessage(''); }}>
-            <option value="" disabled>Select recipient</option>
+            <option value="" disabled>Select character</option>
             {accounts.filter((a) => a.id !== senderId).map((a) =>
               <option key={a.id} value={a.id}>{a.name}</option>
             )}
