@@ -1,17 +1,14 @@
 import { useEffect, useState } from 'react';
-import type { Session } from '@supabase/supabase-js';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
 
 type GMConsoleProps = {
-  session: Session;
   campaign: Campaign;
   onSwitchCampaign: () => void;
 };
 
 export default function GMConsole({
-  session,
   campaign,
   onSwitchCampaign,
 }: GMConsoleProps) {
