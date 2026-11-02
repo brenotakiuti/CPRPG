@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Brain, Dumbbell, Eye, Wrench, Zap } from 'lucide-react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
@@ -277,13 +277,13 @@ export default function GMConsole({
   }, [campaign.id, selected?.id]);
 
   const visible = characters.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
-  const navigation: { id: typeof page; label: string }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'characters', label: 'Characters' },
-    { id: 'bank', label: 'Bank' },
-    { id: 'inventory', label: 'Inventory' },
-    { id: 'factions', label: 'Factions' },
-  ];
+  const navigation = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'characters', label: 'Characters', icon: Users },
+    { id: 'bank', label: 'Bank', icon: Landmark },
+    { id: 'inventory', label: 'Inventory', icon: Package },
+    { id: 'factions', label: 'Factions', icon: Shield },
+  ] as const;
   const creationControls = (
     <section className="creation-link-section" aria-label="Character creation">
       <div className="creation-link-heading">
@@ -327,6 +327,7 @@ export default function GMConsole({
         {navigation.map((item) => (
           <button key={item.id} type="button" className={page === item.id ? 'gm-tab active' : 'gm-tab'}
             aria-current={page === item.id ? 'page' : undefined} onClick={() => setPage(item.id)}>
+            <item.icon size={17} strokeWidth={1.9} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 8 }} />
             {item.label}
           </button>
         ))}
