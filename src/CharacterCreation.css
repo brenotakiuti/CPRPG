@@ -1,3 +1,4 @@
+#root:has(.cc-page){padding:0;align-items:stretch;justify-content:stretch}
 /* Player-facing mobile character creation. Isolated from the GM console. */
 .cc-page{width:100%;min-height:100dvh;background:#090d12;color:#f3f4f6;font-family:Arial,sans-serif;padding:18px 12px 40px;display:flex;justify-content:center;align-items:flex-start}
 .cc-page *{box-sizing:border-box}
