@@ -27,6 +27,9 @@ export default function CharacterCreation({ token }: Props) {
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [values, setValues] = useState([...DEFAULT_VALUES]);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [created, setCreated] = useState(false);
   const remaining = BUDGET - values.reduce((sum, value) => sum + value, 0);
 
   useEffect(() => {
@@ -61,6 +64,30 @@ export default function CharacterCreation({ token }: Props) {
     void connect();
     return () => { active = false; };
   }, [token]);
+
+  async function createCharacter() {
+    if (submitting || created || !name.trim() || remaining !== 0 || status) return;
+    setSubmitting(true);
+    setSubmitError('');
+    const { data, error } = await supabase.rpc('create_player_character', {
+      p_token: token,
+      p_name: name.trim(),
+      p_attributes: Object.fromEntries(ATTRIBUTES.map((attribute, i) => [attribute.name, values[i]])),
+    });
+    if (error) {
+      setSubmitError(error.message);
+      setSubmitting(false);
+      return;
+    }
+    if (!data) {
+      setSubmitError('Character creation did not return an identifier.');
+      setSubmitting(false);
+      return;
+    }
+    setCreated(true);
+    setSubmitting(false);
+    window.history.replaceState(null, '', window.location.pathname + window.location.search + '#player');
+  }
 
   function adjust(index: number, delta: number) {
     setValues((current) => {
@@ -111,10 +138,10 @@ export default function CharacterCreation({ token }: Props) {
             })}
             <div className="cc-footer"><button className="cc-secondary" onClick={() => setStep(0)}><ArrowLeft size={17} /> Back</button><button className="cc-primary" disabled={remaining !== 0} onClick={() => setStep(2)}>Review <ArrowRight size={17} /></button></div>
           </>}
-          {step === 2 && <>
+          {created ? <section className="cc-card cc-review"><div className="cc-section-label"><Check size={20} /> CHARACTER CREATED</div><h2>{name.trim()}</h2><p>Your character is ready. You can now open your player dashboard.</p><a className="cc-primary" href="#player">Open player dashboard <ArrowRight size={17} /></a></section> : step === 2 && <>
             <section className="cc-card cc-review"><div className="cc-section-label"><Check size={20} /> CHARACTER PROFILE</div><h2>{name.trim()}</h2><div className="cc-review-list">{ATTRIBUTES.map((attribute, i) => <div className="cc-review-row" key={attribute.name}><span>{attribute.name}</span><span style={{ color: tier(values[i]).color }}>{tier(values[i]).name} <strong>{values[i]}</strong></span></div>)}</div><div className="cc-review-row"><strong>Total points</strong><strong>30 / 30</strong></div></section>
-            <div className="cc-footer"><button className="cc-secondary" onClick={() => setStep(1)}><ArrowLeft size={17} /> Edit</button><button className="cc-primary" disabled title="Database submission will be added in the next implementation step">Create character <Check size={17} /></button></div>
-            <p className="cc-note">Preview only — character submission is not enabled yet.</p>
+            <div className="cc-footer"><button className="cc-secondary" onClick={() => setStep(1)}><ArrowLeft size={17} /> Edit</button><button className="cc-primary" disabled={submitting || remaining !== 0} onClick={() => void createCharacter()}>{submitting ? "Creating..." : "Create character"} <Check size={17} /></button></div>
+            {submitError && <p className="cc-error" role="alert">{submitError}</p>}
           </>}
         </>}
       </div>
