@@ -196,7 +196,6 @@ function App() {
   // Screen 3: GM Main
   return (
     <GMConsole
-      session={session}
       campaign={campaign}
       onSwitchCampaign={switchCampaign}
     />
