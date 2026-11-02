@@ -48,6 +48,20 @@ export default function CharacterCreation({ token }: Props) {
         setStatus('Open this link in a separate browser or private window.');
         return;
       }
+      // Existing anonymous players should never be asked to recreate a character.
+      // RLS already allows players to read their own character.
+      const { data: ownedCharacter, error: ownershipError } = await supabase
+        .from('characters')
+        .select('id')
+        .eq('player_id', session.user.id)
+        .limit(1)
+        .maybeSingle();
+      if (!active) return;
+      if (ownershipError) { setStatus(ownershipError.message); return; }
+      if (ownedCharacter) {
+        window.location.replace(window.location.pathname + window.location.search + '#player');
+        return;
+      }
       const { data, error } = await supabase.rpc('get_character_creation_campaign', {
         p_token: token,
       });
