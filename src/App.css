@@ -257,3 +257,63 @@
 }
 .bank .creation-copy-button:hover:not(:disabled) { background: #343e4a; }
 .creation-error { color: #ff9a9a; font-size: 12px; overflow-wrap: anywhere; }
+
+
+/* Desktop-first GM dashboard. Scoped to avoid changing player/login layouts. */
+.gm-dashboard { box-sizing:border-box; width:min(1100px,calc(100vw - 32px)); min-height:570px; padding:18px; background:#0d0f13; color:#f3f3f3; border-radius:20px; font-family:Arial,sans-serif; text-align:left; }
+.gm-dashboard * { box-sizing:border-box; }
+.gm-dashboard-header { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.gm-dashboard-header h1 { margin:8px 0 0; font-size:22px; color:#f3f3f3; }
+.gm-eyebrow { color:#d7b73e; font-size:11px; font-weight:700; }
+.gm-online { color:#aab1bc; font-size:13px; white-space:nowrap; }
+.gm-tabs { display:flex; gap:5px; overflow-x:auto; border-bottom:1px solid #30353d; padding:16px 0 20px; margin-bottom:22px; }
+.gm-dashboard button { cursor:pointer; font-family:inherit; }
+.gm-tabs .gm-tab { flex:none; border:0; border-bottom:2px solid transparent; border-radius:7px; background:#1e2229; color:#b4bbc5; padding:12px 16px; font-size:14px; }
+.gm-tabs .gm-tab.active { background:#3a321e; border-bottom-color:#e5c34d; color:#f0d052; font-weight:700; }
+.gm-characters-layout { display:grid; grid-template-columns:minmax(190px,32%) minmax(0,1fr); gap:14px; align-items:start; }
+.gm-roster,.gm-character-details,.gm-dashboard-panel { background:#171b21; border-radius:14px; padding:12px; min-width:0; }
+.gm-roster { display:flex; flex-direction:column; gap:9px; }
+.gm-roster-heading { display:flex; justify-content:space-between; align-items:center; font-size:14px; }
+.gm-roster-heading span { border-radius:20px; background:#343a44; padding:4px 9px; font-size:12px; }
+.gm-roster input,.gm-invitation input { width:100%; min-width:0; padding:9px 12px; background:#1c2027; border:1px solid #444a54; border-radius:20px; color:#f3f3f3; }
+.gm-roster-card { display:flex; flex-direction:column; gap:8px; text-align:left; width:100%; border:1px solid #343a44; background:#252a32; color:#f5f5f5; border-radius:9px; padding:10px; }
+.gm-roster-card.selected { background:#383222; border-color:#ac913b; }
+.gm-roster-card-top { display:flex; align-items:center; gap:10px; }
+.gm-roster-card-top strong { display:block; font-size:14px; }
+.gm-roster-card-top small { display:block; margin-top:4px; color:#a8b0bb; font-size:11px; }
+.gm-avatar { display:grid; place-items:center; flex:none; width:36px; height:36px; border-radius:8px; background:#343a44; color:#e5c34d; font-size:22px; }
+.gm-assigned { color:#9fd3b1; font-size:11px; }
+.gm-unassigned { color:#e6b963; font-size:11px; }
+.gm-character-details { padding:16px; min-height:395px; }
+.gm-character-header { display:flex; justify-content:space-between; gap:12px; }
+.gm-character-header h2 { margin:0; font-size:24px; }
+.gm-character-header p { margin:8px 0 0; color:#aab1bc; font-size:14px; }
+.gm-character-balance { display:flex; flex-direction:column; gap:8px; align-items:flex-end; text-align:right; }
+.gm-character-balance strong { color:#e6c34d; font-size:18px; }
+.gm-detail-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0; }
+.gm-detail-tabs button { border:1px solid #50545c; border-radius:22px; background:transparent; color:#c6cbd3; padding:7px 14px; }
+.gm-detail-tabs button.selected { color:#171b21; background:#f1f1f1; border-color:#f1f1f1; }
+.gm-empty-detail,.gm-placeholder-stats { color:#a8b0bb; text-align:center; padding:52px 12px; }
+.gm-access-panel { display:flex; flex-direction:column; gap:12px; }
+.gm-access-panel button,.gm-overview button { border:1px solid #a78c35; border-radius:7px; padding:10px 14px; background:#e5c34d; color:#111; font-weight:700; }
+.gm-access-panel .revoke-access-button { background:#252a32; color:#e5c34d; width:38px; }
+.gm-invitation { display:flex; gap:8px; }
+.gm-muted { color:#a8b0bb; font-size:13px; }
+.gm-dashboard-panel { padding:20px; }
+.gm-dashboard-panel h2 { margin-top:0; }
+.gm-dashboard-panel .bank-content { max-width:600px; }
+.gm-dashboard-panel .bank-content input,.gm-dashboard-panel .bank-content select { width:100%; box-sizing:border-box; }
+.gm-dashboard-panel .bank-content button { padding:12px; background:#e5c34d; border:0; border-radius:5px; font-weight:700; }
+.gm-overview .creation-link-section { max-width:620px; margin:24px 0; }
+.gm-overview .creation-link-row input { flex:1; min-width:0; background:#252d38; color:white; border:1px solid #64748b; padding:10px; }
+.gm-overview .creation-copy-button { flex:none; background:#252d38; color:#f5d742; border:1px solid #64748b; border-radius:5px; padding:9px; }
+.gm-overview .creation-switch { width:42px; height:24px; padding:3px; border:0; border-radius:20px; background:#596675; display:flex; align-items:center; justify-content:flex-start; }
+.gm-overview .creation-switch.is-enabled { background:#3e9c65; justify-content:flex-end; }
+.gm-account-actions { display:flex; gap:10px; flex-wrap:wrap; }
+@media(max-width:650px) {
+ .gm-dashboard { width:calc(100vw - 16px); padding:12px; }
+ .gm-characters-layout { grid-template-columns:1fr; }
+ .gm-roster { max-height:280px; overflow:auto; }
+ .gm-online { font-size:11px; }
+ .gm-tabs .gm-tab { padding:10px 12px; }
+}
