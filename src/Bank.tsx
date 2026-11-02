@@ -150,8 +150,8 @@ export default function Bank({ campaignId }: BankProps) {
         <div className="gm-bank-field">
           <label htmlFor="bank-from">FROM</label>
           <select id="bank-from" value={senderId} disabled={busy}
-            onChange={(event) => { setSenderId(event.target.value); setSuccess(false); setMessage(''); }}>
-            {accounts.filter((a) => a.id !== recipientId).map((a) =>
+            onChange={(event) => { const next = event.target.value; setSenderId(next); if (recipientId === next) setRecipientId(''); setSuccess(false); setMessage(''); }}>
+            {accounts.map((a) =>
               <option key={a.id} value={a.id}>{a.name}</option>
             )}
           </select>
@@ -161,6 +161,7 @@ export default function Bank({ campaignId }: BankProps) {
           <label htmlFor="bank-to">TO</label>
           <select id="bank-to" value={recipientId} disabled={busy || characters.length === 0}
             onChange={(event) => { setRecipientId(event.target.value); setSuccess(false); setMessage(''); }}>
+            <option value="" disabled>Select recipient</option>
             {accounts.filter((a) => a.id !== senderId).map((a) =>
               <option key={a.id} value={a.id}>{a.name}</option>
             )}
