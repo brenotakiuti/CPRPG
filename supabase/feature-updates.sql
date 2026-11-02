@@ -213,3 +213,94 @@ using (
       and ca.gm_id = (select auth.uid())
   )
 );
+
+-- ============================================================
+-- 06. Player character creation: atomic character + attributes
+-- ============================================================
+-- Run this section in Supabase SQL Editor before testing the button.
+-- Assumes characters(id, campaign_id, player_id, name, balance),
+-- stat_definitions(id, campaign_id, name) and
+-- character_stats(character_id, campaign_id, stat_id, value).
+-- This function deliberately does not grant direct INSERT access.
+create or replace function public.create_player_character(
+  p_token uuid, p_name text, p_attributes jsonb
+)
+returns uuid
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_campaign_id uuid;
+  v_character_id uuid;
+  v_stat record;
+  v_value integer;
+  v_total integer := 0;
+  v_count integer := 0;
+  v_user_id uuid := auth.uid();
+begin
+  if v_user_id is null or not coalesce((auth.jwt()->>'is_anonymous')::boolean, false) then
+    raise exception 'Anonymous player session required';
+  end if;
+  if p_name is null or length(btrim(p_name)) < 1 or length(btrim(p_name)) > 60 then
+    raise exception 'Character name must be 1 to 60 characters';
+  end if;
+  if p_attributes is null or jsonb_typeof(p_attributes) <> 'object'
+    or (select count(*) from jsonb_object_keys(p_attributes)) <> 5 then
+    raise exception 'Exactly five attributes are required';
+  end if;
+
+  -- Serialize submissions from the same player to avoid duplicate characters.
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_user_id::text, 0));
+
+  select c.id into v_campaign_id
+  from public.campaigns c
+  where c.character_creation_token = p_token
+    and c.character_creation_enabled = true
+  for update;
+  if not found then
+    raise exception 'Invalid link or character creation is disabled';
+  end if;
+
+  if exists (select 1 from public.characters ch where ch.player_id = v_user_id) then
+    raise exception 'This player session already has a character';
+  end if;
+
+  for v_stat in
+    select d.id, d.name
+    from public.stat_definitions d
+    where d.campaign_id = v_campaign_id
+      and d.name in ('Body', 'Reflexes', 'Technical Ability', 'Intelligence', 'Cool')
+  loop
+    v_count := v_count + 1;
+    if not (p_attributes ? v_stat.name) or
+       jsonb_typeof(p_attributes->v_stat.name) <> 'number' or
+       (p_attributes->>v_stat.name) !~ '^[0-9]+$' then
+      raise exception 'Missing or invalid attribute: %', v_stat.name;
+    end if;
+    v_value := (p_attributes->>v_stat.name)::integer;
+    if v_value < 1 or v_value > 20 then
+      raise exception 'Attribute % must be between 1 and 20', v_stat.name;
+    end if;
+    v_total := v_total + v_value;
+  end loop;
+  if v_count <> 5 or v_total <> 30 then
+    raise exception 'Five campaign attributes totaling 30 points are required';
+  end if;
+
+  insert into public.characters (campaign_id, player_id, name, balance)
+  values (v_campaign_id, v_user_id, btrim(p_name), 0)
+  returning id into v_character_id;
+
+  insert into public.character_stats (character_id, campaign_id, stat_id, value)
+  select v_character_id, v_campaign_id, d.id, (p_attributes->>d.name)::integer
+  from public.stat_definitions d
+  where d.campaign_id = v_campaign_id
+    and d.name in ('Body', 'Reflexes', 'Technical Ability', 'Intelligence', 'Cool');
+
+  return v_character_id;
+end;
+$$;
+
+revoke all on function public.create_player_character(uuid, text, jsonb)
+  from public, anon, authenticated;
+grant execute on function public.create_player_character(uuid, text, jsonb)
+  to authenticated;
