@@ -178,3 +178,38 @@ revoke all on function public.withdraw_money(uuid, bigint)
   from public, anon, authenticated;
 grant execute on function public.withdraw_money(uuid, bigint)
   to authenticated;
+
+
+-- ============================================================
+-- 05. GM character sheet: read campaign stats
+-- ============================================================
+-- Requires the stat_definitions and character_stats tables created
+-- earlier in the Supabase SQL Editor.
+-- Only the authenticated GM who owns the campaign may read stats.
+-- No INSERT, UPDATE or DELETE policies are granted here.
+grant select on public.stat_definitions to authenticated;
+grant select on public.character_stats to authenticated;
+
+drop policy if exists "GM reads campaign stat definitions"
+  on public.stat_definitions;
+create policy "GM reads campaign stat definitions"
+on public.stat_definitions for select to authenticated
+using (
+  exists (
+    select 1 from public.campaigns ca
+    where ca.id = stat_definitions.campaign_id
+      and ca.gm_id = (select auth.uid())
+  )
+);
+
+drop policy if exists "GM reads campaign character stats"
+  on public.character_stats;
+create policy "GM reads campaign character stats"
+on public.character_stats for select to authenticated
+using (
+  exists (
+    select 1 from public.campaigns ca
+    where ca.id = character_stats.campaign_id
+      and ca.gm_id = (select auth.uid())
+  )
+);

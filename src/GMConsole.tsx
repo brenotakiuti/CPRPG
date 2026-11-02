@@ -3,6 +3,34 @@ import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
 
+// Temporary visual thresholds; can later be supplied by campaign stat-tier records.
+const DEFAULT_STAT_TIERS = [
+  { min: 0, name: 'Basic', color: '#8b95a4' },
+  { min: 5, name: 'Trained', color: '#4ade80' },
+  { min: 10, name: 'Expert', color: '#32c5c5' },
+  { min: 15, name: 'Elite', color: '#bd7bea' },
+  { min: 20, name: 'Legendary', color: '#f59e0b' },
+] as const;
+
+function statTier(value: number) {
+  return [...DEFAULT_STAT_TIERS].reverse().find((tier) => value >= tier.min)
+    ?? DEFAULT_STAT_TIERS[0];
+}
+
+function StatIcon({ number }: { number: number }) {
+  const common = { width: 23, height: 23, viewBox: '0 0 24 24', fill: 'none',
+    stroke: 'currentColor', strokeWidth: 1.9, strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const, 'aria-hidden': true as const };
+  switch (number) {
+    case 1: return <svg {...common}><path d="M6.5 6.5v11m11-11v11M3 9v6m18-6v6M6.5 12h11M9 5v14m6-14v14" /></svg>;
+    case 2: return <svg {...common}><path d="m13 2-9 12h7l-1 8 10-13h-7l0-7z" /></svg>;
+    case 3: return <svg {...common}><path d="M14.7 6.3a6 6 0 0 0-7.8 7.8l-4.2 4.2a2.5 2.5 0 0 0 3.5 3.5l4.2-4.2a6 6 0 0 0 7.8-7.8l-4 4-4-1  -1-4 4-4z" /></svg>;
+    case 4: return <svg {...common}><path d="M12 18V5a4 4 0 0 0-7.5-1.9A4 4 0 0 0 3 10a4 4 0 0 0 2 7.4A4 4 0 0 0 12 18Zm0 0V5a4 4 0 0 1 7.5-1.9A4 4 0 0 1 21 10a4 4 0 0 1-2 7.4A4 4 0 0 1 12 18Z" /><path d="M8 7c-2 1-2 4 0 5m8-5c2 1 2 4 0 5" /></svg>;
+    case 5: return <svg {...common}><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></svg>;
+    default: return <span className="gm-stat-number-icon">{number}</span>;
+  }
+}
+
 type GMConsoleProps = {
   campaign: Campaign;
   onSwitchCampaign: () => void;
@@ -28,6 +56,9 @@ export default function GMConsole({
   };
 
   const [characters, setCharacters] = useState<CharacterOption[]>([]);
+  const [stats, setStats] = useState<{ id: string; name: string; value: number; statNumber: number; description: string; maxValue: number }[]>([]);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState('');
 
   const [invitations, setInvitations] = useState<Record<string, string>>({});
 
@@ -195,6 +226,57 @@ export default function GMConsole({
   }, [page]);
 
   const selected = characters.find((c) => c.id === selectedId) ?? characters[0];
+  useEffect(() => {
+    let active = true;
+    setStats([]);
+    setStatsError('');
+    if (!selected) return;
+
+    async function loadStats() {
+      setStatsLoading(true);
+      const { data: definitions, error: definitionsError } = await supabase
+        .from('stat_definitions')
+        .select('id, name, description, display_order, stat_number, max_value')
+        .eq('campaign_id', campaign.id)
+        .order('display_order')
+        .order('stat_number');
+
+      if (!active) return;
+      if (definitionsError) {
+        setStatsError(definitionsError.message);
+        setStatsLoading(false);
+        return;
+      }
+
+      const { data: values, error: valuesError } = await supabase
+        .from('character_stats')
+        .select('stat_id, value')
+        .eq('campaign_id', campaign.id)
+        .eq('character_id', selected!.id);
+
+      if (!active) return;
+      if (valuesError) {
+        setStatsError(valuesError.message);
+      } else {
+        const byId = new Map((values ?? []).map((entry) => [entry.stat_id, entry.value]));
+        setStats((definitions ?? [])
+          .filter((definition) => byId.has(definition.id))
+          .map((definition) => ({
+            id: definition.id,
+            name: definition.name,
+            value: byId.get(definition.id)!,
+            statNumber: definition.stat_number,
+            description: definition.description,
+            maxValue: definition.max_value,
+          })));
+      }
+      setStatsLoading(false);
+    }
+
+    void loadStats();
+    return () => { active = false; };
+  }, [campaign.id, selected?.id]);
+
   const visible = characters.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
   const navigation: { id: typeof page; label: string }[] = [
     { id: 'overview', label: 'Overview' },
@@ -291,8 +373,38 @@ export default function GMConsole({
                   ))}
                 </div>
                 {detailTab === 'stats' && (
-                  <div className="gm-placeholder-stats">
-                    <p>Stats will appear here when character attributes are added.</p>
+                  <div className="gm-character-stats">
+                    {statsLoading ? <p className="gm-muted">Loading stats...</p>
+                      : statsError ? <p className="gm-stats-error" role="alert">{statsError}</p>
+                      : stats.length === 0 ? <p className="gm-muted">No stats assigned to this character yet.</p>
+                      : <div className="gm-stats-list">
+                          {stats.map((stat) => {
+                            const tier = statTier(stat.value);
+                            const maximum = Math.max(stat.maxValue, 1);
+                            const percent = Math.max(0, Math.min(100, (stat.value / maximum) * 100));
+                            return (
+                              <div className="gm-stat-row" key={stat.id}>
+                                <div className="gm-stat-row-main">
+                                  <div className="gm-stat-icon"><StatIcon number={stat.statNumber} /></div>
+                                  <div className="gm-stat-label">
+                                    <strong>{stat.name}</strong>
+                                    {stat.description && <small>{stat.description}</small>}
+                                  </div>
+                                  <div className="gm-stat-value" style={{ color: tier.color }}>
+                                    <strong>{stat.value}</strong>
+                                    <small>{tier.name}</small>
+                                  </div>
+                                </div>
+                                <div className="gm-stat-track" role="meter" aria-label={stat.name}
+                                  aria-valuemin={0} aria-valuemax={maximum}
+                                  aria-valuenow={Math.max(0, Math.min(maximum, stat.value))}
+                                  aria-valuetext={`${stat.value} — ${tier.name}`}>
+                                  <div className="gm-stat-fill" style={{ width: `${percent}%`, backgroundColor: tier.color }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>}
                   </div>
                 )}
                 {detailTab === 'cyberware' && <div className="gm-empty-detail">No cyberware installed</div>}
