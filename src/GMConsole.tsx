@@ -28,6 +28,9 @@ export default function GMConsole({
   };
 
   const [characters, setCharacters] = useState<CharacterOption[]>([]);
+  const [stats, setStats] = useState<{ id: string; name: string; value: number }[]>([]);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState('');
 
   const [invitations, setInvitations] = useState<Record<string, string>>({});
 
@@ -195,6 +198,54 @@ export default function GMConsole({
   }, [page]);
 
   const selected = characters.find((c) => c.id === selectedId) ?? characters[0];
+  useEffect(() => {
+    let active = true;
+    setStats([]);
+    setStatsError('');
+    if (!selected) return;
+
+    async function loadStats() {
+      setStatsLoading(true);
+      const { data: definitions, error: definitionsError } = await supabase
+        .from('stat_definitions')
+        .select('id, name, display_order, stat_number')
+        .eq('campaign_id', campaign.id)
+        .order('display_order')
+        .order('stat_number');
+
+      if (!active) return;
+      if (definitionsError) {
+        setStatsError(definitionsError.message);
+        setStatsLoading(false);
+        return;
+      }
+
+      const { data: values, error: valuesError } = await supabase
+        .from('character_stats')
+        .select('stat_id, value')
+        .eq('campaign_id', campaign.id)
+        .eq('character_id', selected!.id);
+
+      if (!active) return;
+      if (valuesError) {
+        setStatsError(valuesError.message);
+      } else {
+        const byId = new Map((values ?? []).map((entry) => [entry.stat_id, entry.value]));
+        setStats((definitions ?? [])
+          .filter((definition) => byId.has(definition.id))
+          .map((definition) => ({
+            id: definition.id,
+            name: definition.name,
+            value: byId.get(definition.id)!,
+          })));
+      }
+      setStatsLoading(false);
+    }
+
+    void loadStats();
+    return () => { active = false; };
+  }, [campaign.id, selected?.id]);
+
   const visible = characters.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
   const navigation: { id: typeof page; label: string }[] = [
     { id: 'overview', label: 'Overview' },
@@ -291,8 +342,18 @@ export default function GMConsole({
                   ))}
                 </div>
                 {detailTab === 'stats' && (
-                  <div className="gm-placeholder-stats">
-                    <p>Stats will appear here when character attributes are added.</p>
+                  <div className="gm-character-stats">
+                    {statsLoading ? <p className="gm-muted">Loading stats...</p>
+                      : statsError ? <p className="gm-stats-error" role="alert">{statsError}</p>
+                      : stats.length === 0 ? <p className="gm-muted">No stats assigned to this character yet.</p>
+                      : <div className="gm-stats-grid">
+                          {stats.map((stat) => (
+                            <div className="gm-stat-item" key={stat.id}>
+                              <span>{stat.name}</span>
+                              <strong>{stat.value}</strong>
+                            </div>
+                          ))}
+                        </div>}
                   </div>
                 )}
                 {detailTab === 'cyberware' && <div className="gm-empty-detail">No cyberware installed</div>}
