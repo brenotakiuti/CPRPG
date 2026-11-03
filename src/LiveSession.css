@@ -41,9 +41,9 @@
 .live-die.glitchback .live-die-outline{animation:ls-borderback .34s steps(1) both}
 .live-die.glitchback .live-die-face{animation:ls-textback .34s steps(1) both}
 .live-die.matrix .live-die-outline{stroke:#32df79}
-.live-die.matrix .live-die-face{color:#6cff9c;text-shadow:0 0 12px #20ed6a77;font-family:ui-monospace,monospace}
+.live-die.matrix .live-die-face{color:#6cff9c;text-shadow:0 0 12px #20ed6a77}
 .live-die.decrypt .live-die-outline{animation:ls-greenfade .5s steps(1) both}
-.live-die.decrypt .live-die-face{color:#6cff9c;font-family:ui-monospace,monospace}
+.live-die.decrypt .live-die-face{color:#6cff9c}
 .live-dice-scene.blackout{visibility:hidden}
 .live-dice-scene.reboot{animation:ls-reboot .8s steps(1) both}
 .live-die.final{animation:ls-reveal .25s ease-out}
