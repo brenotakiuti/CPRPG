@@ -77,7 +77,7 @@ export default function GMConsole({
 }: GMConsoleProps) {
   const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'factions'>(() => {
     const saved = sessionStorage.getItem('gm-page');
-    return saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' ? saved : 'overview';
+    return saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' ? saved : 'live';
   });
   const [selectedId, setSelectedId] = useState('');
   const [detailTab, setDetailTab] = useState<'stats' | 'cyberware' | 'inventory' | 'access'>('stats');
