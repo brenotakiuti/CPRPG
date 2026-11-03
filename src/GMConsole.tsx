@@ -3,6 +3,7 @@ import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Package, Shield, Users
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
+import LiveSession from './LiveSession';
 
 // Temporary visual thresholds; can later be supplied by campaign stat-tier records.
 const DEFAULT_STAT_TIERS = [
@@ -74,9 +75,9 @@ export default function GMConsole({
   campaign,
   onSwitchCampaign,
 }: GMConsoleProps) {
-  const [page, setPage] = useState<'overview' | 'bank' | 'characters' | 'inventory' | 'factions'>(() => {
+  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'factions'>(() => {
     const saved = sessionStorage.getItem('gm-page');
-    return saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' ? saved : 'overview';
+    return saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' ? saved : 'overview';
   });
   const [selectedId, setSelectedId] = useState('');
   const [detailTab, setDetailTab] = useState<'stats' | 'cyberware' | 'inventory' | 'access'>('stats');
@@ -306,6 +307,7 @@ export default function GMConsole({
 
   const visible = characters.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
   const navigation = [
+    { id: 'live', label: 'Live Session', icon: LayoutDashboard },
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'characters', label: 'Characters', icon: Users },
     { id: 'bank', label: 'Bank', icon: Landmark },
@@ -360,7 +362,9 @@ export default function GMConsole({
           </button>
         ))}
       </nav>
-      {page === 'characters' ? (
+      {page === 'live' ? (
+        <LiveSession characters={characters} />
+      ) : page === 'characters' ? (
         <div className="gm-characters-layout">
           <aside className="gm-roster">
             <div className="gm-roster-heading"><strong>Roster</strong><span>{characters.length}</span></div>
