@@ -127,7 +127,7 @@ function App() {
 
     sessionStorage.setItem('active-campaign', selected.id);
     sessionStorage.setItem('campaign-user', session!.user.id);
-    sessionStorage.setItem('gm-page', 'home');
+    sessionStorage.setItem('gm-page', 'live');
   }
 
   function switchCampaign() {
