@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
+import { Heart, Minus, Plus } from 'lucide-react';
+import { supabase } from './supabase';
 import './LiveSession.css';
 import TarotSpotlight from './TarotSpotlight';
 import FortuneCookieSpotlight from './FortuneCookieConfigured';
 import SessionToolSettings, { type ToolConfig } from './SessionToolSettings';
 
-type Character = { id: string; name: string; balance: number };
+type Character = { id: string; name: string; balance: number; body: number | null; current_hp: number | null };
+const maxHP = (body: number) => 10 + 5 * body;
 type Effect = 'random' | 'normal' | 'jam' | 'blackout' | 'matrix';
 type Phase = 'ready' | 'rolling' | 'revealed';
 const NPCS = [
@@ -16,7 +19,20 @@ const symbols = Array.from('アイウエオカキクケコサシスセソタナ�
 const random = (max: number) => Math.floor(Math.random() * max) + 1;
 const symbol = () => symbols[Math.floor(Math.random() * symbols.length)];
 
-export default function LiveSession({ characters }: { characters: Character[] }) {
+export default function LiveSession({ characters, onHPChanged }: { characters: Character[]; onHPChanged: (id: string, hp: number) => void }) {
+  const [hpBusy, setHpBusy] = useState<string[]>([]);
+  const [hpError, setHpError] = useState('');
+  async function adjustHP(character: Character, delta: number) {
+    if (character.body === null || character.current_hp === null || hpBusy.includes(character.id)) return;
+    const next = Math.max(0, Math.min(maxHP(character.body), character.current_hp + delta));
+    if (next === character.current_hp) return;
+    setHpBusy(prev => [...prev, character.id]);
+    setHpError('');
+    const { data, error } = await supabase.rpc('gm_adjust_character_hp', { p_character_id: character.id, p_delta: delta });
+    if (error) setHpError(error.message);
+    else onHPChanged(character.id, Number(data));
+    setHpBusy(prev => prev.filter(id => id !== character.id));
+  }
   const [npc, setNpc] = useState('Rogue');
   const [spotlight, setSpotlight] = useState(false);
   const [tarotOpen, setTarotOpen] = useState(false);
@@ -129,9 +145,16 @@ export default function LiveSession({ characters }: { characters: Character[] })
         <div className="live-column">
           <section className="live-panel">
             <h2>PARTY MONITOR</h2>
+            {hpError && <p className="live-hp-error" role="alert">{hpError}</p>}
             {characters.length ? characters.map(c => (
               <div className="live-character" key={c.id}>
-                <strong>{c.name}</strong><span>{Number(c.balance).toLocaleString('en-US')} E$</span>
+                <div className="live-character-main"><strong>{c.name}</strong><span>{Number(c.balance).toLocaleString('en-US')} E$</span></div>
+                {c.body !== null && c.current_hp !== null ? <div className="live-character-vitals">
+                  <div className="live-hp-info"><span>HP</span><span>{c.current_hp} / {maxHP(c.body)}</span></div>
+                  <div className="live-hp-row"><div className="live-hp-track" role="progressbar" aria-label={c.name + ' HP'} aria-valuemin={0} aria-valuemax={maxHP(c.body)} aria-valuenow={c.current_hp}><div className="live-hp-fill" style={{ width: (100 * c.current_hp / maxHP(c.body)) + '%' }} /></div>
+                    <div className="live-hp-actions"><button type="button" title="Remove 5 HP" aria-label={'Remove 5 HP from ' + c.name} disabled={c.current_hp <= 0 || hpBusy.includes(c.id)} onClick={() => void adjustHP(c, -5)}><Heart size={14}/><Minus size={13}/></button><button type="button" title="Restore 5 HP" aria-label={'Restore 5 HP to ' + c.name} disabled={c.current_hp >= maxHP(c.body) || hpBusy.includes(c.id)} onClick={() => void adjustHP(c, 5)}><Heart size={14}/><Plus size={13}/></button></div>
+                  </div>
+                </div> : <small className="live-hp-unavailable">HP unavailable</small>}
               </div>
             )) : <p className="live-empty">No characters in this campaign yet.</p>}
           </section>
