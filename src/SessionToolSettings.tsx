@@ -62,7 +62,7 @@ export default function SessionToolSettings({ onOpen }: { onOpen: (config: ToolC
       {tool === 'fortune' && <label>Lucky numbers (five unique values, 1–99)<input value={luckyNumbers} onChange={e => setLuckyNumbers(e.target.value)} placeholder="7, 13, 21, 42, 77"/></label>}
     </div>}
     {error && <p className="session-settings-error" role="alert">{error}</p>}
-    <button type="button" className="session-open-button" onClick={launch}>Open spotlight</button>
+    <button type="button" className="session-open-button" onClick={launch}>Execute</button>
     <small>GM-only execution. Player delivery will be added separately.</small>
   </div>;
 }
