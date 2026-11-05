@@ -20,18 +20,58 @@ const random = (max: number) => Math.floor(Math.random() * max) + 1;
 const symbol = () => symbols[Math.floor(Math.random() * symbols.length)];
 
 export default function LiveSession({ characters, onHPChanged }: { characters: Character[]; onHPChanged: (id: string, hp: number) => void }) {
-  const [hpBusy, setHpBusy] = useState<string[]>([]);
   const [hpError, setHpError] = useState('');
-  async function adjustHP(character: Character, delta: number) {
-    if (character.body === null || character.current_hp === null || hpBusy.includes(character.id)) return;
-    const next = Math.max(0, Math.min(maxHP(character.body), character.current_hp + delta));
-    if (next === character.current_hp) return;
-    setHpBusy(prev => [...prev, character.id]);
+  const [hpOverrides, setHpOverrides] = useState<Record<string, number>>({});
+  const hpOverridesRef = useRef<Record<string, number>>({});
+  const hpJobs = useRef(new Map<string, { confirmed: number; desired: number; sending: boolean; timer?: ReturnType<typeof setTimeout>; clearTimer?: ReturnType<typeof setTimeout> }>());
+  function setLocalHP(id: string, hp: number | null) {
+    const next = { ...hpOverridesRef.current };
+    if (hp === null) delete next[id]; else next[id] = hp;
+    hpOverridesRef.current = next;
+    setHpOverrides(next);
+  }
+  async function flushHP(id: string) {
+    const job = hpJobs.current.get(id);
+    if (!job || job.sending || job.desired === job.confirmed) return;
+    job.sending = true;
+    const delta = job.desired - job.confirmed;
+    const { data, error } = await supabase.rpc('gm_adjust_character_hp', { p_character_id: id, p_delta: delta });
+    if (!mounted.current || hpJobs.current.get(id) !== job) return;
+    job.sending = false;
+    if (error) {
+      setHpError(error.message);
+      job.desired = job.confirmed;
+      setLocalHP(id, job.confirmed);
+    } else {
+      job.confirmed = Number(data);
+      onHPChanged(id, job.confirmed);
+    }
+    if (job.desired !== job.confirmed) {
+      job.timer = setTimeout(() => void flushHP(id), 400);
+    } else {
+      job.clearTimer = setTimeout(() => {
+        if (hpJobs.current.get(id) !== job || job.desired !== job.confirmed) return;
+        hpJobs.current.delete(id);
+        setLocalHP(id, null);
+      }, 1200);
+    }
+  }
+  function adjustHP(character: Character, delta: number) {
+    const shown = hpOverridesRef.current[character.id] ?? character.current_hp;
+    if (character.body === null || shown === null) return;
+    const next = Math.max(0, Math.min(maxHP(character.body), shown + delta));
+    if (next === shown) return;
+    let job = hpJobs.current.get(character.id);
+    if (!job) {
+      job = { confirmed: character.current_hp ?? shown, desired: shown, sending: false };
+      hpJobs.current.set(character.id, job);
+    }
+    if (job.timer) clearTimeout(job.timer);
+    if (job.clearTimer) clearTimeout(job.clearTimer);
+    job.desired = next;
     setHpError('');
-    const { data, error } = await supabase.rpc('gm_adjust_character_hp', { p_character_id: character.id, p_delta: delta });
-    if (error) setHpError(error.message);
-    else onHPChanged(character.id, Number(data));
-    setHpBusy(prev => prev.filter(id => id !== character.id));
+    setLocalHP(character.id, next);
+    if (!job.sending) job.timer = setTimeout(() => void flushHP(character.id), 400);
   }
   const [npc, setNpc] = useState('Rogue');
   const [spotlight, setSpotlight] = useState(false);
@@ -50,7 +90,7 @@ export default function LiveSession({ characters, onHPChanged }: { characters: C
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; timers.current.forEach(clearTimeout); };
+    return () => { mounted.current = false; timers.current.forEach(clearTimeout); hpJobs.current.forEach(job => { if (job.timer) clearTimeout(job.timer); if (job.clearTimer) clearTimeout(job.clearTimer); }); };
   }, []);
   function clearTimers() { timers.current.forEach(clearTimeout); timers.current = []; }
   function later(fn: () => void, delay: number) {
@@ -146,17 +186,17 @@ export default function LiveSession({ characters, onHPChanged }: { characters: C
           <section className="live-panel">
             <h2>PARTY MONITOR</h2>
             {hpError && <p className="live-hp-error" role="alert">{hpError}</p>}
-            {characters.length ? characters.map(c => (
+            {characters.length ? characters.map(c => { const hp = hpOverrides[c.id] ?? c.current_hp; return (
               <div className="live-character" key={c.id}>
                 <div className="live-character-main"><strong>{c.name}</strong><span>{Number(c.balance).toLocaleString('en-US')} E$</span></div>
-                {c.body !== null && c.current_hp !== null ? <div className="live-character-vitals">
-                  <div className="live-hp-info"><span>HP</span><span>{c.current_hp} / {maxHP(c.body)}</span></div>
-                  <div className="live-hp-row"><div className="live-hp-track" role="progressbar" aria-label={c.name + ' HP'} aria-valuemin={0} aria-valuemax={maxHP(c.body)} aria-valuenow={c.current_hp}><div className="live-hp-fill" style={{ width: (100 * c.current_hp / maxHP(c.body)) + '%' }} /></div>
-                    <div className="live-hp-actions"><button type="button" title="Remove 5 HP" aria-label={'Remove 5 HP from ' + c.name} disabled={c.current_hp <= 0 || hpBusy.includes(c.id)} onClick={() => void adjustHP(c, -5)}><Heart size={14}/><Minus size={13}/></button><button type="button" title="Restore 5 HP" aria-label={'Restore 5 HP to ' + c.name} disabled={c.current_hp >= maxHP(c.body) || hpBusy.includes(c.id)} onClick={() => void adjustHP(c, 5)}><Heart size={14}/><Plus size={13}/></button></div>
+                {c.body !== null && hp !== null ? <div className="live-character-vitals">
+                  <div className="live-hp-info"><span>HP</span><span>{hp} / {maxHP(c.body)}</span></div>
+                  <div className="live-hp-row"><div className="live-hp-track" role="progressbar" aria-label={c.name + ' HP'} aria-valuemin={0} aria-valuemax={maxHP(c.body)} aria-valuenow={hp}><div className="live-hp-fill" style={{ width: (100 * hp / maxHP(c.body)) + '%' }} /></div>
+                    <div className="live-hp-actions"><button type="button" title="Remove 5 HP" aria-label={'Remove 5 HP from ' + c.name} disabled={hp <= 0} onClick={() => void adjustHP(c, -5)}><Heart size={14}/><Minus size={13}/></button><button type="button" title="Restore 5 HP" aria-label={'Restore 5 HP to ' + c.name} disabled={hp >= maxHP(c.body)} onClick={() => void adjustHP(c, 5)}><Heart size={14}/><Plus size={13}/></button></div>
                   </div>
                 </div> : <small className="live-hp-unavailable">HP unavailable</small>}
               </div>
-            )) : <p className="live-empty">No characters in this campaign yet.</p>}
+             ); }) : <p className="live-empty">No characters in this campaign yet.</p>}
           </section>
           <section className="live-panel">
             <h2>ACTIVE MAP</h2>
