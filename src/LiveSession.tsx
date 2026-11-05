@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import './LiveSession.css';
 import TarotSpotlight from './TarotSpotlight';
 import FortuneCookieSpotlight from './FortuneCookieSpotlight';
-import { Dices, Layers3, Cookie } from 'lucide-react';
+import { Dices, SunMoon, Cookie } from 'lucide-react';
 
 type Character = { id: string; name: string; balance: number };
 type Effect = 'random' | 'normal' | 'jam' | 'blackout' | 'matrix';
@@ -148,9 +148,9 @@ export default function LiveSession({ characters }: { characters: Character[] })
           <section className="live-panel">
             <h2>SESSION TOOLS</h2>
             <div className="live-tools">
-              <button type="button" className="live-roll-open" onClick={open}><Dices size={18} aria-hidden="true" /> DICE ROLL</button>
-              <button type="button" className="live-roll-open" onClick={() => setTarotOpen(true)}><Layers3 size={18} aria-hidden="true" /> TAROT</button>
-              <button type="button" className="live-roll-open" onClick={() => setFortuneOpen(true)}><Cookie size={18} aria-hidden="true" /> FORTUNE COOKIE</button>
+              <button type="button" className="live-roll-open" onClick={open}><Dices size={22} aria-hidden="true" /> DICE ROLL</button>
+              <button type="button" className="live-roll-open" onClick={() => setTarotOpen(true)}><SunMoon size={22} aria-hidden="true" /> TAROT</button>
+              <button type="button" className="live-roll-open" onClick={() => setFortuneOpen(true)}><Cookie size={22} aria-hidden="true" /> FORTUNE COOKIE</button>
             </div>
           </section>
         </div>
