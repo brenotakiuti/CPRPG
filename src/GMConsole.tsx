@@ -162,7 +162,10 @@ export default function GMConsole({
       } else {
         const rows = data ?? [];
         // HP is optional: an unapplied migration must never hide the roster.
-        setCharacters(rows.map(row => ({ ...row, body: null, current_hp: null })));
+        setCharacters(previous => rows.map(row => {
+          const existing = previous.find(character => character.id === row.id);
+          return { ...row, body: existing?.body ?? null, current_hp: existing?.current_hp ?? null };
+        }));
         const { data: hpValues, error: hpError } = await supabase
           .from('characters')
           .select('id, current_hp')
@@ -193,7 +196,14 @@ export default function GMConsole({
         if (!active) return;
         if (hpError) console.warn('[GM] HP loading:', hpError.message);
         if (bodyError) console.warn('[GM] BODY loading:', bodyError);
-        setCharacters(rows.map(row => ({ ...row, body: bodyError ? null : (bodyByCharacter.get(row.id) ?? null), current_hp: hpByCharacter.get(row.id) == null ? null : Number(hpByCharacter.get(row.id)) })));
+        setCharacters(previous => rows.map(row => {
+          const existing = previous.find(character => character.id === row.id);
+          return {
+            ...row,
+            body: bodyError ? (existing?.body ?? null) : (bodyByCharacter.get(row.id) ?? existing?.body ?? null),
+            current_hp: hpError ? (existing?.current_hp ?? null) : (hpByCharacter.get(row.id) == null ? null : Number(hpByCharacter.get(row.id))),
+          };
+        }));
         // Once claimed, an invitation is no longer usable; hide its old link.
         setInvitations((previous) => {
           const next = { ...previous };
