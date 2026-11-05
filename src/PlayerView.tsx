@@ -156,12 +156,15 @@ export default function PlayerView({ token }: PlayerViewProps) {
                 balance: payload.new?.balance,
               });
               const row = payload.new as Partial<PlayerCharacter>;
-              setCharacter(previous => previous?.id === data.id ? {
-                ...previous,
-                ...(typeof row.name === 'string' ? { name: row.name } : {}),
-                ...(typeof row.balance === 'number' ? { balance: row.balance } : {}),
-                ...(row.current_hp !== undefined ? { current_hp: row.current_hp } : {}),
-              } : previous);
+              setCharacter(previous => {
+                if (!previous || previous.id !== data.id) return previous;
+                return {
+                  ...previous,
+                  ...(typeof row.name === 'string' ? { name: row.name } : {}),
+                  ...(typeof row.balance === 'number' ? { balance: row.balance } : {}),
+                  ...(row.current_hp !== undefined ? { current_hp: row.current_hp } : {}),
+                };
+              });
             })
             .subscribe((status, error) => {
               if (!active) return;
