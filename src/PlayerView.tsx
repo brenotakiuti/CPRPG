@@ -5,6 +5,7 @@ type PlayerCharacter = {
   id: string;
   name: string;
   balance: number;
+  current_hp: number | null;
 };
 
 type PlayerViewProps = {
@@ -13,6 +14,7 @@ type PlayerViewProps = {
 
 export default function PlayerView({ token }: PlayerViewProps) {
   const [character, setCharacter] = useState<PlayerCharacter | null>(null);
+  const [body, setBody] = useState<number | null>(null);
   const characterLoaded = useRef(false);
   const [message, setMessage] = useState('Connecting...');
 
@@ -85,7 +87,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
     async function loadCharacter() {
       const { data, error } = await supabase
         .from('characters')
-        .select('id, name, balance')
+        .select('id, name, balance, current_hp')
         .eq('player_id', (await supabase.auth.getUser()).data.user?.id)
         .maybeSingle();
 
@@ -100,6 +102,9 @@ export default function PlayerView({ token }: PlayerViewProps) {
         setMessage('No character assigned. Ask your GM for a new invitation.');
       } else {
         setCharacter(data);
+        const { data: bodyStat } = await supabase.from('character_stats').select('value, stat_definitions!inner(name)').eq('character_id', data.id).eq('stat_definitions.name', 'Body').maybeSingle();
+        if (!active) return;
+        setBody(bodyStat ? Number(bodyStat.value) : null);
         setMessage('');
       }
       characterLoaded.current = true;
@@ -129,6 +134,10 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <h2>{character.name}</h2>
           <p>Balance</p>
           <h1>{character.balance} €$</h1>
+          {body !== null && character.current_hp !== null && <section aria-label="Character health">
+            <p>HP: {character.current_hp} / {10 + 5 * body}</p>
+            <div role="progressbar" aria-label="HP" aria-valuemin={0} aria-valuemax={10 + 5 * body} aria-valuenow={character.current_hp} style={{ height: 12, background: '#354456', borderRadius: 8, overflow: 'hidden' }}><div style={{ height: '100%', width: `${100 * character.current_hp / (10 + 5 * body)}%`, background: '#d84d59' }} /></div>
+          </section>}
         </>
       ) : (
         <p>{message}</p>
