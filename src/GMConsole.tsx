@@ -169,9 +169,30 @@ export default function GMConsole({
           .eq('campaign_id', campaign.id);
         if (!active) return;
         const hpByCharacter = new Map((hpError ? [] : hpValues ?? []).map(row => [row.id, row.current_hp]));
-        const { data: bodyValues, error: bodyError } = await supabase.from('character_stats').select('character_id, value, stat_definitions!inner(name)').eq('campaign_id', campaign.id).eq('stat_definitions.name', 'Body');
+        // Resolve BODY through the same stat definitions used by the Characters page.
+        // Do not rely on a PostgREST embedded join, which may fail under RLS.
+        let bodyByCharacter = new Map<string, number>();
+        let bodyError: string | null = null;
+        try {
+          const definitions = await getStatDefinitions(campaign.id);
+          const bodyDefinition = definitions.find(d => d.name.trim().toLowerCase() === 'body');
+          if (bodyDefinition) {
+            const { data: bodyValues, error: valuesError } = await supabase
+              .from('character_stats')
+              .select('character_id, value')
+              .eq('campaign_id', campaign.id)
+              .eq('stat_id', bodyDefinition.id);
+            if (valuesError) throw valuesError;
+            bodyByCharacter = new Map((bodyValues ?? []).map(row => [row.character_id, Number(row.value)]));
+          } else {
+            bodyError = 'BODY definition not found';
+          }
+        } catch (err) {
+          bodyError = err instanceof Error ? err.message : 'Unable to load BODY';
+        }
         if (!active) return;
-        const bodyByCharacter = new Map((bodyValues ?? []).map(row => [row.character_id, Number(row.value)]));
+        if (hpError) console.warn('[GM] HP loading:', hpError.message);
+        if (bodyError) console.warn('[GM] BODY loading:', bodyError);
         setCharacters(rows.map(row => ({ ...row, body: bodyError ? null : (bodyByCharacter.get(row.id) ?? null), current_hp: hpByCharacter.get(row.id) == null ? null : Number(hpByCharacter.get(row.id)) })));
         // Once claimed, an invitation is no longer usable; hide its old link.
         setInvitations((previous) => {
