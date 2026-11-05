@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import './LiveSession.css';
 import TarotSpotlight from './TarotSpotlight';
 import FortuneCookieSpotlight from './FortuneCookieSpotlight';
-import { Dices, SunMoon, Cookie } from 'lucide-react';
+import SessionToolSettings, { type ToolConfig } from './SessionToolSettings';
 
 type Character = { id: string; name: string; balance: number };
 type Effect = 'random' | 'normal' | 'jam' | 'blackout' | 'matrix';
@@ -21,6 +21,8 @@ export default function LiveSession({ characters }: { characters: Character[] })
   const [spotlight, setSpotlight] = useState(false);
   const [tarotOpen, setTarotOpen] = useState(false);
   const [fortuneOpen, setFortuneOpen] = useState(false);
+  const [config, setConfig] = useState<ToolConfig | null>(null);
+  const [history, setHistory] = useState<number[]>([]);
   const [sides, setSides] = useState(20);
   const [mode, setMode] = useState<Effect>('random');
   const [phase, setPhase] = useState<Phase>('ready');
@@ -39,6 +41,12 @@ export default function LiveSession({ characters }: { characters: Character[] })
     const id = setTimeout(() => { if (mounted.current) fn(); }, delay);
     timers.current.push(id);
   }
+  function launch(next: ToolConfig) {
+    setConfig(next);
+    if (next.tool === 'dice') { setSides(next.sides); setHistory([]); open(); }
+    else if (next.tool === 'tarot') setTarotOpen(true);
+    else setFortuneOpen(true);
+  }
   function open() {
     clearTimers(); rolling.current = false;
     setPhase('ready'); setFace('?'); setDieStyle('idle'); setSceneStyle(''); setSpotlight(true);
@@ -50,12 +58,13 @@ export default function LiveSession({ characters }: { characters: Character[] })
   function finish(result: number) {
     setFace(String(result)); setSceneStyle(''); setDieStyle('final');
     rolling.current = false; setPhase('revealed');
+    setHistory(prev => [...prev, result]);
   }
   function roll() {
-    if (rolling.current) return;
+    if (rolling.current || (config?.tool === 'dice' && history.length >= config.rolls)) return;
     clearTimers(); rolling.current = true; setPhase('rolling');
     setDieStyle('rolling'); setSceneStyle('');
-    const result = random(sides);
+    const result = config?.tool === 'dice' ? (config.forced?.[history.length] ?? random(sides)) : random(sides);
     const effect: Effect = mode === 'random'
       ? (['normal','normal','normal','jam','blackout','matrix'] as Effect[])[Math.floor(Math.random() * 6)]
       : mode;
@@ -147,15 +156,11 @@ export default function LiveSession({ characters }: { characters: Character[] })
           </section>
           <section className="live-panel">
             <h2>SESSION TOOLS</h2>
-            <div className="live-tools">
-              <button type="button" className="live-roll-open" onClick={open}><Dices size={22} aria-hidden="true" /> DICE ROLL</button>
-              <button type="button" className="live-roll-open" onClick={() => setTarotOpen(true)}><SunMoon size={22} aria-hidden="true" /> TAROT</button>
-              <button type="button" className="live-roll-open" onClick={() => setFortuneOpen(true)}><Cookie size={22} aria-hidden="true" /> FORTUNE COOKIE</button>
-            </div>
+            <SessionToolSettings onOpen={launch}/>
           </section>
         </div>
       </div>
-      {tarotOpen && <TarotSpotlight onClose={() => setTarotOpen(false)} />}
+      {tarotOpen && <TarotSpotlight forced={config?.tool === 'tarot' ? config.forced : null} onClose={() => setTarotOpen(false)} />}
       {fortuneOpen && <FortuneCookieSpotlight onClose={() => setFortuneOpen(false)} />}
       {spotlight && <div className="live-spotlight" role="dialog" aria-modal="true" aria-label="Dice spotlight">
         <div className={'live-dice-scene ' + sceneStyle}>
@@ -175,14 +180,15 @@ export default function LiveSession({ characters }: { characters: Character[] })
             </select>
           </div>
           <button type="button" className={'live-die ' + dieStyle}
-            onClick={roll} disabled={phase === 'rolling'} aria-label="Roll die">
+            onClick={roll} disabled={phase === 'rolling' || (config?.tool === 'dice' && history.length >= config.rolls)} aria-label="Roll die">
             <svg viewBox="0 0 200 200" aria-hidden="true">
               <polygon className="live-die-outline" points="100,8 178,66 148,170 52,170 22,66"/>
             </svg>
             <span className="live-die-face" data-number={face}>{face}</span>
           </button>
           <div className="live-dice-status">{phase === 'ready' ? 'CLICK THE DIE TO ROLL' : phase === 'rolling' ? 'ROLLING…' : 'RESULT: ' + face}</div>
-          <small>{phase === 'revealed' ? 'CLICK THE DIE TO ROLL AGAIN' : 'Click the die to roll'}</small>
+          <div className="live-dice-history">{history.length ? history.join(', ') : 'No rolls yet'}</div>
+          <small>{config?.tool === 'dice' ? `${history.length} / ${config.rolls} rolls` : 'Click the die to roll'}</small>
           <button type="button" className="live-spotlight-close" onClick={close} disabled={phase === 'rolling'}>Close spotlight</button>
         </div>
       </div>}
