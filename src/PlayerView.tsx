@@ -87,7 +87,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
     async function loadCharacter() {
       const { data, error } = await supabase
         .from('characters')
-        .select('id, name, balance, current_hp')
+        .select('id, name, balance')
         .eq('player_id', (await supabase.auth.getUser()).data.user?.id)
         .maybeSingle();
 
@@ -101,7 +101,11 @@ export default function PlayerView({ token }: PlayerViewProps) {
         setCharacter(null);
         setMessage('No character assigned. Ask your GM for a new invitation.');
       } else {
-        setCharacter(data);
+        // HP is optional until the database migration has been applied.
+        const { data: hpData } = await supabase.from('characters')
+          .select('current_hp').eq('id', data.id).maybeSingle();
+        if (!active) return;
+        setCharacter({ ...data, current_hp: hpData?.current_hp ?? null });
         const { data: bodyStat } = await supabase.from('character_stats').select('value, stat_definitions!inner(name)').eq('character_id', data.id).eq('stat_definitions.name', 'Body').maybeSingle();
         if (!active) return;
         setBody(bodyStat ? Number(bodyStat.value) : null);
