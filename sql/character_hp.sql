@@ -7,7 +7,7 @@ alter table public.characters add column if not exists current_hp integer;
 create or replace function public.sync_character_hp_from_body()
 returns trigger
 language plpgsql security definer set search_path = ''
-as $
+as $$
 declare
   v_is_body boolean;
   v_max integer;
@@ -26,7 +26,7 @@ begin
   where id = new.character_id;
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists character_body_hp_sync on public.character_stats;
 create trigger character_body_hp_sync
@@ -37,7 +37,7 @@ for each row execute function public.sync_character_hp_from_body();
 create or replace function public.clamp_character_hp()
 returns trigger
 language plpgsql security definer set search_path = ''
-as $
+as $$
 declare
   v_body integer;
 begin
@@ -54,7 +54,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists character_hp_bounds on public.characters;
 create trigger character_hp_bounds
