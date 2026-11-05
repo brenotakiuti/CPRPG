@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import './LiveSession.css';
 import TarotSpotlight from './TarotSpotlight';
-import FortuneCookieSpotlight from './FortuneCookieSpotlight';
+import FortuneCookieSpotlight from './FortuneCookieConfigured';
 import SessionToolSettings, { type ToolConfig } from './SessionToolSettings';
 
 type Character = { id: string; name: string; balance: number };
