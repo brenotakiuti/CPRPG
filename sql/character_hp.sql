@@ -87,7 +87,7 @@ begin
   where c.id = p_character_id and camp.gm_id = auth.uid()
   for update of c;
   if not found then raise exception 'Character not found or access denied'; end if;
-  if p_delta not in (-5, 5) then raise exception 'HP adjustment must be +5 or -5'; end if;
+  if p_delta = 0 or mod(p_delta, 5) <> 0 or abs(p_delta) > 10000 then raise exception 'HP adjustment must be a nonzero multiple of 5'; end if;
   v_max := 10 + 5 * v_body;
   v_new := greatest(0, least(v_max, coalesce(v_current, v_max) + p_delta));
   update public.characters set current_hp = v_new where id = p_character_id;
