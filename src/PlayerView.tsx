@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
+import { HeartPulse, Wallet, Dices, UserRound, Backpack, Smartphone, Bell, Wifi, RadioTower } from 'lucide-react';
+import './PlayerView.css';
 
 type PlayerCharacter = {
   id: string;
@@ -129,23 +131,54 @@ export default function PlayerView({ token }: PlayerViewProps) {
     };
   }, [token]);
 
-  return (
-    <div className="bank">
-      <h1>Night City</h1>
+  const maximum = body === null ? null : 10 + 5 * body;
+  const hp = character?.current_hp ?? null;
+  const percentage = maximum && hp !== null ? Math.max(0, Math.min(100, hp / maximum * 100)) : null;
+  const healthLevel = percentage === null ? 'unknown' : percentage <= 25 ? 'critical' : percentage <= 50 ? 'low' : percentage <= 75 ? 'moderate' : 'healthy';
 
-      {character ? (
-        <>
-          <h2>{character.name}</h2>
-          <p>Balance</p>
-          <h1>{character.balance} €$</h1>
-          {body !== null && character.current_hp !== null && <section aria-label="Character health">
-            <p>HP: {character.current_hp} / {10 + 5 * body}</p>
-            <div role="progressbar" aria-label="HP" aria-valuemin={0} aria-valuemax={10 + 5 * body} aria-valuenow={character.current_hp} style={{ height: 12, background: '#354456', borderRadius: 8, overflow: 'hidden' }}><div style={{ height: '100%', width: `${100 * character.current_hp / (10 + 5 * body)}%`, background: '#d84d59' }} /></div>
-          </section>}
-        </>
-      ) : (
-        <p>{message}</p>
-      )}
-    </div>
+  return (
+    <main className="player-terminal">
+      <div className="player-shell">
+        <header className="player-card player-header">
+          <div className="player-header-top"><span>NIGHT CITY // 2077</span><RadioTower size={16} aria-hidden="true" /></div>
+          <h1>{character?.name ?? 'PLAYER TERMINAL'}</h1>
+          <p>CHARACTER DASHBOARD</p>
+        </header>
+        {character ? (
+          <>
+            <section className="player-card player-health" aria-label="Character health">
+              <div className="player-section-heading"><span><HeartPulse size={19} aria-hidden="true" /> HEALTH</span><strong>{hp !== null && maximum !== null ? `${hp} / ${maximum} HP` : 'HP unavailable'}</strong></div>
+              <div className="player-hp-track" role="progressbar" aria-label="HP" aria-valuemin={0} aria-valuemax={maximum ?? 100} aria-valuenow={hp ?? 0}>
+                <div className={`player-hp-fill ${healthLevel}`} style={{ width: `${percentage ?? 0}%` }} />
+              </div>
+              <div className="player-health-meta"><span>BODY {body ?? '—'}</span><span>{percentage === null ? 'AWAITING DATA' : `${Math.round(percentage)}% REMAINING`}</span></div>
+            </section>
+            <div className="player-quick-grid">
+              <section className="player-card player-quick-card">
+                <div className="player-quick-label"><Wallet size={18} aria-hidden="true" /> BALANCE</div>
+                <strong className="player-balance">{Number(character.balance).toLocaleString('en-US')} E$</strong>
+              </section>
+              <section className="player-card player-quick-card">
+                <div className="player-quick-label"><Dices size={18} aria-hidden="true" /> DICE</div>
+                <div className="player-dice-placeholder" aria-label="Dice rolling coming soon"><Dices size={17} aria-hidden="true" /> ROLL</div>
+              </section>
+            </div>
+            <section className="player-card player-navigation">
+              <h2>CHARACTER <span>›</span></h2>
+              <div className="player-nav-grid">
+                <div className="player-nav-tile"><UserRound size={24} aria-hidden="true" /><span>STATS</span></div>
+                <div className="player-nav-tile"><Backpack size={24} aria-hidden="true" /><span>INVENTORY</span></div>
+                <div className="player-nav-tile"><Smartphone size={24} aria-hidden="true" /><span>PHONE</span></div>
+              </div>
+            </section>
+            <section className="player-card player-events">
+              <h2><Bell size={18} aria-hidden="true" /> INCOMING EVENTS</h2>
+              <p>No new notifications</p>
+            </section>
+            <footer className="player-footer"><span><Wifi size={14} aria-hidden="true" /> CONNECTED</span><span>PLAYER TERMINAL</span></footer>
+          </>
+        ) : <section className="player-card player-message" role="status">{message}</section>}
+      </div>
+    </main>
   );
 }
