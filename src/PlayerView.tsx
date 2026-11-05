@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
-import { HeartPulse, Wallet, Dices, UserRound, Backpack, Smartphone, Bell, Wifi, RadioTower } from 'lucide-react';
+import { HeartPulse, Wallet, Dices, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower } from 'lucide-react';
 import './PlayerView.css';
 
 type PlayerCharacter = {
@@ -19,9 +19,12 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const [body, setBody] = useState<number | null>(null);
   const characterLoaded = useRef(false);
   const [message, setMessage] = useState('Connecting...');
+  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
     let active = true;
+    const onOffline = () => { if (active) setConnected(false); };
+    window.addEventListener('offline', onOffline);
 
     async function connectPlayer() {
       // Reuse the existing anonymous account if possible.
@@ -96,21 +99,44 @@ export default function PlayerView({ token }: PlayerViewProps) {
       if (!active) return;
 
       if (error) {
+        setConnected(false);
         setCharacter(null);
         setMessage(error.message);
       } else if (!data) {
+        setConnected(false);
         // A GM may revoke access while this browser remains signed in.
         setCharacter(null);
         setMessage('No character assigned. Ask your GM for a new invitation.');
       } else {
-        // HP is optional until the database migration has been applied.
-        const { data: hpData } = await supabase.from('characters')
+        // Read HP separately so older databases can still show the character.
+        const { data: hpData, error: hpError } = await supabase.from('characters')
           .select('current_hp').eq('id', data.id).maybeSingle();
         if (!active) return;
-        setCharacter({ ...data, current_hp: hpData?.current_hp ?? null });
-        const { data: bodyStat } = await supabase.from('character_stats').select('value, stat_definitions!inner(name)').eq('character_id', data.id).eq('stat_definitions.name', 'Body').maybeSingle();
+        if (hpError) console.warn('[Player] HP:', hpError.message);
+        setCharacter({ ...data, current_hp: hpData?.current_hp == null ? null : Number(hpData.current_hp) });
+
+        // Use separate definition and value queries, as in the GM monitor.
+        const { data: campaignRow, error: campaignError } = await supabase
+          .from('characters').select('campaign_id').eq('id', data.id).maybeSingle();
         if (!active) return;
-        setBody(bodyStat ? Number(bodyStat.value) : null);
+        if (campaignError) console.warn('[Player] Campaign:', campaignError.message);
+        const campaignId = campaignRow?.campaign_id;
+        if (campaignId) {
+          const { data: definitions, error: definitionError } = await supabase
+            .from('stat_definitions').select('id, name').eq('campaign_id', campaignId);
+          if (!active) return;
+          if (definitionError) console.warn('[Player] Stat definitions:', definitionError.message);
+          const bodyId = (definitions ?? []).find(d => d.name.trim().toLowerCase() === 'body')?.id;
+          if (bodyId) {
+            const { data: bodyRow, error: bodyError } = await supabase
+              .from('character_stats').select('value')
+              .eq('character_id', data.id).eq('stat_id', bodyId).maybeSingle();
+            if (!active) return;
+            if (bodyError) console.warn('[Player] BODY:', bodyError.message);
+            setBody(bodyRow ? Number(bodyRow.value) : null);
+          } else setBody(null);
+        } else setBody(null);
+        setConnected(navigator.onLine);
         setMessage('');
       }
       characterLoaded.current = true;
@@ -128,6 +154,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
     return () => {
       active = false;
       clearInterval(interval);
+      window.removeEventListener('offline', onOffline);
     };
   }, [token]);
 
@@ -175,7 +202,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
               <h2><Bell size={18} aria-hidden="true" /> INCOMING EVENTS</h2>
               <p>No new notifications</p>
             </section>
-            <footer className="player-footer"><span><Wifi size={14} aria-hidden="true" /> CONNECTED</span><span>PLAYER TERMINAL</span></footer>
+            <footer className="player-footer"><span className={connected ? "player-online" : "player-offline"}>{connected ? <Wifi size={14} aria-hidden="true" /> : <WifiOff size={14} aria-hidden="true" />}{connected ? "CONNECTED" : "DISCONNECTED"}</span><span>PLAYER TERMINAL</span></footer>
           </>
         ) : <section className="player-card player-message" role="status">{message}</section>}
       </div>
