@@ -151,7 +151,7 @@ export default function GMConsole({
     async function loadCharacters() {
       const { data, error } = await supabase
         .from('characters')
-        .select('id, name, player_id, balance, current_hp')
+        .select('id, name, player_id, balance')
         .eq('campaign_id', campaign.id)
         .order('name');
 
@@ -161,10 +161,18 @@ export default function GMConsole({
         setInviteMessage(error.message);
       } else {
         const rows = data ?? [];
+        // HP is optional: an unapplied migration must never hide the roster.
+        setCharacters(rows.map(row => ({ ...row, body: null, current_hp: null })));
+        const { data: hpValues, error: hpError } = await supabase
+          .from('characters')
+          .select('id, current_hp')
+          .eq('campaign_id', campaign.id);
+        if (!active) return;
+        const hpByCharacter = new Map((hpError ? [] : hpValues ?? []).map(row => [row.id, row.current_hp]));
         const { data: bodyValues, error: bodyError } = await supabase.from('character_stats').select('character_id, value, stat_definitions!inner(name)').eq('campaign_id', campaign.id).eq('stat_definitions.name', 'Body');
         if (!active) return;
         const bodyByCharacter = new Map((bodyValues ?? []).map(row => [row.character_id, Number(row.value)]));
-        setCharacters(rows.map(row => ({ ...row, body: bodyError ? null : (bodyByCharacter.get(row.id) ?? null), current_hp: row.current_hp === null ? null : Number(row.current_hp) })));
+        setCharacters(rows.map(row => ({ ...row, body: bodyError ? null : (bodyByCharacter.get(row.id) ?? null), current_hp: hpByCharacter.get(row.id) == null ? null : Number(hpByCharacter.get(row.id)) })));
         // Once claimed, an invitation is no longer usable; hide its old link.
         setInvitations((previous) => {
           const next = { ...previous };
