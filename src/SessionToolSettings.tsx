@@ -5,7 +5,7 @@ import './SessionToolSettings.css';
 export type ToolConfig =
   | { tool: 'dice'; sides: number; rolls: number; forced: number[] | null }
   | { tool: 'tarot'; forced: { index: number; reversed: boolean } | null }
-  | { tool: 'fortune'; forcedMessage: number | null };
+  | { tool: 'fortune'; forcedMessage: number | null; forcedNumbers: number[] | null };
 
 const cards = ['The Fool','The Magician','The High Priestess','The Empress','The Emperor','The Hierophant','The Lovers','The Chariot','Strength','The Hermit','Wheel of Fortune','Justice','The Hanged Man','Death','Temperance','The Devil','The Tower','The Star','The Moon','The Sun','Judgement','The World'];
 
@@ -18,6 +18,7 @@ export default function SessionToolSettings({ onOpen }: { onOpen: (config: ToolC
   const [card, setCard] = useState(0);
   const [reversed, setReversed] = useState(false);
   const [fortune, setFortune] = useState(0);
+  const [luckyNumbers, setLuckyNumbers] = useState('7, 13, 21, 42, 77');
   const [error, setError] = useState('');
   function launch() {
     setError('');
@@ -35,7 +36,11 @@ export default function SessionToolSettings({ onOpen }: { onOpen: (config: ToolC
     } else if (tool === 'tarot') {
       onOpen({ tool, forced: rig ? { index: card, reversed } : null });
     } else {
-      onOpen({ tool, forcedMessage: rig ? fortune : null });
+      const numbers = luckyNumbers.split(',').map(v => Number(v.trim()));
+      if (rig && (numbers.length !== 5 || numbers.some(v => !Number.isInteger(v) || v < 1 || v > 99) || new Set(numbers).size !== 5)) {
+        setError('Enter five different lucky numbers from 1 to 99, separated by commas.'); return;
+      }
+      onOpen({ tool, forcedMessage: rig ? fortune : null, forcedNumbers: rig ? numbers : null });
     }
     setRig(false);
   }
@@ -54,6 +59,7 @@ export default function SessionToolSettings({ onOpen }: { onOpen: (config: ToolC
       {tool === 'dice' ? <label>Forced results, in order<input value={forcedDice} onChange={e => setForcedDice(e.target.value)} placeholder="4, 17, 20"/></label>
       : tool === 'tarot' ? <><label>Card<select value={card} onChange={e => setCard(Number(e.target.value))}>{cards.map((name,i) => <option key={i} value={i}>{name}</option>)}</select></label><label>Orientation<select value={reversed ? 'reversed' : 'upright'} onChange={e => setReversed(e.target.value === 'reversed')}><option value="upright">Upright</option><option value="reversed">Reversed</option></select></label></>
       : <label>Fortune message<select value={fortune} onChange={e => setFortune(Number(e.target.value))}>{['The door you fear opening has already been unlocked.','Not every warning comes from an enemy.','A familiar face will bring unfamiliar news.','The quietest voice may carry the greatest truth.','Someone remembers a promise you have forgotten.','What you lose today may save you tomorrow.','The shortest path is not always the safest.',"Tomorrow's danger wears yesterday's smile.",'Fortune favors those who know when to walk away.','The answer you seek is hiding in plain sight.'].map((f,i) => <option key={i} value={i}>{f}</option>)}</select></label>}
+      {tool === 'fortune' && <label>Lucky numbers (five unique values, 1–99)<input value={luckyNumbers} onChange={e => setLuckyNumbers(e.target.value)} placeholder="7, 13, 21, 42, 77"/></label>}
     </div>}
     {error && <p className="session-settings-error" role="alert">{error}</p>}
     <button type="button" className="session-open-button" onClick={launch}>Open spotlight</button>
