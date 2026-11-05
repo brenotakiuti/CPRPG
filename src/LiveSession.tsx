@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import './LiveSession.css';
 import TarotSpotlight from './TarotSpotlight';
-import { Dices, Layers3 } from 'lucide-react';
+import FortuneCookieSpotlight from './FortuneCookieSpotlight';
+import { Dices, Layers3, Cookie } from 'lucide-react';
 
 type Character = { id: string; name: string; balance: number };
 type Effect = 'random' | 'normal' | 'jam' | 'blackout' | 'matrix';
@@ -19,6 +20,7 @@ export default function LiveSession({ characters }: { characters: Character[] })
   const [npc, setNpc] = useState('Rogue');
   const [spotlight, setSpotlight] = useState(false);
   const [tarotOpen, setTarotOpen] = useState(false);
+  const [fortuneOpen, setFortuneOpen] = useState(false);
   const [sides, setSides] = useState(20);
   const [mode, setMode] = useState<Effect>('random');
   const [phase, setPhase] = useState<Phase>('ready');
@@ -148,11 +150,13 @@ export default function LiveSession({ characters }: { characters: Character[] })
             <div className="live-tools">
               <button type="button" className="live-roll-open" onClick={open}><Dices size={18} aria-hidden="true" /> DICE ROLL</button>
               <button type="button" className="live-roll-open" onClick={() => setTarotOpen(true)}><Layers3 size={18} aria-hidden="true" /> TAROT</button>
+              <button type="button" className="live-roll-open" onClick={() => setFortuneOpen(true)}><Cookie size={18} aria-hidden="true" /> FORTUNE COOKIE</button>
             </div>
           </section>
         </div>
       </div>
       {tarotOpen && <TarotSpotlight onClose={() => setTarotOpen(false)} />}
+      {fortuneOpen && <FortuneCookieSpotlight onClose={() => setFortuneOpen(false)} />}
       {spotlight && <div className="live-spotlight" role="dialog" aria-modal="true" aria-label="Dice spotlight">
         <div className={'live-dice-scene ' + sceneStyle}>
           <div className="live-spotlight-title">DICE SPOTLIGHT</div>
