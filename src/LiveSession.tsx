@@ -8,6 +8,7 @@ import SessionToolSettings, { type ToolConfig } from './SessionToolSettings';
 
 type Character = { id: string; name: string; balance: number; body: number | null; current_hp: number | null };
 const maxHP = (body: number) => 10 + 5 * body;
+const hpLevel = (current: number, maximum: number) => current / maximum <= 0.25 ? 'critical' : current / maximum <= 0.5 ? 'low' : current / maximum <= 0.75 ? 'moderate' : 'healthy';
 type Effect = 'random' | 'normal' | 'jam' | 'blackout' | 'matrix';
 type Phase = 'ready' | 'rolling' | 'revealed';
 const NPCS = [
@@ -191,8 +192,8 @@ export default function LiveSession({ characters, onHPChanged }: { characters: C
                 <div className="live-character-main"><strong>{c.name}</strong><span>{Number(c.balance).toLocaleString('en-US')} E$</span></div>
                 {c.body !== null && hp !== null ? <div className="live-character-vitals">
                   <div className="live-hp-info"><span>HP</span><span>{hp} / {maxHP(c.body)}</span></div>
-                  <div className="live-hp-row"><div className="live-hp-track" role="progressbar" aria-label={c.name + ' HP'} aria-valuemin={0} aria-valuemax={maxHP(c.body)} aria-valuenow={hp}><div className="live-hp-fill" style={{ width: (100 * hp / maxHP(c.body)) + '%' }} /></div>
-                    <div className="live-hp-actions"><button type="button" title="Remove 5 HP" aria-label={'Remove 5 HP from ' + c.name} disabled={hp <= 0} onClick={() => void adjustHP(c, -5)}><Heart size={14}/><Minus size={13}/></button><button type="button" title="Restore 5 HP" aria-label={'Restore 5 HP to ' + c.name} disabled={hp >= maxHP(c.body)} onClick={() => void adjustHP(c, 5)}><Heart size={14}/><Plus size={13}/></button></div>
+                  <div className="live-hp-row"><div className="live-hp-track" role="progressbar" aria-label={c.name + ' HP'} aria-valuemin={0} aria-valuemax={maxHP(c.body)} aria-valuenow={hp}><div className={"live-hp-fill " + hpLevel(hp, maxHP(c.body))} style={{ width: (100 * hp / maxHP(c.body)) + '%' }} /></div>
+                    <div className="live-hp-actions"><button type="button" title="Remove 5 HP" aria-label={'Remove 5 HP from ' + c.name} disabled={hp <= 0} onClick={() => void adjustHP(c, -5)}><Heart size={14}/><Minus size={13}/></button><button type="button" className="live-hp-heal" title="Restore 5 HP" aria-label={'Restore 5 HP to ' + c.name} disabled={hp >= maxHP(c.body)} onClick={() => void adjustHP(c, 5)}><Heart size={14}/><Plus size={13}/></button></div>
                   </div>
                 </div> : <small className="live-hp-unavailable">HP unavailable</small>}
               </div>
