@@ -88,6 +88,8 @@ export default function GMConsole({
     name: string;
     player_id: string | null;
     balance: number;
+    body: number | null;
+    current_hp: number | null;
   };
 
   const [characters, setCharacters] = useState<CharacterOption[]>([]);
@@ -149,7 +151,7 @@ export default function GMConsole({
     async function loadCharacters() {
       const { data, error } = await supabase
         .from('characters')
-        .select('id, name, player_id, balance')
+        .select('id, name, player_id, balance, current_hp')
         .eq('campaign_id', campaign.id)
         .order('name');
 
@@ -158,7 +160,11 @@ export default function GMConsole({
       if (error) {
         setInviteMessage(error.message);
       } else {
-        setCharacters(data ?? []);
+        const rows = data ?? [];
+        const { data: bodyValues, error: bodyError } = await supabase.from('character_stats').select('character_id, value, stat_definitions!inner(name)').eq('campaign_id', campaign.id).eq('stat_definitions.name', 'Body');
+        if (!active) return;
+        const bodyByCharacter = new Map((bodyValues ?? []).map(row => [row.character_id, Number(row.value)]));
+        setCharacters(rows.map(row => ({ ...row, body: bodyError ? null : (bodyByCharacter.get(row.id) ?? null), current_hp: row.current_hp === null ? null : Number(row.current_hp) })));
         // Once claimed, an invitation is no longer usable; hide its old link.
         setInvitations((previous) => {
           const next = { ...previous };
@@ -363,7 +369,7 @@ export default function GMConsole({
         ))}
       </nav>
       {page === 'live' ? (
-        <LiveSession characters={characters} />
+        <LiveSession characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} />
       ) : page === 'characters' ? (
         <div className="gm-characters-layout">
           <aside className="gm-roster">
