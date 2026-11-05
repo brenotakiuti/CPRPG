@@ -33,3 +33,5 @@
 .player-footer span:first-child{display:flex;align-items:center;gap:6px;color:#69dba8}
 .player-message{color:#aab8c8;font-size:14px}
 @media(max-width:340px){.player-quick-card{padding:10px}.player-balance{font-size:17px}.player-nav-tile span{font-size:9px}}
+
+.player-footer span.player-offline{color:#d84d59}
