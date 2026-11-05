@@ -149,6 +149,12 @@ export default function PlayerView({ token }: PlayerViewProps) {
               filter: 'id=eq.' + data.id,
             }, payload => {
               if (!active) return;
+              console.info('[Player Realtime] UPDATE received', {
+                characterId: data.id,
+                eventType: payload.eventType,
+                currentHP: payload.new?.current_hp,
+                balance: payload.new?.balance,
+              });
               const row = payload.new as Partial<PlayerCharacter>;
               setCharacter(previous => previous?.id === data.id ? {
                 ...previous,
@@ -157,10 +163,14 @@ export default function PlayerView({ token }: PlayerViewProps) {
                 ...(row.current_hp !== undefined ? { current_hp: row.current_hp } : {}),
               } : previous);
             })
-            .subscribe(status => {
+            .subscribe((status, error) => {
               if (!active) return;
+              console.info('[Player Realtime] Channel status:', status, {
+                characterId: data.id,
+                ...(error ? { error: error.message } : {}),
+              });
               if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                console.warn('[Player] Realtime unavailable; polling remains active');
+                console.warn('[Player Realtime] Subscription problem; polling remains active', error);
               }
             });
         }
