@@ -69,9 +69,15 @@
 .live-hp-info{display:flex;justify-content:space-between;color:#aab8c8;font-size:11px;margin-bottom:5px}
 .live-hp-row{display:flex;align-items:center;gap:8px}
 .live-hp-track{flex:1;min-width:0;height:9px;border-radius:10px;background:#354456;overflow:hidden}
-.live-hp-fill{height:100%;background:#d84d59;transition:width .2s}
+.live-hp-fill{height:100%;background:#d84d59;transition:width .2s,background-color .2s}
+.live-hp-fill.healthy{background:#36bf7a}
+.live-hp-fill.moderate{background:#d9bd55}
+.live-hp-fill.low{background:#e58b43}
+.live-hp-fill.critical{background:#d84d59}
 .live-hp-actions{display:flex;gap:4px}
 .live-hp-actions button{display:flex;align-items:center;justify-content:center;gap:3px;background:#1c2a39;border:1px solid #435569;border-radius:5px;color:#f0b3ba;cursor:pointer;padding:5px 7px}
+.live-hp-actions button.live-hp-heal{background:#17352d;border-color:#397e61;color:#77dfab}
+.live-hp-actions button.live-hp-heal:hover:not(:disabled){background:#204b3b;border-color:#5bb88a;color:#b0ffd4}
 .live-hp-actions button:disabled{opacity:.35;cursor:default}
 .live-hp-unavailable{display:block;margin-top:8px;color:#8b9bad}
 .live-hp-error{color:#ff9da7;font-size:12px;padding:0 14px}
