@@ -11,7 +11,6 @@ export default function TarotSpotlight({ onClose }: { onClose: () => void }) {
   }));
   const [revealed, setRevealed] = useState(false);
   const [flipping, setFlipping] = useState(false);
-  const [showFront, setShowFront] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finishTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   function clear() {
@@ -22,7 +21,6 @@ export default function TarotSpotlight({ onClose }: { onClose: () => void }) {
   function reveal() {
     if (revealed || flipping) return;
     setFlipping(true);
-    timer.current = setTimeout(() => setShowFront(true), 450);
     finishTimer.current = setTimeout(() => { setFlipping(false); setRevealed(true); }, 900);
   }
   function redraw() {
@@ -30,18 +28,22 @@ export default function TarotSpotlight({ onClose }: { onClose: () => void }) {
     clear();
     setFlipping(false);
     setRevealed(false);
-    setShowFront(false);
     setDraw({ index: Math.floor(Math.random() * CARD_NAMES.length), reversed: Math.random() < 0.5 });
   }
   return <div className="tarot-overlay" role="dialog" aria-modal="true" aria-label="Tarot spotlight">
     <div className="tarot-scene">
       <button className="tarot-close" type="button" aria-label="Close tarot spotlight" onClick={onClose} disabled={flipping}><X size={22}/></button>
       <div className="tarot-card-stage">
-        <div className={'tarot-card-surface' + (flipping ? ' tarot-flipping' : '')}>
-          <img src={showFront ? '/tarot/tarot' + draw.index + '.webp' : '/tarot/back.webp'}
-            alt={showFront ? CARD_NAMES[draw.index] : 'Tarot card back'}
-            className={showFront && draw.reversed ? 'tarot-reversed' : ''}
-            draggable={false} />
+        <div className={'tarot-card-surface' + (flipping || revealed ? ' tarot-flipped' : '')}>
+          <div className="tarot-card-face tarot-card-back">
+            <img src="/tarot/back.webp" alt="Tarot card back" draggable={false} />
+          </div>
+          <div className="tarot-card-face tarot-card-front">
+            <img src={'/tarot/tarot' + draw.index + '.webp'}
+              alt={CARD_NAMES[draw.index]}
+              className={draw.reversed ? 'tarot-reversed' : ''}
+              draggable={false} />
+          </div>
         </div>
       </div>
       <div className="tarot-result" aria-live="polite">
