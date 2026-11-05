@@ -161,7 +161,7 @@ export default function LiveSession({ characters }: { characters: Character[] })
         </div>
       </div>
       {tarotOpen && <TarotSpotlight forced={config?.tool === 'tarot' ? config.forced : null} onClose={() => setTarotOpen(false)} />}
-      {fortuneOpen && <FortuneCookieSpotlight onClose={() => setFortuneOpen(false)} />}
+      {fortuneOpen && <FortuneCookieSpotlight messageIndex={config?.tool === 'fortune' ? config.forcedMessage : null} luckyNumbers={config?.tool === 'fortune' ? config.forcedNumbers : null} onClose={() => setFortuneOpen(false)} />}
       {spotlight && <div className="live-spotlight" role="dialog" aria-modal="true" aria-label="Dice spotlight">
         <div className={'live-dice-scene ' + sceneStyle}>
           <div className="live-spotlight-title">DICE SPOTLIGHT</div>
@@ -187,7 +187,7 @@ export default function LiveSession({ characters }: { characters: Character[] })
             <span className="live-die-face" data-number={face}>{face}</span>
           </button>
           <div className="live-dice-status">{phase === 'ready' ? 'CLICK THE DIE TO ROLL' : phase === 'rolling' ? 'ROLLING…' : 'RESULT: ' + face}</div>
-          <div className="live-dice-history">{history.length ? history.join(', ') : 'No rolls yet'}</div>
+          <div className="live-dice-history">{history.length ? history.join(' · ') : 'No rolls yet'}</div>
           <small>{config?.tool === 'dice' ? `${history.length} / ${config.rolls} rolls` : 'Click the die to roll'}</small>
           <button type="button" className="live-spotlight-close" onClick={close} disabled={phase === 'rolling'}>Close spotlight</button>
         </div>
