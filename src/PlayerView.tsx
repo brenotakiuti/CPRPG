@@ -23,6 +23,8 @@ export default function PlayerView({ token }: PlayerViewProps) {
 
   useEffect(() => {
     let active = true;
+    let subscribedCharacterId: string | null = null;
+    let characterChannel: ReturnType<typeof supabase.channel> | null = null;
     const onOffline = () => { if (active) setConnected(false); };
     window.addEventListener('offline', onOffline);
 
@@ -136,6 +138,32 @@ export default function PlayerView({ token }: PlayerViewProps) {
             setBody(bodyRow ? Number(bodyRow.value) : null);
           } else setBody(null);
         } else setBody(null);
+        // Subscribe once per assigned character. Realtime updates arrive after the
+        // GM's debounced database write, rather than waiting for the next poll.
+        if (subscribedCharacterId !== data.id) {
+          if (characterChannel) void supabase.removeChannel(characterChannel);
+          subscribedCharacterId = data.id;
+          characterChannel = supabase.channel('player-character-' + data.id)
+            .on('postgres_changes', {
+              event: 'UPDATE', schema: 'public', table: 'characters',
+              filter: 'id=eq.' + data.id,
+            }, payload => {
+              if (!active) return;
+              const row = payload.new as Partial<PlayerCharacter>;
+              setCharacter(previous => previous?.id === data.id ? {
+                ...previous,
+                ...(typeof row.name === 'string' ? { name: row.name } : {}),
+                ...(typeof row.balance === 'number' ? { balance: row.balance } : {}),
+                ...(row.current_hp !== undefined ? { current_hp: row.current_hp } : {}),
+              } : previous);
+            })
+            .subscribe(status => {
+              if (!active) return;
+              if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                console.warn('[Player] Realtime unavailable; polling remains active');
+              }
+            });
+        }
         setConnected(navigator.onLine);
         setMessage('');
       }
@@ -154,6 +182,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
     return () => {
       active = false;
       clearInterval(interval);
+      if (characterChannel) void supabase.removeChannel(characterChannel);
       window.removeEventListener('offline', onOffline);
     };
   }, [token]);
