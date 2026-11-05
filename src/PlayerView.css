@@ -1,6 +1,6 @@
-.player-terminal{min-height:100dvh;background:#0b111b;color:#e6edf5;padding:16px 12px 32px;font-family:inherit;box-sizing:border-box}
+.player-terminal{width:100%;min-height:100dvh;background:#0b111b;color:#e6edf5;padding:16px 12px 32px;font-family:inherit;box-sizing:border-box}
 .player-terminal *{box-sizing:border-box}
-.player-shell{width:100%;max-width:420px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.player-shell{width:100%;max-width:600px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
 .player-card{background:#172331;border:1px solid #3c4c5c;border-radius:8px;padding:16px;min-width:0}
 .player-header-top{display:flex;align-items:center;justify-content:space-between;color:#e8bd4a;font-size:11px;font-weight:800;letter-spacing:1px}
 .player-header-top svg{color:#69dba8}
