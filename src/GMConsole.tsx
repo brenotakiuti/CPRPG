@@ -3,6 +3,7 @@ import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Package, Shield, Users
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
+import LiveSession from './LiveSession';
 
 // Temporary visual thresholds; can later be supplied by campaign stat-tier records.
 const DEFAULT_STAT_TIERS = [
@@ -74,9 +75,9 @@ export default function GMConsole({
   campaign,
   onSwitchCampaign,
 }: GMConsoleProps) {
-  const [page, setPage] = useState<'overview' | 'bank' | 'characters' | 'inventory' | 'factions'>(() => {
+  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'factions'>(() => {
     const saved = sessionStorage.getItem('gm-page');
-    return saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' ? saved : 'overview';
+    return saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' ? saved : 'live';
   });
   const [selectedId, setSelectedId] = useState('');
   const [detailTab, setDetailTab] = useState<'stats' | 'cyberware' | 'inventory' | 'access'>('stats');
@@ -87,6 +88,8 @@ export default function GMConsole({
     name: string;
     player_id: string | null;
     balance: number;
+    body: number | null;
+    current_hp: number | null;
   };
 
   const [characters, setCharacters] = useState<CharacterOption[]>([]);
@@ -157,7 +160,50 @@ export default function GMConsole({
       if (error) {
         setInviteMessage(error.message);
       } else {
-        setCharacters(data ?? []);
+        const rows = data ?? [];
+        // HP is optional: an unapplied migration must never hide the roster.
+        setCharacters(previous => rows.map(row => {
+          const existing = previous.find(character => character.id === row.id);
+          return { ...row, body: existing?.body ?? null, current_hp: existing?.current_hp ?? null };
+        }));
+        const { data: hpValues, error: hpError } = await supabase
+          .from('characters')
+          .select('id, current_hp')
+          .eq('campaign_id', campaign.id);
+        if (!active) return;
+        const hpByCharacter = new Map((hpError ? [] : hpValues ?? []).map(row => [row.id, row.current_hp]));
+        // Resolve BODY through the same stat definitions used by the Characters page.
+        // Do not rely on a PostgREST embedded join, which may fail under RLS.
+        let bodyByCharacter = new Map<string, number>();
+        let bodyError: string | null = null;
+        try {
+          const definitions = await getStatDefinitions(campaign.id);
+          const bodyDefinition = definitions.find(d => d.name.trim().toLowerCase() === 'body');
+          if (bodyDefinition) {
+            const { data: bodyValues, error: valuesError } = await supabase
+              .from('character_stats')
+              .select('character_id, value')
+              .eq('campaign_id', campaign.id)
+              .eq('stat_id', bodyDefinition.id);
+            if (valuesError) throw valuesError;
+            bodyByCharacter = new Map((bodyValues ?? []).map(row => [row.character_id, Number(row.value)]));
+          } else {
+            bodyError = 'BODY definition not found';
+          }
+        } catch (err) {
+          bodyError = err instanceof Error ? err.message : 'Unable to load BODY';
+        }
+        if (!active) return;
+        if (hpError) console.warn('[GM] HP loading:', hpError.message);
+        if (bodyError) console.warn('[GM] BODY loading:', bodyError);
+        setCharacters(previous => rows.map(row => {
+          const existing = previous.find(character => character.id === row.id);
+          return {
+            ...row,
+            body: bodyError ? (existing?.body ?? null) : (bodyByCharacter.get(row.id) ?? existing?.body ?? null),
+            current_hp: hpError ? (existing?.current_hp ?? null) : (hpByCharacter.get(row.id) == null ? null : Number(hpByCharacter.get(row.id))),
+          };
+        }));
         // Once claimed, an invitation is no longer usable; hide its old link.
         setInvitations((previous) => {
           const next = { ...previous };
@@ -306,6 +352,7 @@ export default function GMConsole({
 
   const visible = characters.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
   const navigation = [
+    { id: 'live', label: 'Live Session', icon: LayoutDashboard },
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'characters', label: 'Characters', icon: Users },
     { id: 'bank', label: 'Bank', icon: Landmark },
@@ -360,7 +407,9 @@ export default function GMConsole({
           </button>
         ))}
       </nav>
-      {page === 'characters' ? (
+      {page === 'live' ? (
+        <LiveSession characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} />
+      ) : page === 'characters' ? (
         <div className="gm-characters-layout">
           <aside className="gm-roster">
             <div className="gm-roster-heading"><strong>Roster</strong><span>{characters.length}</span></div>

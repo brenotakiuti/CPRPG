@@ -1,0 +1,12 @@
+.session-tool-settings{padding:0 12px 12px;display:flex;flex-direction:column;gap:12px}
+.session-tool-settings .live-tools{padding:12px 0 0}
+.session-tool-settings .live-roll-open.selected{outline:2px solid #f1d078;outline-offset:-3px}
+.session-settings-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.session-tool-settings label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#c6d3e1;min-width:0}
+.session-tool-settings select,.session-tool-settings input:not([type=checkbox]){box-sizing:border-box;width:100%;min-width:0;padding:9px;background:#101a26;color:#f1e5c8;border:1px solid #425366;border-radius:5px}
+.session-rig-toggle{flex-direction:row!important;align-items:center;gap:8px!important}
+.session-rig-fields{display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid #425366;border-radius:6px;background:#192634}
+.session-settings-error{color:#ff9d9d;font-size:12px;margin:0}
+.session-open-button{background:#e8bd4a;color:#111922;border:0;border-radius:5px;padding:12px;font-weight:800;cursor:pointer}
+.session-tool-settings small{color:#92a5b7;font-size:11px;text-align:center}
+.live-dice-history{color:#e8c05a;font-size:14px;max-width:min(90vw,600px);text-align:center;overflow-wrap:anywhere;min-height:20px}

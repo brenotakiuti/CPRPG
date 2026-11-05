@@ -1,0 +1,12 @@
+.fortune-overlay{position:fixed;inset:0;z-index:1000;background:rgba(2,4,10,.97);display:flex;align-items:center;justify-content:center;color:#f0e5cc}
+.fortune-scene{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:25px;width:min(100%,520px);min-height:380px;padding:35px 24px;text-align:center}
+.fortune-title{font-size:12px;letter-spacing:3px;color:#e8c05a;font-weight:700}
+.fortune-result{min-height:155px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;width:100%}
+.fortune-message{font-size:20px;line-height:1.5;color:#f2dfb4;margin:0}
+.fortune-waiting{font-size:13px;color:#718295}
+.fortune-divider{height:1px;background:#4c4536;width:85%}
+.fortune-label{font-size:11px;letter-spacing:1.5px;color:#d4ac57}
+.fortune-numbers{font-size:16px;letter-spacing:3px;color:#f2dfb4;font-variant-numeric:tabular-nums}
+.fortune-actions{display:flex;gap:12px;justify-content:center}
+.fortune-actions button{border:1px solid #c4a261;border-radius:7px;background:#d3aa5c;color:#16120b;padding:11px 24px;font-weight:700;cursor:pointer}
+.fortune-actions button.fortune-secondary{background:transparent;color:#e6c34d}

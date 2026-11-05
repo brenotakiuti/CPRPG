@@ -1,0 +1,52 @@
+#root:has(.cc-page){padding:0;align-items:stretch;justify-content:stretch}
+/* Player-facing mobile character creation. Isolated from the GM console. */
+.cc-page{width:100%;min-height:100dvh;background:#090d12;color:#f3f4f6;font-family:Arial,sans-serif;padding:18px 12px 40px;display:flex;justify-content:center;align-items:flex-start}
+.cc-page *{box-sizing:border-box}
+.cc-shell{width:100%;max-width:430px;display:flex;flex-direction:column;gap:14px}
+.cc-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 8px}
+.cc-eyebrow{color:#facc15;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;overflow-wrap:anywhere}
+.cc-header h1{font-size:26px;margin:7px 0 0;line-height:1.2}
+.cc-header-icon,.cc-attribute-icon{display:grid;place-items:center;flex-shrink:0;background:#302918;color:#facc15;border-radius:10px}
+.cc-header-icon{width:50px;height:50px;border:1px solid #77621d}
+.cc-steps{display:flex;gap:7px;margin-bottom:8px}
+.cc-step{flex:1;min-width:0;text-align:center;color:#8d96a4;font-size:10px;letter-spacing:.03em}
+.cc-step span.current{color:#facc15}
+.cc-step-line{height:4px;background:#343b46;border-radius:4px;margin-bottom:8px}
+.cc-step-line.active{background:#facc15}
+.cc-card{background:#151c25;border:1px solid #303946;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.cc-section-label{display:flex;align-items:center;gap:9px;color:#facc15;font-size:12px;font-weight:700;letter-spacing:.04em}
+.cc-identity p,.cc-attribute p{color:#a9b2bf;margin:0;font-size:13px;line-height:1.5}
+.cc-identity label{font-size:13px;font-weight:700}
+.cc-identity input{width:100%;padding:13px;background:#222b36;border:1px solid #576373;border-radius:7px;color:#fff;font:inherit;font-size:16px}
+.cc-identity input:focus{outline:2px solid #facc15;outline-offset:1px}
+.cc-card small{color:#9ba6b5;font-size:11px;line-height:1.5}
+.cc-page button{font:inherit;cursor:pointer;touch-action:manipulation}
+.cc-page button:disabled{opacity:.45;cursor:not-allowed}
+.cc-primary,.cc-secondary{border-radius:8px;padding:13px 16px;min-height:46px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700}
+.cc-primary{background:#e5c34d;color:#10151c;border:1px solid #e5c34d;flex:1}
+.cc-secondary{background:#222b36;color:#e5c34d;border:1px solid #576373;flex:0 0 auto}
+.cc-budget{position:relative}
+.cc-budget-top{display:flex;justify-content:space-between;align-items:center;color:#facc15}
+.cc-muted-label{color:#a9b2bf;font-size:11px}
+.cc-remaining{font-size:29px;font-weight:700;margin-top:3px}
+.cc-remaining span{font-size:12px;color:#a9b2bf;font-weight:400}
+.cc-progress{height:6px;background:#343b46;border-radius:99px;overflow:hidden}
+.cc-progress>div{height:100%;background:#eab308;border-radius:99px;transition:width .12s}
+.cc-reset{display:flex;align-items:center;gap:6px;align-self:flex-end;background:transparent;border:1px solid #485260;color:#d3d9e2;padding:7px 11px;border-radius:7px;font-size:12px}
+.cc-attribute-head{display:flex;gap:11px;align-items:center}
+.cc-attribute-icon{width:42px;height:42px}
+.cc-attribute-head strong{font-size:14px}
+.cc-attribute-head p{font-size:11px;margin-top:4px}
+.cc-attribute-actions{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cc-stat-value{font-size:24px;font-weight:700}
+.cc-stat-value span{font-size:11px;font-weight:500}
+.cc-buttons{display:flex;gap:8px}
+.cc-buttons button{display:grid;place-items:center;width:43px;height:43px;background:#252e39;color:#f3f4f6;border:1px solid #596575;border-radius:8px}
+.cc-stat-progress{height:5px}
+.cc-footer{display:flex;gap:10px}
+.cc-review h2{color:#facc15;margin:0;font-size:24px;overflow-wrap:anywhere}
+.cc-review-list{border-top:1px solid #303946;border-bottom:1px solid #303946;padding:6px 0}
+.cc-review-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;font-size:13px}
+.cc-review-row strong{font-size:15px}
+.cc-note{text-align:center;font-size:11px;color:#9ba6b5;margin:0}
+@media(max-width:360px){.cc-page{padding:12px 8px 30px}.cc-card{padding:13px}.cc-header h1{font-size:23px}}
