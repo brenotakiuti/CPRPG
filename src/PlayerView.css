@@ -35,3 +35,7 @@
 @media(max-width:340px){.player-quick-card{padding:10px}.player-balance{font-size:17px}.player-nav-tile span{font-size:9px}}
 
 .player-footer span.player-offline{color:#d84d59}
+
+/* HUD Feed: one transient line above the player's current screen. */
+.player-hud-feed{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:9999;max-width:calc(100vw - 24px);width:max-content;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;padding:10px 16px;border-left:3px solid #e8bd4a;background:rgba(10,20,30,.94);color:#e8bd4a;font-size:13px;font-weight:700;letter-spacing:.4px;box-shadow:0 4px 20px #0008;animation:hud-feed-rise .2s ease-out both}
+@keyframes hud-feed-rise{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
