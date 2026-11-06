@@ -292,7 +292,7 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
           {moneyInsufficient && <p className="live-money-error" role="alert">Insufficient funds.</p>}
           {moneyError && <p className="live-money-error" role="alert">{moneyError}</p>}
           <div className="live-money-actions">
-            <button type="button" disabled={moneyBusy} onClick={() => setMoneyCharacterId(null)}>Cancel</button>
+            <button type="button" disabled={moneyBusy} onClick={() => setMoneyCharacterId(null)}>Close</button>
             <button type="button" className="live-money-submit" disabled={moneyBusy || !moneyValid || moneyInsufficient}
               onClick={() => void submitMoney()}>{moneyBusy ? 'Processing…' : moneyMode === 'grant' ? 'Send Funds' : 'Deduct Funds'}</button>
           </div>
