@@ -362,3 +362,9 @@
 .gm-stat-value small { font-size:11px; }
 .gm-stat-track { height:6px; margin-top:10px; border-radius:8px; background:#41454e; overflow:hidden; }
 .gm-stat-fill { height:100%; border-radius:8px; transition:width .2s ease; }
+
+/* QR codes are generated locally from the existing invitation URLs. */
+.gm-qr-panel{display:flex;flex-direction:column;align-items:center;gap:9px;width:max-content;max-width:100%;padding:12px;margin-top:10px;border:1px solid #405268;border-radius:8px;background:#172332;color:#b7c5d3;font-size:12px;text-align:center}
+.gm-qr-panel svg{display:block;max-width:100%;height:auto;background:#fff;border-radius:5px}
+.gm-invitation{flex-wrap:wrap}
+.gm-invitation .gm-qr-panel{flex-basis:100%}
