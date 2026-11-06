@@ -428,7 +428,7 @@ export default function GMConsole({
         ))}
       </nav>
       {page === 'live' ? (
-        <LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} />
+        <LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} />
       ) : page === 'characters' ? (
         <div className="gm-characters-layout">
           <aside className="gm-roster">
