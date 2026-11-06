@@ -129,8 +129,8 @@ export default function LiveSession({ campaignId, characters, onHPChanged }: { c
     setHistory(prev => [...prev, result]);
     void feedChannel.current?.send({
       type: 'broadcast',
-      event: 'dice-roll',
-      payload: { sides, result },
+      event: 'hud-message',
+      payload: { id: crypto.randomUUID(), category: 'system', text: `GM ROLLED D${sides} → ${result}` },
     }).then(status => {
       if (status !== 'ok') console.warn('[HUD Feed] Dice broadcast:', status);
     });
