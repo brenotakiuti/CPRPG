@@ -18,23 +18,53 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const [character, setCharacter] = useState<PlayerCharacter | null>(null);
   const [body, setBody] = useState<number | null>(null);
   const [feedCampaignId, setFeedCampaignId] = useState<string | null>(null);
-  const [hudMessage, setHudMessage] = useState('');
+  const [hudMessage, setHudMessage] = useState<{ id: string; text: string; duration: number } | null>(null);
+  const hudQueue = useRef<Array<{ id: string; text: string; duration: number }>>([]);
   const hudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hudActive = useRef(false);
+
+  // The HUD is source-agnostic: every producer sends a short preview and a category.
+  // One message finishes its full animation before the next starts.
+  function showNextHudMessage() {
+    const next = hudQueue.current.shift();
+    if (!next) {
+      hudActive.current = false;
+      setHudMessage(null);
+      return;
+    }
+    hudActive.current = true;
+    setHudMessage(next);
+    hudTimer.current = setTimeout(showNextHudMessage, next.duration);
+  }
 
   useEffect(() => {
     if (!feedCampaignId || !character) return;
     const channel = supabase.channel('hud-feed-' + feedCampaignId)
-      .on('broadcast', { event: 'dice-roll' }, ({ payload }) => {
-        const sides = Number(payload?.sides);
-        const result = Number(payload?.result);
-        if (![4, 6, 8, 10, 12, 20, 100].includes(sides) || !Number.isInteger(result) || result < 1 || result > sides) return;
-        if (hudTimer.current) clearTimeout(hudTimer.current);
-        setHudMessage(`GM ROLLED D${sides} → ${result}`);
-        hudTimer.current = setTimeout(() => setHudMessage(''), 2400);
+      .on('broadcast', { event: 'hud-message' }, ({ payload }) => {
+        if (typeof payload?.text !== 'string' || !payload.text.trim()) return;
+        if (payload.category !== 'system' && payload.category !== 'text') return;
+        // Routing is enforced by the sender/channel for now; recipient filtering
+        // prevents display on unintended characters, but is not access control.
+        if (payload.targetCharacterId && payload.targetCharacterId !== character.id) return;
+        const maxLength = payload.category === 'text' ? 48 : 24;
+        const raw = payload.text.trim().replace(/\\s+/g, ' ');
+        const text = raw.length > maxLength
+          ? raw.slice(0, maxLength - 3).trimEnd() + '...'
+          : raw;
+        hudQueue.current.push({
+          id: typeof payload.id === 'string' ? payload.id : crypto.randomUUID(),
+          text,
+          duration: payload.category === 'text' ? 2500 : 2000,
+        });
+        if (!hudActive.current) showNextHudMessage();
       })
       .subscribe();
     return () => {
       if (hudTimer.current) clearTimeout(hudTimer.current);
+      hudTimer.current = null;
+      hudQueue.current = [];
+      hudActive.current = false;
+      setHudMessage(null);
       void supabase.removeChannel(channel);
     };
   }, [feedCampaignId, character?.id]);
@@ -231,7 +261,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
 
   return (
     <main className="player-terminal">
-      {hudMessage && <div className="player-hud-feed" role="status" key={hudMessage}>{hudMessage}</div>}
+      {hudMessage && <div className="player-hud-feed" role="status" key={hudMessage.id} style={{ animationDuration: `${hudMessage.duration}ms` }}>{hudMessage.text}</div>}
       <div className="player-shell">
         <header className="player-card player-header">
           <div className="player-header-top"><span>NIGHT CITY // 2077</span><RadioTower size={16} aria-hidden="true" /></div>
