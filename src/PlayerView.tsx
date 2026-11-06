@@ -23,7 +23,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const hudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hudActive = useRef(false);
 
-  // The HUD is source-agnostic: every producer sends a short preview and a category.
+  // The HUD consumes persisted events, independent of their producing system.
   // One message finishes its full animation before the next starts.
   function showNextHudMessage() {
     const next = hudQueue.current.shift();
@@ -39,26 +39,35 @@ export default function PlayerView({ token }: PlayerViewProps) {
 
   useEffect(() => {
     if (!feedCampaignId || !character) return;
-    const channel = supabase.channel('hud-feed-' + feedCampaignId)
-      .on('broadcast', { event: 'hud-message' }, ({ payload }) => {
-        if (typeof payload?.text !== 'string' || !payload.text.trim()) return;
-        if (payload.category !== 'system' && payload.category !== 'text') return;
-        // Routing is enforced by the sender/channel for now; recipient filtering
-        // prevents display on unintended characters, but is not access control.
-        if (payload.targetCharacterId && payload.targetCharacterId !== character.id) return;
-        const maxLength = payload.category === 'text' ? 48 : 24;
-        const raw = payload.text.trim().replace(/\\s+/g, ' ');
+    const channel = supabase.channel('campaign-events-' + feedCampaignId + '-' + character.id)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'campaign_events',
+        filter: 'campaign_id=eq.' + feedCampaignId,
+      }, ({ new: event }) => {
+        if (event.audience === 'gm') return;
+        if (event.audience === 'character' && event.character_id !== character.id) return;
+        if (event.audience !== 'campaign' && event.audience !== 'character') return;
+        if (typeof event.message !== 'string' || !event.message.trim()) return;
+        if (event.category !== 'system' && event.category !== 'text') return;
+        const maxLength = event.category === 'text' ? 48 : 24;
+        const raw = event.message.trim().replace(/\\s+/g, ' ');
         const text = raw.length > maxLength
           ? raw.slice(0, maxLength - 3).trimEnd() + '...'
           : raw;
         hudQueue.current.push({
-          id: typeof payload.id === 'string' ? payload.id : crypto.randomUUID(),
+          id: typeof event.id === 'string' ? event.id : crypto.randomUUID(),
           text,
-          duration: payload.category === 'text' ? 2500 : 2000,
+          duration: event.category === 'text' ? 2500 : 2000,
         });
         if (!hudActive.current) showNextHudMessage();
       })
-      .subscribe();
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[Campaign HUD] Event subscription problem:', error ?? status);
+        }
+      });
     return () => {
       if (hudTimer.current) clearTimeout(hudTimer.current);
       hudTimer.current = null;
