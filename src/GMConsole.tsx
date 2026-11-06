@@ -518,7 +518,9 @@ export default function GMConsole({
                       </div>
                     ) : (
                       <>
-                        <button type="button" onClick={() => void generateInvitation(selected.id)}>Regenerate Invitation</button>
+                        {!invitations[selected.id] && (
+                          <button type="button" onClick={() => void generateInvitation(selected.id)}>Generate Invitation</button>
+                        )}
                         {invitations[selected.id] && (
                           <div className="gm-invitation">
                             <div className="gm-qr-panel">
@@ -530,7 +532,7 @@ export default function GMConsole({
                               <button type="button" className="gm-invitation-copy-button"
                                 aria-label="Copy character invitation link" title="Copy character invitation link"
                                 onClick={() => void navigator.clipboard.writeText(invitations[selected.id])}>
-                                <Copy size={17} aria-hidden="true" />
+                                <Copy size={23} aria-hidden="true" />
                               </button>
                             </div>
                           </div>
