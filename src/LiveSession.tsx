@@ -21,17 +21,6 @@ const random = (max: number) => Math.floor(Math.random() * max) + 1;
 const symbol = () => symbols[Math.floor(Math.random() * symbols.length)];
 
 export default function LiveSession({ campaignId, characters, onHPChanged }: { campaignId: string; characters: Character[]; onHPChanged: (id: string, hp: number) => void }) {
-  // Broadcast only completed rolls. The GM's existing dice history stays local.
-  const feedChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  useEffect(() => {
-    const channel = supabase.channel('hud-feed-' + campaignId);
-    feedChannel.current = channel;
-    channel.subscribe();
-    return () => {
-      feedChannel.current = null;
-      void supabase.removeChannel(channel);
-    };
-  }, [campaignId]);
   const [hpError, setHpError] = useState('');
   const [hpOverrides, setHpOverrides] = useState<Record<string, number>>({});
   const hpOverridesRef = useRef<Record<string, number>>({});
@@ -127,21 +116,15 @@ export default function LiveSession({ campaignId, characters, onHPChanged }: { c
     setFace(String(result)); setSceneStyle(''); setDieStyle('final');
     rolling.current = false; setPhase('revealed');
     setHistory(prev => [...prev, result]);
-    // Keep the existing HUD broadcast while we verify database logging independently.
+    // The database is the sole notification source; Realtime delivers the saved row.
     void supabase.from('campaign_events').insert({
       campaign_id: campaignId,
-      character_id: null, // GM-only history entry for this first test.
+      character_id: null,
+      audience: 'campaign',
       category: 'system',
       message: `GM ROLLED D${sides} → ${result}`,
     }).then(({ error }) => {
       if (error) console.error('[Campaign Log] Dice roll was not saved:', error.message);
-    });
-    void feedChannel.current?.send({
-      type: 'broadcast',
-      event: 'hud-message',
-      payload: { id: crypto.randomUUID(), category: 'system', text: `GM ROLLED D${sides} → ${result}` },
-    }).then(status => {
-      if (status !== 'ok') console.warn('[HUD Feed] Dice broadcast:', status);
     });
   }
   function roll() {
