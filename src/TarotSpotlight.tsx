@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, X } from 'lucide-react';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import './TarotSpotlight.css';
 
 const CARD_NAMES = ["The Fool","The Magician","The High Priestess","The Empress","The Emperor","The Hierophant","The Lovers","The Chariot","Strength","The Hermit","Wheel of Fortune","Justice","The Hanged Man","Death","Temperance","The Devil","The Tower","The Star","The Moon","The Sun","Judgement","The World"];
@@ -32,8 +32,7 @@ export default function TarotSpotlight({ onClose, forced }: { onClose: () => voi
   }
   return <div className="tarot-overlay" role="dialog" aria-modal="true" aria-label="Tarot spotlight">
     <div className="tarot-scene">
-      <button className="tarot-close" type="button" aria-label="Close tarot spotlight" onClick={onClose} disabled={flipping}><X size={22}/></button>
-      <div className="tarot-card-stage">
+      <div className="tarot-card-stage" role="button" tabIndex={revealed || flipping ? -1 : 0} aria-label="Flip tarot card" onClick={reveal} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); reveal(); } }}>
         <div className={'tarot-card-surface' + (flipping || revealed ? ' tarot-flipped' : '')}>
           <div className="tarot-card-face tarot-card-back">
             <img src="/tarot/back.webp" alt="Tarot card back" draggable={false} />
@@ -54,9 +53,8 @@ export default function TarotSpotlight({ onClose, forced }: { onClose: () => voi
           </span></>}
       </div>
       <div className="tarot-actions">
-        {!revealed ? <button type="button" onClick={reveal} disabled={flipping}>Reveal</button>
-          : <button type="button" onClick={redraw}>Redraw</button>}
         <button type="button" className="tarot-secondary" onClick={onClose} disabled={flipping}>Close</button>
+        {revealed && <button type="button" onClick={redraw}>Redraw</button>}
       </div>
     </div>
   </div>;
