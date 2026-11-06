@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Copy, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
@@ -104,7 +104,6 @@ export default function GMConsole({
   const [resettingCharacterId, setResettingCharacterId] = useState<string | null>(null);
 
   const [creationQrVisible, setCreationQrVisible] = useState(false);
-  const [invitationQrVisible, setInvitationQrVisible] = useState<Record<string, boolean>>({});
   const [creationToken, setCreationToken] = useState('');
   const [creationEnabled, setCreationEnabled] = useState(false);
   const [creationSaving, setCreationSaving] = useState(false);
@@ -223,13 +222,6 @@ export default function GMConsole({
           }
           return next;
         });
-        setInvitationQrVisible(previous => {
-          const next = { ...previous };
-          for (const character of data ?? []) {
-            if (character.player_id) delete next[character.id];
-          }
-          return next;
-        });
       }
     }
 
@@ -279,7 +271,6 @@ export default function GMConsole({
       ...previous,
       [characterId]: url.toString(),
     }));
-    setInvitationQrVisible(previous => ({ ...previous, [characterId]: true }));
   }
 
   async function resetPlayerAccess(characterId: string, characterName: string) {
@@ -311,7 +302,6 @@ export default function GMConsole({
         delete next[characterId];
         return next;
       });
-      setInvitationQrVisible(previous => ({ ...previous, [characterId]: false }));
       // Keep successful revocations in the developer console, not the GM UI.
       console.debug('[GM Console] Player access revoked', { characterId, characterName });
     } catch {
@@ -528,20 +518,21 @@ export default function GMConsole({
                       </div>
                     ) : (
                       <>
-                        <button onClick={() => void generateInvitation(selected.id)}>Generate Invitation</button>
+                        <button type="button" onClick={() => void generateInvitation(selected.id)}>Regenerate Invitation</button>
                         {invitations[selected.id] && (
                           <div className="gm-invitation">
-                            <input readOnly aria-label="Character invitation" value={invitations[selected.id]} />
-                            <button onClick={() => void navigator.clipboard.writeText(invitations[selected.id])}>Copy Link</button>
-                            <button type="button" onClick={() => setInvitationQrVisible(previous => ({ ...previous, [selected.id]: !previous[selected.id] }))}>
-                              {invitationQrVisible[selected.id] ? 'Hide QR Code' : 'Show QR Code'}
-                            </button>
-                            {invitationQrVisible[selected.id] && (
-                              <div className="gm-qr-panel">
-                                <QRCodeSVG value={invitations[selected.id]} size={220} marginSize={2} bgColor="#ffffff" fgColor="#111111" />
-                                <span>Scan to access {selected.name} · valid until claimed</span>
-                              </div>
-                            )}
+                            <div className="gm-qr-panel">
+                              <QRCodeSVG value={invitations[selected.id]} size={220} marginSize={2} bgColor="#ffffff" fgColor="#111111" />
+                              <span>Scan to access {selected.name} · valid until claimed</span>
+                            </div>
+                            <div className="gm-invitation-link-row">
+                              <input readOnly aria-label="Character invitation" value={invitations[selected.id]} />
+                              <button type="button" className="gm-invitation-copy-button"
+                                aria-label="Copy character invitation link" title="Copy character invitation link"
+                                onClick={() => void navigator.clipboard.writeText(invitations[selected.id])}>
+                                <Copy size={17} aria-hidden="true" />
+                              </button>
+                            </div>
                           </div>
                         )}
                       </>
