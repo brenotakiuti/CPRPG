@@ -20,7 +20,18 @@ const symbols = Array.from('アイウエオカキクケコサシスセソタナ�
 const random = (max: number) => Math.floor(Math.random() * max) + 1;
 const symbol = () => symbols[Math.floor(Math.random() * symbols.length)];
 
-export default function LiveSession({ characters, onHPChanged }: { characters: Character[]; onHPChanged: (id: string, hp: number) => void }) {
+export default function LiveSession({ campaignId, characters, onHPChanged }: { campaignId: string; characters: Character[]; onHPChanged: (id: string, hp: number) => void }) {
+  // Broadcast only completed rolls. The GM's existing dice history stays local.
+  const feedChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  useEffect(() => {
+    const channel = supabase.channel('hud-feed-' + campaignId);
+    feedChannel.current = channel;
+    channel.subscribe();
+    return () => {
+      feedChannel.current = null;
+      void supabase.removeChannel(channel);
+    };
+  }, [campaignId]);
   const [hpError, setHpError] = useState('');
   const [hpOverrides, setHpOverrides] = useState<Record<string, number>>({});
   const hpOverridesRef = useRef<Record<string, number>>({});
@@ -116,6 +127,13 @@ export default function LiveSession({ characters, onHPChanged }: { characters: C
     setFace(String(result)); setSceneStyle(''); setDieStyle('final');
     rolling.current = false; setPhase('revealed');
     setHistory(prev => [...prev, result]);
+    void feedChannel.current?.send({
+      type: 'broadcast',
+      event: 'dice-roll',
+      payload: { sides, result },
+    }).then(status => {
+      if (status !== 'ok') console.warn('[HUD Feed] Dice broadcast:', status);
+    });
   }
   function roll() {
     if (rolling.current || (config?.tool === 'dice' && history.length >= config.rolls)) return;
