@@ -327,7 +327,7 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
           <div className="live-dice-status">{phase === 'ready' ? 'CLICK THE DIE TO ROLL' : phase === 'rolling' ? 'ROLLING…' : 'RESULT: ' + face}</div>
           <div className="live-dice-history">{history.length ? history.join(' · ') : 'No rolls yet'}</div>
           <small>{config?.tool === 'dice' ? `${history.length} / ${config.rolls} rolls` : 'Click the die to roll'}</small>
-          <button type="button" className="live-spotlight-close" onClick={close} disabled={phase === 'rolling'}>Close spotlight</button>
+          <button type="button" className="live-spotlight-close" onClick={close} disabled={phase === 'rolling'}>Close</button>
         </div>
       </div>}
     </div>
