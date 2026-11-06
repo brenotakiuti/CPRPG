@@ -17,6 +17,27 @@ type PlayerViewProps = {
 export default function PlayerView({ token }: PlayerViewProps) {
   const [character, setCharacter] = useState<PlayerCharacter | null>(null);
   const [body, setBody] = useState<number | null>(null);
+  const [feedCampaignId, setFeedCampaignId] = useState<string | null>(null);
+  const [hudMessage, setHudMessage] = useState('');
+  const hudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!feedCampaignId || !character) return;
+    const channel = supabase.channel('hud-feed-' + feedCampaignId)
+      .on('broadcast', { event: 'dice-roll' }, ({ payload }) => {
+        const sides = Number(payload?.sides);
+        const result = Number(payload?.result);
+        if (![4, 6, 8, 10, 12, 20, 100].includes(sides) || !Number.isInteger(result) || result < 1 || result > sides) return;
+        if (hudTimer.current) clearTimeout(hudTimer.current);
+        setHudMessage(`GM ROLLED D${sides} → ${result}`);
+        hudTimer.current = setTimeout(() => setHudMessage(''), 2400);
+      })
+      .subscribe();
+    return () => {
+      if (hudTimer.current) clearTimeout(hudTimer.current);
+      void supabase.removeChannel(channel);
+    };
+  }, [feedCampaignId, character?.id]);
   const characterLoaded = useRef(false);
   const [message, setMessage] = useState('Connecting...');
   const [connected, setConnected] = useState(false);
@@ -103,11 +124,13 @@ export default function PlayerView({ token }: PlayerViewProps) {
       if (error) {
         setConnected(false);
         setCharacter(null);
+        setFeedCampaignId(null);
         setMessage(error.message);
       } else if (!data) {
         setConnected(false);
         // A GM may revoke access while this browser remains signed in.
         setCharacter(null);
+        setFeedCampaignId(null);
         setMessage('No character assigned. Ask your GM for a new invitation.');
       } else {
         // Read HP separately so older databases can still show the character.
@@ -123,6 +146,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
         if (!active) return;
         if (campaignError) console.warn('[Player] Campaign:', campaignError.message);
         const campaignId = campaignRow?.campaign_id;
+        setFeedCampaignId(campaignId ?? null);
         if (campaignId) {
           const { data: definitions, error: definitionError } = await supabase
             .from('stat_definitions').select('id, name').eq('campaign_id', campaignId);
@@ -207,6 +231,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
 
   return (
     <main className="player-terminal">
+      {hudMessage && <div className="player-hud-feed" role="status" key={hudMessage}>{hudMessage}</div>}
       <div className="player-shell">
         <header className="player-card player-header">
           <div className="player-header-top"><span>NIGHT CITY // 2077</span><RadioTower size={16} aria-hidden="true" /></div>
