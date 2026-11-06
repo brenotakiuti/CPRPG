@@ -42,8 +42,8 @@ export default function FortuneCookieSpotlight({ onClose, messageIndex, luckyNum
           ) : <p className="fortune-waiting">Your fortune awaits.</p>}
         </div>
         <div className="fortune-actions">
-          <button type="button" onClick={() => setFortune(crackFortune(messageIndex, luckyNumbers))}>Crack</button>
           <button type="button" className="fortune-secondary" onClick={onClose}>Close</button>
+          <button type="button" onClick={() => setFortune(crackFortune(messageIndex, luckyNumbers))}>Crack</button>
         </div>
       </div>
     </div>
