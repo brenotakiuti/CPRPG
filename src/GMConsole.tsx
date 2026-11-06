@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
@@ -102,6 +103,8 @@ export default function GMConsole({
   const [inviteMessage, setInviteMessage] = useState('');
   const [resettingCharacterId, setResettingCharacterId] = useState<string | null>(null);
 
+  const [creationQrVisible, setCreationQrVisible] = useState(false);
+  const [invitationQrVisible, setInvitationQrVisible] = useState<Record<string, boolean>>({});
   const [creationToken, setCreationToken] = useState('');
   const [creationEnabled, setCreationEnabled] = useState(false);
   const [creationSaving, setCreationSaving] = useState(false);
@@ -109,6 +112,7 @@ export default function GMConsole({
 
   useEffect(() => {
     let active = true;
+    setCreationQrVisible(false);
     setCreationToken('');
     setCreationEnabled(false);
     setCreationError('');
@@ -139,6 +143,13 @@ export default function GMConsole({
     else setCreationEnabled(data);
     setCreationSaving(false);
   }
+
+  // Creation QR is intentionally temporary; the reusable link remains available to the GM.
+  useEffect(() => {
+    if (!creationQrVisible) return;
+    const timeout = setTimeout(() => setCreationQrVisible(false), 30000);
+    return () => clearTimeout(timeout);
+  }, [creationQrVisible]);
 
   const creationLink = creationToken
     ? window.location.origin + window.location.pathname + window.location.search + '#create=' + creationToken
@@ -212,6 +223,13 @@ export default function GMConsole({
           }
           return next;
         });
+        setInvitationQrVisible(previous => {
+          const next = { ...previous };
+          for (const character of data ?? []) {
+            if (character.player_id) delete next[character.id];
+          }
+          return next;
+        });
       }
     }
 
@@ -261,6 +279,7 @@ export default function GMConsole({
       ...previous,
       [characterId]: url.toString(),
     }));
+    setInvitationQrVisible(previous => ({ ...previous, [characterId]: false }));
   }
 
   async function resetPlayerAccess(characterId: string, characterName: string) {
@@ -292,6 +311,7 @@ export default function GMConsole({
         delete next[characterId];
         return next;
       });
+      setInvitationQrVisible(previous => ({ ...previous, [characterId]: false }));
       // Keep successful revocations in the developer console, not the GM UI.
       console.debug('[GM Console] Player access revoked', { characterId, characterName });
     } catch {
@@ -385,6 +405,16 @@ export default function GMConsole({
           </svg>
         </button>
       </div>
+      <button type="button" disabled={!creationLink || !creationEnabled}
+        onClick={() => setCreationQrVisible(visible => !visible)}>
+        {creationQrVisible ? 'Hide QR Code' : 'Show QR Code'}
+      </button>
+      {creationQrVisible && creationEnabled && creationLink && (
+        <div className="gm-qr-panel">
+          <QRCodeSVG value={creationLink} size={220} marginSize={2} bgColor="#ffffff" fgColor="#111111" />
+          <span>Scan to create a character · hides after 30 seconds</span>
+        </div>
+      )}
       {creationError && <p className="creation-error" role="alert">{creationError}</p>}
     </section>
   );
@@ -503,6 +533,15 @@ export default function GMConsole({
                           <div className="gm-invitation">
                             <input readOnly aria-label="Character invitation" value={invitations[selected.id]} />
                             <button onClick={() => void navigator.clipboard.writeText(invitations[selected.id])}>Copy Link</button>
+                            <button type="button" onClick={() => setInvitationQrVisible(previous => ({ ...previous, [selected.id]: !previous[selected.id] }))}>
+                              {invitationQrVisible[selected.id] ? 'Hide QR Code' : 'Show QR Code'}
+                            </button>
+                            {invitationQrVisible[selected.id] && (
+                              <div className="gm-qr-panel">
+                                <QRCodeSVG value={invitations[selected.id]} size={220} marginSize={2} bgColor="#ffffff" fgColor="#111111" />
+                                <span>Scan to access {selected.name} · valid until claimed</span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </>
