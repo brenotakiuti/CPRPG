@@ -127,6 +127,15 @@ export default function LiveSession({ campaignId, characters, onHPChanged }: { c
     setFace(String(result)); setSceneStyle(''); setDieStyle('final');
     rolling.current = false; setPhase('revealed');
     setHistory(prev => [...prev, result]);
+    // Keep the existing HUD broadcast while we verify database logging independently.
+    void supabase.from('campaign_events').insert({
+      campaign_id: campaignId,
+      character_id: null, // GM-only history entry for this first test.
+      category: 'system',
+      message: `GM ROLLED D${sides} → ${result}`,
+    }).then(({ error }) => {
+      if (error) console.error('[Campaign Log] Dice roll was not saved:', error.message);
+    });
     void feedChannel.current?.send({
       type: 'broadcast',
       event: 'hud-message',
