@@ -279,7 +279,7 @@ export default function GMConsole({
       ...previous,
       [characterId]: url.toString(),
     }));
-    setInvitationQrVisible(previous => ({ ...previous, [characterId]: false }));
+    setInvitationQrVisible(previous => ({ ...previous, [characterId]: true }));
   }
 
   async function resetPlayerAccess(characterId: string, characterName: string) {
