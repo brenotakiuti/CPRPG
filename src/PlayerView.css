@@ -36,6 +36,6 @@
 
 .player-footer span.player-offline{color:#d84d59}
 
-/* HUD Feed: one transient line above the player's current screen. */
-.player-hud-feed{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:9999;max-width:calc(100vw - 24px);width:max-content;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;padding:10px 16px;border-left:3px solid #e8bd4a;background:rgba(10,20,30,.94);color:#e8bd4a;font-size:13px;font-weight:700;letter-spacing:.4px;box-shadow:0 4px 20px #0008;animation:hud-feed-rise .2s ease-out both}
-@keyframes hud-feed-rise{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
+/* HUD Feed: wide, single-line notification; FIFO timing includes both animations. */
+.player-hud-feed{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:9999;width:88%;max-width:calc(100vw - 24px);box-sizing:border-box;height:36px;display:flex;align-items:center;justify-content:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;padding:0 12px;border-left:3px solid #e8bd4a;background:#302b2b;color:#e8bd4a;font-size:13px;font-weight:700;letter-spacing:.4px;box-shadow:0 4px 20px #0008;animation:hud-feed-cycle linear both}
+@keyframes hud-feed-cycle{0%{opacity:0;transform:translate(-50%,14px)}10%{opacity:1;transform:translate(-50%,0)}85%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,14px)}}
