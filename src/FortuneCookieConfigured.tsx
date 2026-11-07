@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './FortuneCookieSpotlight.css';
 
-const fortunes = [
+export const fortunes = [
   'The door you fear opening has already been unlocked.',
   'Not every warning comes from an enemy.',
   'A familiar face will bring unfamiliar news.',
@@ -25,8 +25,17 @@ function crackFortune(messageIndex?: number | null, luckyNumbers?: number[] | nu
   };
 }
 
-export default function FortuneCookieSpotlight({ onClose, messageIndex, luckyNumbers }: { onClose: () => void; messageIndex?: number | null; luckyNumbers?: number[] | null }) {
+export default function FortuneCookieSpotlight({ onClose, messageIndex, luckyNumbers, fixedFortune, onReveal, playerMode = false }: { onClose: () => void; messageIndex?: number | null; luckyNumbers?: number[] | null; fixedFortune?: Fortune; onReveal?: () => Promise<void>; playerMode?: boolean }) {
   const [fortune, setFortune] = useState<Fortune | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function crack() {
+    if (busy || (playerMode && fortune)) return;
+    setBusy(true);
+    try { if (onReveal) await onReveal(); setFortune(fixedFortune ?? crackFortune(messageIndex, luckyNumbers)); }
+    catch (e) { setError(e instanceof Error ? e.message : 'Could not save fortune'); }
+    finally { setBusy(false); }
+  }
   return (
     <div className="fortune-overlay" role="dialog" aria-modal="true" aria-label="Fortune Cookie spotlight">
       <div className="fortune-scene">
@@ -41,9 +50,10 @@ export default function FortuneCookieSpotlight({ onClose, messageIndex, luckyNum
             </>
           ) : <p className="fortune-waiting">Your fortune awaits.</p>}
         </div>
+        {error && <p role="alert" style={{ color: "#ff9999" }}>{error}</p>}
         <div className="fortune-actions">
-          <button type="button" className="fortune-secondary" onClick={onClose}>Close</button>
-          <button type="button" onClick={() => setFortune(crackFortune(messageIndex, luckyNumbers))}>Crack</button>
+          <button type="button" className="fortune-secondary" disabled={busy || (playerMode && !fortune)} onClick={onClose}>Close</button>
+          {(!playerMode || !fortune) && <button type="button" disabled={busy} onClick={() => void crack()}>{busy ? "Opening..." : "Crack"}</button>}
         </div>
       </div>
     </div>
