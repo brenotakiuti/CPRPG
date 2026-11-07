@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ScrollText } from 'lucide-react';
 import { supabase } from './supabase';
 import './CampaignLogs.css';
-import { tarotFromLog } from './tarotData';
+import { displayLogMessage, tarotFromLog } from './tarotData';
 import TarotCardViewer from './TarotCardViewer';
 
 type CampaignEvent = {
@@ -130,12 +130,12 @@ export default function CampaignLogs({ campaignId, characters }: {
       <table className="campaign-logs-table">
         <thead><tr><th>Date / Time</th><th>Type</th><th>Audience</th><th>Character</th><th>Message</th></tr></thead>
         <tbody>
-          {visible.map(event => <tr key={event.id}>
+          {visible.map(event => <tr key={event.id} role={tarotFromLog(event.message) ? "button" : undefined} tabIndex={tarotFromLog(event.message) ? 0 : undefined} onClick={() => { const card = tarotFromLog(event.message); if (card) setSelectedCard(card); }} onKeyDown={e => { if (tarotFromLog(event.message) && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setSelectedCard(tarotFromLog(event.message)); } }} style={tarotFromLog(event.message) ? { cursor: "pointer" } : undefined}>
             <td className="campaign-logs-time">{new Date(event.created_at).toLocaleString()}</td>
             <td>{event.category}</td>
             <td>{event.audience}</td>
             <td>{event.character_id ? names.get(event.character_id) ?? event.character_id : '—'}</td>
-            <td className="campaign-logs-message">{event.message}{tarotFromLog(event.message) && <button type="button" className="tarot-log-view" onClick={() => setSelectedCard(tarotFromLog(event.message))}>View card</button>}</td>
+            <td className="campaign-logs-message">{displayLogMessage(event.message)}</td>
           </tr>)}
         </tbody>
       </table>
@@ -149,7 +149,7 @@ export default function CampaignLogs({ campaignId, characters }: {
         {hasMore && <button type="button" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? 'Loading...' : 'Load older events'}</button>}
       </div>
     </div>
-    {selectedCard && <TarotCardViewer index={selectedCard.index} reversed={selectedCard.reversed} onClose={() => setSelectedCard(null)} />}
+    {selectedCard && <TarotCardViewer index={selectedCard.index} onClose={() => setSelectedCard(null)} />}
   </section>;
 }
 
