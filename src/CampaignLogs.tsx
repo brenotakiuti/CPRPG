@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { ScrollText } from 'lucide-react';
 import { supabase } from './supabase';
 import './CampaignLogs.css';
+import { tarotFromLog } from './tarotData';
+import TarotCardViewer from './TarotCardViewer';
 
 type CampaignEvent = {
   id: string;
@@ -19,6 +21,7 @@ export default function CampaignLogs({ campaignId, characters }: {
   campaignId: string;
   characters: { id: string; name: string }[];
 }) {
+  const [selectedCard, setSelectedCard] = useState<{index:number;reversed:boolean}|null>(null);
   const [events, setEvents] = useState<CampaignEvent[]>([]);
   const [search, setSearch] = useState('');
   const [character, setCharacter] = useState('all');
@@ -132,7 +135,7 @@ export default function CampaignLogs({ campaignId, characters }: {
             <td>{event.category}</td>
             <td>{event.audience}</td>
             <td>{event.character_id ? names.get(event.character_id) ?? event.character_id : '—'}</td>
-            <td className="campaign-logs-message">{event.message}</td>
+            <td className="campaign-logs-message">{event.message}{tarotFromLog(event.message) && <button type="button" className="tarot-log-view" onClick={() => setSelectedCard(tarotFromLog(event.message))}>View card</button>}</td>
           </tr>)}
         </tbody>
       </table>
@@ -146,6 +149,7 @@ export default function CampaignLogs({ campaignId, characters }: {
         {hasMore && <button type="button" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? 'Loading...' : 'Load older events'}</button>}
       </div>
     </div>
+    {selectedCard && <TarotCardViewer index={selectedCard.index} reversed={selectedCard.reversed} onClose={() => setSelectedCard(null)} />}
   </section>;
 }
 
