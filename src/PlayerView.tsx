@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
-import { HeartPulse, Wallet, Dices, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower } from 'lucide-react';
+import { HeartPulse, Wallet, Dices, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History } from 'lucide-react';
 import './PlayerView.css';
+import PlayerLogs from './PlayerLogs';
 
 type PlayerCharacter = {
   id: string;
@@ -17,6 +18,7 @@ type PlayerViewProps = {
 export default function PlayerView({ token }: PlayerViewProps) {
   const [character, setCharacter] = useState<PlayerCharacter | null>(null);
   const [body, setBody] = useState<number | null>(null);
+  const [logsOpen, setLogsOpen] = useState(false);
   const [feedCampaignId, setFeedCampaignId] = useState<string | null>(null);
   const [hudMessage, setHudMessage] = useState<{ id: string; text: string; duration: number } | null>(null);
   const hudQueue = useRef<Array<{ id: string; text: string; duration: number }>>([]);
@@ -273,7 +275,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       {hudMessage && <div className="player-hud-feed" role="status" key={hudMessage.id} style={{ animationDuration: `${hudMessage.duration}ms` }}>{hudMessage.text}</div>}
       <div className="player-shell">
         <header className="player-card player-header">
-          <div className="player-header-top"><span>NIGHT CITY // 2077</span><RadioTower size={16} aria-hidden="true" /></div>
+          <div className="player-header-top"><span>NIGHT CITY // 2077</span><div className="player-header-actions"><RadioTower size={16} aria-hidden="true" />{character && feedCampaignId && <button type="button" className="player-logs-trigger" aria-label="Open personal logs" title="Personal logs" onClick={() => setLogsOpen(true)}><History size={19} aria-hidden="true" /></button>}</div></div>
           <h1>{character?.name ?? 'PLAYER TERMINAL'}</h1>
           <p>CHARACTER DASHBOARD</p>
         </header>
@@ -312,6 +314,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           </>
         ) : <section className="player-card player-message" role="status">{message}</section>}
       </div>
+      {logsOpen && character && feedCampaignId && <PlayerLogs campaignId={feedCampaignId} characterId={character.id} onClose={() => setLogsOpen(false)} />}
     </main>
   );
 }
