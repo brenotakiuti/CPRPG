@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowDownLeft, Clock3, Dices, History, MessageSquare, Wallet, X } from 'lucide-react';
+import { ArrowDownLeft, Clock3, Cookie, Dices, History, MessageSquare, SunMoon, Wallet, X } from 'lucide-react';
 import { supabase } from './supabase';
 import './PlayerLogs.css';
 import { displayLogMessage, tarotFromLog } from './tarotData';
@@ -19,6 +19,8 @@ const newestFirst = (a: LogEvent, b: LogEvent) =>
   b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id);
 
 function EventIcon({ message }: { message: string }) {
+  if (/^(?:TAROT REVEALED|TAROT CARD):/i.test(message)) return <SunMoon size={18} aria-hidden="true" />;
+  if (/^FORTUNE REVEALED:/i.test(message)) return <Cookie size={18} aria-hidden="true" />;
   if (/\bROLLED D\d+/i.test(message)) return <Dices size={18} aria-hidden="true" />;
   if (/\bRECEIVED\b/i.test(message)) return <ArrowDownLeft size={18} aria-hidden="true" />;
   if (/\b(?:E\$|DEDUCTED|SENT)\b/i.test(message) || message.includes('E$')) return <Wallet size={18} aria-hidden="true" />;
