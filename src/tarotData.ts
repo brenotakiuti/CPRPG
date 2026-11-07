@@ -10,8 +10,13 @@ export const tarotMessages = [
   "Do you dare face what awaits?",
 ];
 export function tarotFromLog(message: string): { index: number; reversed: boolean } | null {
-  const match = /^TAROT REVEALED: (.+) \((Upright|Reversed)\)$/.exec(message);
+  const match = /^(?:TAROT REVEALED|TAROT CARD): (.+?)(?: \((Upright|Reversed)\))?$/.exec(message);
   if (!match) return null;
   const index = tarotCardNames.indexOf(match[1]);
   return index < 0 ? null : { index, reversed: match[2] === 'Reversed' };
+}
+
+export function displayLogMessage(message: string): string {
+  const tarot = tarotFromLog(message);
+  return tarot ? `TAROT CARD: ${tarotCardNames[tarot.index]}` : message;
 }
