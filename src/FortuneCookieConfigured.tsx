@@ -25,8 +25,8 @@ function crackFortune(messageIndex?: number | null, luckyNumbers?: number[] | nu
   };
 }
 
-export default function FortuneCookieSpotlight({ onClose, messageIndex, luckyNumbers, fixedFortune, onReveal, playerMode = false }: { onClose: () => void; messageIndex?: number | null; luckyNumbers?: number[] | null; fixedFortune?: Fortune; onReveal?: () => Promise<void>; playerMode?: boolean }) {
-  const [fortune, setFortune] = useState<Fortune | null>(null);
+export default function FortuneCookieSpotlight({ onClose, messageIndex, luckyNumbers, fixedFortune, onReveal, playerMode = false, initiallyRevealed = false }: { onClose: () => void; messageIndex?: number | null; luckyNumbers?: number[] | null; fixedFortune?: Fortune; onReveal?: () => Promise<void>; playerMode?: boolean; initiallyRevealed?: boolean }) {
+  const [fortune, setFortune] = useState<Fortune | null>(initiallyRevealed ? fixedFortune ?? null : null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function crack() {
