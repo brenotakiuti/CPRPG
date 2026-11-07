@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { ArrowDownLeft, Clock3, Dices, History, MessageSquare, Wallet, X } from 'lucide-react';
 import { supabase } from './supabase';
 import './PlayerLogs.css';
+import { tarotFromLog } from './tarotData';
+import TarotCardViewer from './TarotCardViewer';
 
 type LogEvent = {
   id: string;
@@ -29,6 +31,7 @@ export default function PlayerLogs({ campaignId, characterId, onClose }: {
   characterId: string;
   onClose: () => void;
 }) {
+  const [selectedCard, setSelectedCard] = useState<{index:number;reversed:boolean}|null>(null);
   const [events, setEvents] = useState<LogEvent[]>([]);
   const [filter, setFilter] = useState<'all' | 'personal' | 'campaign'>('all');
   const [search, setSearch] = useState('');
@@ -131,6 +134,7 @@ export default function PlayerLogs({ campaignId, characterId, onClose }: {
           </span>
           <div className="player-logs-entry-body">
             <p>{event.message}</p>
+            {tarotFromLog(event.message) && <button type="button" className="tarot-log-view" onClick={() => setSelectedCard(tarotFromLog(event.message))}>View card</button>}
             <span>{event.audience === 'character' ? 'Personal' : 'Campaign-wide'}</span>
           </div>
           <time dateTime={event.created_at} title={new Date(event.created_at).toLocaleString()}>
@@ -144,5 +148,6 @@ export default function PlayerLogs({ campaignId, characterId, onClose }: {
       </div>
       <footer className="player-logs-footer"><span>{visible.length} events shown</span><button type="button" onClick={onClose}>Close</button></footer>
     </section>
+    {selectedCard && <TarotCardViewer index={selectedCard.index} reversed={selectedCard.reversed} onClose={() => setSelectedCard(null)} />}
   </div>;
 }
