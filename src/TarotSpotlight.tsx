@@ -4,12 +4,12 @@ import './TarotSpotlight.css';
 
 const CARD_NAMES = ["The Fool","The Magician","The High Priestess","The Empress","The Emperor","The Hierophant","The Lovers","The Chariot","Strength","The Hermit","Wheel of Fortune","Justice","The Hanged Man","Death","Temperance","The Devil","The Tower","The Star","The Moon","The Sun","Judgement","The World"];
 type Draw = { index: number; reversed: boolean };
-export default function TarotSpotlight({ onClose, forced, onReveal, playerMode = false }: { onClose: () => void; forced?: Draw | null; onReveal?: (draw: Draw) => Promise<void>; playerMode?: boolean }) {
+export default function TarotSpotlight({ onClose, forced, onReveal, playerMode = false, initiallyRevealed = false }: { onClose: () => void; forced?: Draw | null; onReveal?: (draw: Draw) => Promise<void>; playerMode?: boolean; initiallyRevealed?: boolean }) {
   const [draw, setDraw] = useState<Draw>(() => forced ?? ({
     index: Math.floor(Math.random() * CARD_NAMES.length),
     reversed: Math.random() < 0.5,
   }));
-  const [revealed, setRevealed] = useState(false);
+  const [revealed, setRevealed] = useState(initiallyRevealed);
   const [flipping, setFlipping] = useState(false);
   const [error, setError] = useState('');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
