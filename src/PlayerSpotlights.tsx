@@ -72,11 +72,11 @@ export default function PlayerSpotlights({ campaignId, characterId }: { campaign
   return <>
     {current.kind === 'tarot' && typeof current.outcome.index === 'number' && (
       <TarotSpotlight key={current.id} forced={{ index: current.outcome.index, reversed: !!current.outcome.reversed }}
-        playerMode onReveal={reveal} onClose={() => void close()} />
+        playerMode initiallyRevealed={!!current.revealed_at} onReveal={reveal} onClose={() => void close()} />
     )}
     {current.kind === 'fortune' && typeof current.outcome.message === 'string' && Array.isArray(current.outcome.numbers) && (
       <FortuneCookieSpotlight key={current.id} fixedFortune={{ message: current.outcome.message, numbers: current.outcome.numbers }}
-        playerMode onReveal={reveal} onClose={() => void close()} />
+        playerMode initiallyRevealed={!!current.revealed_at} onReveal={reveal} onClose={() => void close()} />
     )}
     {error && <div role="alert" className="player-spotlight-error">{error}</div>}
     {closing && <div className="player-spotlight-error">Closing...</div>}
