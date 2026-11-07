@@ -367,9 +367,9 @@ export default function GMConsole({
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'characters', label: 'Characters', icon: Users },
     { id: 'bank', label: 'Bank', icon: Landmark },
-    { id: 'logs', label: 'Logs', icon: ScrollText },
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'factions', label: 'Factions', icon: Shield },
+    { id: 'logs', label: 'Logs', icon: ScrollText },
   ] as const;
   const creationControls = (
     <section className="creation-link-section" aria-label="Character creation">
