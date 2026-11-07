@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Copy, ScrollText, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
 import LiveSession from './LiveSession';
+import CampaignLogs from './CampaignLogs';
 
 // Temporary visual thresholds; can later be supplied by campaign stat-tier records.
 const DEFAULT_STAT_TIERS = [
@@ -75,9 +77,9 @@ export default function GMConsole({
   campaign,
   onSwitchCampaign,
 }: GMConsoleProps) {
-  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'factions'>(() => {
+  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'factions' | 'logs'>(() => {
     const saved = sessionStorage.getItem('gm-page');
-    return saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' ? saved : 'live';
+    return saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' || saved === 'logs' ? saved : 'live';
   });
   const [selectedId, setSelectedId] = useState('');
   const [detailTab, setDetailTab] = useState<'stats' | 'cyberware' | 'inventory' | 'access'>('stats');
@@ -102,6 +104,7 @@ export default function GMConsole({
   const [inviteMessage, setInviteMessage] = useState('');
   const [resettingCharacterId, setResettingCharacterId] = useState<string | null>(null);
 
+  const [creationQrVisible, setCreationQrVisible] = useState(false);
   const [creationToken, setCreationToken] = useState('');
   const [creationEnabled, setCreationEnabled] = useState(false);
   const [creationSaving, setCreationSaving] = useState(false);
@@ -109,6 +112,7 @@ export default function GMConsole({
 
   useEffect(() => {
     let active = true;
+    setCreationQrVisible(false);
     setCreationToken('');
     setCreationEnabled(false);
     setCreationError('');
@@ -139,6 +143,13 @@ export default function GMConsole({
     else setCreationEnabled(data);
     setCreationSaving(false);
   }
+
+  // Creation QR is intentionally temporary; the reusable link remains available to the GM.
+  useEffect(() => {
+    if (!creationQrVisible) return;
+    const timeout = setTimeout(() => setCreationQrVisible(false), 30000);
+    return () => clearTimeout(timeout);
+  }, [creationQrVisible]);
 
   const creationLink = creationToken
     ? window.location.origin + window.location.pathname + window.location.search + '#create=' + creationToken
@@ -358,6 +369,7 @@ export default function GMConsole({
     { id: 'bank', label: 'Bank', icon: Landmark },
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'factions', label: 'Factions', icon: Shield },
+    { id: 'logs', label: 'Logs', icon: ScrollText },
   ] as const;
   const creationControls = (
     <section className="creation-link-section" aria-label="Character creation">
@@ -385,6 +397,16 @@ export default function GMConsole({
           </svg>
         </button>
       </div>
+      <button type="button" disabled={!creationLink || !creationEnabled}
+        onClick={() => setCreationQrVisible(visible => !visible)}>
+        {creationQrVisible ? 'Hide QR Code' : 'Show QR Code'}
+      </button>
+      {creationQrVisible && creationEnabled && creationLink && (
+        <div className="gm-qr-panel">
+          <QRCodeSVG value={creationLink} size={220} marginSize={2} bgColor="#ffffff" fgColor="#111111" />
+          <span>Scan to create a character · hides after 30 seconds</span>
+        </div>
+      )}
       {creationError && <p className="creation-error" role="alert">{creationError}</p>}
     </section>
   );
@@ -408,7 +430,7 @@ export default function GMConsole({
         ))}
       </nav>
       {page === 'live' ? (
-        <LiveSession characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} />
+        <LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} />
       ) : page === 'characters' ? (
         <div className="gm-characters-layout">
           <aside className="gm-roster">
@@ -498,11 +520,23 @@ export default function GMConsole({
                       </div>
                     ) : (
                       <>
-                        <button onClick={() => void generateInvitation(selected.id)}>Generate Invitation</button>
+                        {!invitations[selected.id] && (
+                          <button type="button" onClick={() => void generateInvitation(selected.id)}>Generate Invitation</button>
+                        )}
                         {invitations[selected.id] && (
                           <div className="gm-invitation">
-                            <input readOnly aria-label="Character invitation" value={invitations[selected.id]} />
-                            <button onClick={() => void navigator.clipboard.writeText(invitations[selected.id])}>Copy Link</button>
+                            <div className="gm-qr-panel">
+                              <QRCodeSVG value={invitations[selected.id]} size={220} marginSize={2} bgColor="#ffffff" fgColor="#111111" />
+                              <span>Scan to access {selected.name} · valid until claimed</span>
+                            </div>
+                            <div className="gm-invitation-link-row">
+                              <input readOnly aria-label="Character invitation" value={invitations[selected.id]} />
+                              <button type="button" className="gm-invitation-copy-button"
+                                aria-label="Copy character invitation link" title="Copy character invitation link"
+                                onClick={() => void navigator.clipboard.writeText(invitations[selected.id])}>
+                                <Copy size={23} aria-hidden="true" />
+                              </button>
+                            </div>
                           </div>
                         )}
                       </>
@@ -516,6 +550,8 @@ export default function GMConsole({
         </div>
       ) : page === 'bank' ? (
         <div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>
+      ) : page === 'logs' ? (
+        <CampaignLogs campaignId={campaign.id} characters={characters} />
       ) : page === 'overview' ? (
         <div className="gm-dashboard-panel gm-overview">
           <h2>Campaign Overview</h2>

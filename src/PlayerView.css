@@ -1,6 +1,6 @@
-.player-terminal{min-height:100dvh;background:#0b111b;color:#e6edf5;padding:16px 12px 32px;font-family:inherit;box-sizing:border-box}
+.player-terminal{width:100%;min-height:100dvh;background:#0b111b;color:#e6edf5;padding:16px 12px 32px;font-family:inherit;box-sizing:border-box}
 .player-terminal *{box-sizing:border-box}
-.player-shell{width:100%;max-width:420px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.player-shell{width:100%;max-width:600px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
 .player-card{background:#172331;border:1px solid #3c4c5c;border-radius:8px;padding:16px;min-width:0}
 .player-header-top{display:flex;align-items:center;justify-content:space-between;color:#e8bd4a;font-size:11px;font-weight:800;letter-spacing:1px}
 .player-header-top svg{color:#69dba8}
@@ -35,3 +35,10 @@
 @media(max-width:340px){.player-quick-card{padding:10px}.player-balance{font-size:17px}.player-nav-tile span{font-size:9px}}
 
 .player-footer span.player-offline{color:#d84d59}
+
+/* HUD Feed: wide, single-line notification; FIFO timing includes both animations. */
+.player-hud-feed{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:9999;width:88%;max-width:calc(100vw - 24px);box-sizing:border-box;height:36px;display:flex;align-items:center;justify-content:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;padding:0 12px;border-left:3px solid #e8bd4a;background:#302b2b;color:#e8bd4a;font-size:13px;font-weight:700;letter-spacing:.4px;box-shadow:0 4px 20px #0008;animation:hud-feed-cycle linear both}
+@keyframes hud-feed-cycle{0%{opacity:0;transform:translate(-50%,14px)}10%{opacity:1;transform:translate(-50%,0)}85%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,14px)}}
+
+/* Delivery failures remain visible above the interactive spotlight. */
+.player-spotlight-error{position:fixed;z-index:1100;left:50%;top:14px;transform:translateX(-50%);max-width:calc(100vw - 24px);background:#401e24;border:1px solid #d84d59;border-radius:7px;padding:10px 14px;color:#ffe4e4;font-size:12px;text-align:center;box-shadow:0 8px 30px #0009}

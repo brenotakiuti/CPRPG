@@ -2,14 +2,17 @@ import { useState } from 'react';
 import { Cookie, Dices, SunMoon } from 'lucide-react';
 import './SessionToolSettings.css';
 
+export type Delivery = { audience: 'all' | 'character'; characterId: string | null };
 export type ToolConfig =
   | { tool: 'dice'; sides: number; rolls: number; forced: number[] | null }
-  | { tool: 'tarot'; forced: { index: number; reversed: boolean } | null }
-  | { tool: 'fortune'; forcedMessage: number | null; forcedNumbers: number[] | null };
+  | { tool: 'tarot'; forced: { index: number; reversed: boolean } | null; delivery: Delivery }
+  | { tool: 'fortune'; forcedMessage: number | null; forcedNumbers: number[] | null; delivery: Delivery };
 
 const cards = ['The Fool','The Magician','The High Priestess','The Empress','The Emperor','The Hierophant','The Lovers','The Chariot','Strength','The Hermit','Wheel of Fortune','Justice','The Hanged Man','Death','Temperance','The Devil','The Tower','The Star','The Moon','The Sun','Judgement','The World'];
 
-export default function SessionToolSettings({ onOpen }: { onOpen: (config: ToolConfig) => void }) {
+export default function SessionToolSettings({ onOpen, characters }: { onOpen: (config: ToolConfig) => void; characters: { id: string; name: string }[] }) {
+  const [audience, setAudience] = useState<'all' | 'character'>('all');
+  const [characterId, setCharacterId] = useState('');
   const [tool, setTool] = useState<'dice'|'tarot'|'fortune'>('dice');
   const [rig, setRig] = useState(false);
   const [sides, setSides] = useState(20);
@@ -22,6 +25,8 @@ export default function SessionToolSettings({ onOpen }: { onOpen: (config: ToolC
   const [error, setError] = useState('');
   function launch() {
     setError('');
+    if (tool !== 'dice' && audience === 'character' && !characters.some(c => c.id === characterId)) { setError('Select a character.'); return; }
+    const delivery: Delivery = { audience, characterId: audience === 'character' ? characterId : null };
     if (tool === 'dice') {
       if (!Number.isInteger(rolls) || rolls < 1 || rolls > 100) { setError('Choose 1–100 rolls.'); return; }
       let forced: number[] | null = null;
@@ -34,13 +39,13 @@ export default function SessionToolSettings({ onOpen }: { onOpen: (config: ToolC
       }
       onOpen({ tool, sides, rolls, forced });
     } else if (tool === 'tarot') {
-      onOpen({ tool, forced: rig ? { index: card, reversed } : null });
+      onOpen({ tool, forced: rig ? { index: card, reversed } : null, delivery });
     } else {
       const numbers = luckyNumbers.split(',').map(v => Number(v.trim()));
       if (rig && (numbers.length !== 5 || numbers.some(v => !Number.isInteger(v) || v < 1 || v > 99) || new Set(numbers).size !== 5)) {
         setError('Enter five different lucky numbers from 1 to 99, separated by commas.'); return;
       }
-      onOpen({ tool, forcedMessage: rig ? fortune : null, forcedNumbers: rig ? numbers : null });
+      onOpen({ tool, forcedMessage: rig ? fortune : null, forcedNumbers: rig ? numbers : null, delivery });
     }
     setRig(false);
   }
@@ -54,6 +59,7 @@ export default function SessionToolSettings({ onOpen }: { onOpen: (config: ToolC
       <label>Die type<select value={sides} onChange={e => setSides(Number(e.target.value))}>{[6,10,20,100].map(n => <option key={n} value={n}>D{n}</option>)}</select></label>
       <label>Number of rolls<input type="number" min={1} max={100} value={rolls} onChange={e => setRolls(Number(e.target.value))}/></label>
     </div>}
+    {tool !== "dice" && <div className="session-settings-row"><label>Send to<select value={audience} onChange={e => setAudience(e.target.value as "all" | "character")}><option value="all">All players</option><option value="character">One character</option></select></label>{audience === "character" && <label>Character<select value={characterId} onChange={e => setCharacterId(e.target.value)}><option value="">Select character...</option>{characters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}</div>}
     <label className="session-rig-toggle"><input type="checkbox" checked={rig} onChange={e => setRig(e.target.checked)}/> Rig next outcome (single use)</label>
     {rig && <div className="session-rig-fields">
       {tool === 'dice' ? <label>Forced results, in order<input value={forcedDice} onChange={e => setForcedDice(e.target.value)} placeholder="4, 17, 20"/></label>
@@ -63,6 +69,6 @@ export default function SessionToolSettings({ onOpen }: { onOpen: (config: ToolC
     </div>}
     {error && <p className="session-settings-error" role="alert">{error}</p>}
     <button type="button" className="session-open-button" onClick={launch}>Execute</button>
-    <small>GM-only execution. Player delivery will be added separately.</small>
+    <small>Tarot and Fortune Cookie are delivered to selected player HUDs.</small>
   </div>;
 }

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
-import { HeartPulse, Wallet, Dices, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower } from 'lucide-react';
+import { HeartPulse, Wallet, Dices, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History } from 'lucide-react';
 import './PlayerView.css';
+import PlayerLogs from './PlayerLogs';
+import PlayerSpotlights from './PlayerSpotlights';
 
 type PlayerCharacter = {
   id: string;
@@ -17,6 +19,67 @@ type PlayerViewProps = {
 export default function PlayerView({ token }: PlayerViewProps) {
   const [character, setCharacter] = useState<PlayerCharacter | null>(null);
   const [body, setBody] = useState<number | null>(null);
+  const [logsOpen, setLogsOpen] = useState(false);
+  const [feedCampaignId, setFeedCampaignId] = useState<string | null>(null);
+  const [hudMessage, setHudMessage] = useState<{ id: string; text: string; duration: number } | null>(null);
+  const hudQueue = useRef<Array<{ id: string; text: string; duration: number }>>([]);
+  const hudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hudActive = useRef(false);
+
+  // The HUD consumes persisted events, independent of their producing system.
+  // One message finishes its full animation before the next starts.
+  function showNextHudMessage() {
+    const next = hudQueue.current.shift();
+    if (!next) {
+      hudActive.current = false;
+      setHudMessage(null);
+      return;
+    }
+    hudActive.current = true;
+    setHudMessage(next);
+    hudTimer.current = setTimeout(showNextHudMessage, next.duration);
+  }
+
+  useEffect(() => {
+    if (!feedCampaignId || !character) return;
+    const channel = supabase.channel('campaign-events-' + feedCampaignId + '-' + character.id)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'campaign_events',
+        filter: 'campaign_id=eq.' + feedCampaignId,
+      }, ({ new: event }) => {
+        if (event.audience === 'gm') return;
+        if (event.audience === 'character' && event.character_id !== character.id) return;
+        if (event.audience !== 'campaign' && event.audience !== 'character') return;
+        if (typeof event.message !== 'string' || !event.message.trim()) return;
+        if (event.category !== 'system' && event.category !== 'text') return;
+        const maxLength = event.category === 'text' ? 48 : 24;
+        const raw = event.message.trim().replace(/\\s+/g, ' ');
+        const text = raw.length > maxLength
+          ? raw.slice(0, maxLength - 3).trimEnd() + '...'
+          : raw;
+        hudQueue.current.push({
+          id: typeof event.id === 'string' ? event.id : crypto.randomUUID(),
+          text,
+          duration: event.category === 'text' ? 2500 : 2000,
+        });
+        if (!hudActive.current) showNextHudMessage();
+      })
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[Campaign HUD] Event subscription problem:', error ?? status);
+        }
+      });
+    return () => {
+      if (hudTimer.current) clearTimeout(hudTimer.current);
+      hudTimer.current = null;
+      hudQueue.current = [];
+      hudActive.current = false;
+      setHudMessage(null);
+      void supabase.removeChannel(channel);
+    };
+  }, [feedCampaignId, character?.id]);
   const characterLoaded = useRef(false);
   const [message, setMessage] = useState('Connecting...');
   const [connected, setConnected] = useState(false);
@@ -103,11 +166,13 @@ export default function PlayerView({ token }: PlayerViewProps) {
       if (error) {
         setConnected(false);
         setCharacter(null);
+        setFeedCampaignId(null);
         setMessage(error.message);
       } else if (!data) {
         setConnected(false);
         // A GM may revoke access while this browser remains signed in.
         setCharacter(null);
+        setFeedCampaignId(null);
         setMessage('No character assigned. Ask your GM for a new invitation.');
       } else {
         // Read HP separately so older databases can still show the character.
@@ -123,6 +188,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
         if (!active) return;
         if (campaignError) console.warn('[Player] Campaign:', campaignError.message);
         const campaignId = campaignRow?.campaign_id;
+        setFeedCampaignId(campaignId ?? null);
         if (campaignId) {
           const { data: definitions, error: definitionError } = await supabase
             .from('stat_definitions').select('id, name').eq('campaign_id', campaignId);
@@ -207,9 +273,10 @@ export default function PlayerView({ token }: PlayerViewProps) {
 
   return (
     <main className="player-terminal">
+      {hudMessage && <div className="player-hud-feed" role="status" key={hudMessage.id} style={{ animationDuration: `${hudMessage.duration}ms` }}>{hudMessage.text}</div>}
       <div className="player-shell">
         <header className="player-card player-header">
-          <div className="player-header-top"><span>NIGHT CITY // 2077</span><RadioTower size={16} aria-hidden="true" /></div>
+          <div className="player-header-top"><span>NIGHT CITY // 2077</span><div className="player-header-actions"><RadioTower size={16} aria-hidden="true" />{character && feedCampaignId && <button type="button" className="player-logs-trigger" aria-label="Open personal logs" title="Personal logs" onClick={() => setLogsOpen(true)}><History size={19} aria-hidden="true" /></button>}</div></div>
           <h1>{character?.name ?? 'PLAYER TERMINAL'}</h1>
           <p>CHARACTER DASHBOARD</p>
         </header>
@@ -248,6 +315,8 @@ export default function PlayerView({ token }: PlayerViewProps) {
           </>
         ) : <section className="player-card player-message" role="status">{message}</section>}
       </div>
+      {character && feedCampaignId && <PlayerSpotlights campaignId={feedCampaignId} characterId={character.id} />}
+      {logsOpen && character && feedCampaignId && <PlayerLogs campaignId={feedCampaignId} characterId={character.id} onClose={() => setLogsOpen(false)} />}
     </main>
   );
 }

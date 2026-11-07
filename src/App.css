@@ -362,3 +362,16 @@
 .gm-stat-value small { font-size:11px; }
 .gm-stat-track { height:6px; margin-top:10px; border-radius:8px; background:#41454e; overflow:hidden; }
 .gm-stat-fill { height:100%; border-radius:8px; transition:width .2s ease; }
+
+/* QR codes are generated locally from the existing invitation URLs. */
+.gm-qr-panel{display:flex;flex-direction:column;align-items:center;gap:9px;width:max-content;max-width:100%;padding:12px;margin-top:10px;border:1px solid #405268;border-radius:8px;background:#172332;color:#b7c5d3;font-size:12px;text-align:center}
+.gm-qr-panel svg{display:block;max-width:100%;height:auto;background:#fff;border-radius:5px}
+.gm-invitation{flex-wrap:wrap}
+.gm-invitation .gm-qr-panel{flex-basis:100%}
+
+/* Character attribution: QR above the invitation URL, copy icon beside the field. */
+.gm-invitation{display:flex;flex-direction:column;align-items:flex-start;gap:12px;min-width:0;width:100%}
+.gm-invitation .gm-qr-panel{align-self:center;flex-basis:auto;margin-top:0}
+.gm-invitation-link-row{display:flex;align-items:center;gap:8px;width:100%;min-width:0}
+.gm-invitation-link-row input{flex:1;min-width:0;width:0}
+.gm-invitation-copy-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 38px;width:38px;height:38px;padding:0}

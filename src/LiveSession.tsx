@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Heart, Minus, Plus } from 'lucide-react';
+import { Heart, Minus, Plus, Wallet } from 'lucide-react';
 import { supabase } from './supabase';
 import './LiveSession.css';
-import TarotSpotlight from './TarotSpotlight';
-import FortuneCookieSpotlight from './FortuneCookieConfigured';
+import { fortunes } from './FortuneCookieConfigured';
 import SessionToolSettings, { type ToolConfig } from './SessionToolSettings';
 
 type Character = { id: string; name: string; balance: number; body: number | null; current_hp: number | null };
@@ -20,7 +19,7 @@ const symbols = Array.from('アイウエオカキクケコサシスセソタナ�
 const random = (max: number) => Math.floor(Math.random() * max) + 1;
 const symbol = () => symbols[Math.floor(Math.random() * symbols.length)];
 
-export default function LiveSession({ characters, onHPChanged }: { characters: Character[]; onHPChanged: (id: string, hp: number) => void }) {
+export default function LiveSession({ campaignId, characters, onHPChanged, onBalanceChanged }: { campaignId: string; characters: Character[]; onHPChanged: (id: string, hp: number) => void; onBalanceChanged: (id: string, balance: number) => void }) {
   const [hpError, setHpError] = useState('');
   const [hpOverrides, setHpOverrides] = useState<Record<string, number>>({});
   const hpOverridesRef = useRef<Record<string, number>>({});
@@ -74,10 +73,49 @@ export default function LiveSession({ characters, onHPChanged }: { characters: C
     setLocalHP(character.id, next);
     if (!job.sending) job.timer = setTimeout(() => void flushHP(character.id), 400);
   }
+  const [moneyCharacterId, setMoneyCharacterId] = useState<string | null>(null);
+  const [moneyMode, setMoneyMode] = useState<'grant' | 'deduct'>('grant');
+  const [moneyAmount, setMoneyAmount] = useState('500');
+  const [moneyBusy, setMoneyBusy] = useState(false);
+  const [moneyError, setMoneyError] = useState('');
+  const moneyCharacter = characters.find(c => c.id === moneyCharacterId);
+  const parsedMoney = Number(moneyAmount);
+  const moneyValid = moneyAmount.trim() !== '' && Number.isSafeInteger(parsedMoney) && parsedMoney > 0;
+  const moneyInsufficient = moneyMode === 'deduct' && !!moneyCharacter && moneyValid && parsedMoney > moneyCharacter.balance;
+  function openMoney(id: string) {
+    setMoneyCharacterId(id);
+    setMoneyMode('grant');
+    setMoneyAmount('500');
+    setMoneyError('');
+  }
+  async function submitMoney() {
+    if (!moneyCharacter || moneyBusy || !moneyValid || moneyInsufficient) return;
+    setMoneyBusy(true);
+    setMoneyError('');
+    try {
+      const { error } = moneyMode === 'grant'
+        ? await supabase.rpc('grant_money', { character_id: moneyCharacter.id, grant_amount: parsedMoney })
+        : await supabase.rpc('withdraw_money', { p_character_id: moneyCharacter.id, p_amount: parsedMoney });
+      if (error) { setMoneyError(error.message); return; }
+      const { data, error: refreshError } = await supabase.from('characters')
+        .select('balance').eq('id', moneyCharacter.id).single();
+      if (refreshError || !data) {
+        setMoneyError('Transaction succeeded, but balance refresh failed. Check the Bank page before retrying.');
+        return;
+      }
+      onBalanceChanged(moneyCharacter.id, Number(data.balance));
+      setMoneyCharacterId(null);
+    } catch {
+      setMoneyError('Transaction failed. Please try again.');
+    } finally {
+      setMoneyBusy(false);
+    }
+  }
   const [npc, setNpc] = useState('Rogue');
   const [spotlight, setSpotlight] = useState(false);
-  const [tarotOpen, setTarotOpen] = useState(false);
-  const [fortuneOpen, setFortuneOpen] = useState(false);
+  const [deliveryError, setDeliveryError] = useState('');
+  const [deliveryNotice, setDeliveryNotice] = useState('');
+  const [delivering, setDelivering] = useState(false);
   const [config, setConfig] = useState<ToolConfig | null>(null);
   const [history, setHistory] = useState<number[]>([]);
   const [sides, setSides] = useState(20);
@@ -98,11 +136,43 @@ export default function LiveSession({ characters, onHPChanged }: { characters: C
     const id = setTimeout(() => { if (mounted.current) fn(); }, delay);
     timers.current.push(id);
   }
-  function launch(next: ToolConfig) {
-    setConfig(next);
-    if (next.tool === 'dice') { setSides(next.sides); setHistory([]); open(); }
-    else if (next.tool === 'tarot') setTarotOpen(true);
-    else setFortuneOpen(true);
+  async function launch(next: ToolConfig) {
+    if (next.tool === 'dice') {
+      setConfig(next); setSides(next.sides); setHistory([]); open(); return;
+    }
+    if (delivering) return;
+    setDeliveryError('');
+    setDeliveryNotice('');
+    const recipients = next.delivery.audience === 'all'
+      ? characters : characters.filter(c => c.id === next.delivery.characterId);
+    if (!recipients.length) { setDeliveryError('No recipients selected.'); return; }
+    setDelivering(true);
+    try {
+      const rows = recipients.map(recipient => {
+        let outcome: Record<string, unknown>;
+        if (next.tool === 'tarot') {
+          outcome = next.forced ?? {
+            index: Math.floor(Math.random() * 22),
+            reversed: Math.random() < 0.5,
+          };
+        } else {
+          const numbers = new Set<number>();
+          while (numbers.size < 5) numbers.add(Math.floor(Math.random() * 99) + 1);
+          outcome = {
+            message: fortunes[next.forcedMessage ?? Math.floor(Math.random() * fortunes.length)],
+            numbers: next.forcedNumbers ?? [...numbers].sort((a, b) => a - b),
+          };
+        }
+        return { campaign_id: campaignId, character_id: recipient.id, kind: next.tool, outcome };
+      });
+      const { error } = await supabase.from('player_spotlights').insert(rows);
+      if (error) throw error;
+      setDeliveryNotice(`Sent ${next.tool === 'tarot' ? 'Tarot' : 'Fortune Cookie'} to ${recipients.length} character(s).`);
+    } catch (error) {
+      setDeliveryError(error instanceof Error ? error.message : 'Could not deliver spotlight');
+    } finally {
+      setDelivering(false);
+    }
   }
   function open() {
     clearTimers(); rolling.current = false;
@@ -116,6 +186,16 @@ export default function LiveSession({ characters, onHPChanged }: { characters: C
     setFace(String(result)); setSceneStyle(''); setDieStyle('final');
     rolling.current = false; setPhase('revealed');
     setHistory(prev => [...prev, result]);
+    // The database is the sole notification source; Realtime delivers the saved row.
+    void supabase.from('campaign_events').insert({
+      campaign_id: campaignId,
+      character_id: null,
+      audience: 'campaign',
+      category: 'system',
+      message: `GM ROLLED D${sides} → ${result}`,
+    }).then(({ error }) => {
+      if (error) console.error('[Campaign Log] Dice roll was not saved:', error.message);
+    });
   }
   function roll() {
     if (rolling.current || (config?.tool === 'dice' && history.length >= config.rolls)) return;
@@ -189,7 +269,7 @@ export default function LiveSession({ characters, onHPChanged }: { characters: C
             {hpError && <p className="live-hp-error" role="alert">{hpError}</p>}
             {characters.length ? characters.map(c => { const hp = hpOverrides[c.id] ?? c.current_hp; return (
               <div className="live-character" key={c.id}>
-                <div className="live-character-main"><strong>{c.name}</strong><span>{Number(c.balance).toLocaleString('en-US')} E$</span></div>
+                <div className="live-character-main"><strong>{c.name}</strong><div className="live-character-money"><span>{Number(c.balance).toLocaleString('en-US')} E$</span><button type="button" title={'Adjust funds for ' + c.name} aria-label={'Adjust funds for ' + c.name} onClick={() => openMoney(c.id)}><Wallet size={17}/></button></div></div>
                 {c.body !== null && hp !== null ? <div className="live-character-vitals">
                   <div className="live-hp-info"><span>HP</span><span>{hp} / {maxHP(c.body)}</span></div>
                   <div className="live-hp-row"><div className="live-hp-track" role="progressbar" aria-label={c.name + ' HP'} aria-valuemin={0} aria-valuemax={maxHP(c.body)} aria-valuenow={hp}><div className={"live-hp-fill " + hpLevel(hp, maxHP(c.body))} style={{ width: (100 * hp / maxHP(c.body)) + '%' }} /></div>
@@ -220,12 +300,39 @@ export default function LiveSession({ characters, onHPChanged }: { characters: C
           </section>
           <section className="live-panel">
             <h2>SESSION TOOLS</h2>
-            <SessionToolSettings onOpen={launch}/>
+            <SessionToolSettings onOpen={next => void launch(next)} characters={characters}/>
+            {deliveryError && <p className="live-hp-error" role="alert">{deliveryError}</p>}
+            {deliveryNotice && <p role="status" style={{ color: '#69dba8' }}>{deliveryNotice}</p>}
+            {delivering && <small>Sending spotlights...</small>}
           </section>
         </div>
       </div>
-      {tarotOpen && <TarotSpotlight forced={config?.tool === 'tarot' ? config.forced : null} onClose={() => setTarotOpen(false)} />}
-      {fortuneOpen && <FortuneCookieSpotlight messageIndex={config?.tool === 'fortune' ? config.forcedMessage : null} luckyNumbers={config?.tool === 'fortune' ? config.forcedNumbers : null} onClose={() => setFortuneOpen(false)} />}
+      {moneyCharacter && <div className="live-spotlight" role="dialog" aria-modal="true" aria-label={'Adjust funds for ' + moneyCharacter.name}>
+        <div className="live-money-scene">
+          <div className="live-spotlight-title">BANK SPOTLIGHT</div>
+          <Wallet size={32} color="#e8bd4a" aria-hidden="true"/>
+          <strong>{moneyCharacter.name}</strong>
+          <small>Balance: {Number(moneyCharacter.balance).toLocaleString('en-US')} E$</small>
+          <div className="live-money-modes">
+            <button type="button" className={moneyMode === 'grant' ? 'selected' : ''} disabled={moneyBusy} onClick={() => { setMoneyMode('grant'); setMoneyError(''); }}>Grant</button>
+            <button type="button" className={moneyMode === 'deduct' ? 'selected' : ''} disabled={moneyBusy} onClick={() => { setMoneyMode('deduct'); setMoneyError(''); }}>Deduct</button>
+          </div>
+          <label htmlFor="live-money-amount">AMOUNT (E$)</label>
+          <input id="live-money-amount" type="number" min="1" step="1" value={moneyAmount} disabled={moneyBusy}
+            onChange={e => { setMoneyAmount(e.target.value); setMoneyError(''); }}/>
+          <div className="live-money-presets">
+            {[100, 500, 1000].map(value => <button type="button" key={value} disabled={moneyBusy}
+              onClick={() => { setMoneyAmount(String(value)); setMoneyError(''); }}>{value} E$</button>)}
+          </div>
+          {moneyInsufficient && <p className="live-money-error" role="alert">Insufficient funds.</p>}
+          {moneyError && <p className="live-money-error" role="alert">{moneyError}</p>}
+          <div className="live-money-actions">
+            <button type="button" disabled={moneyBusy} onClick={() => setMoneyCharacterId(null)}>Close</button>
+            <button type="button" className="live-money-submit" disabled={moneyBusy || !moneyValid || moneyInsufficient}
+              onClick={() => void submitMoney()}>{moneyBusy ? 'Processing…' : moneyMode === 'grant' ? 'Send Funds' : 'Deduct Funds'}</button>
+          </div>
+        </div>
+      </div>}
       {spotlight && <div className="live-spotlight" role="dialog" aria-modal="true" aria-label="Dice spotlight">
         <div className={'live-dice-scene ' + sceneStyle}>
           <div className="live-spotlight-title">DICE SPOTLIGHT</div>
@@ -253,7 +360,7 @@ export default function LiveSession({ characters, onHPChanged }: { characters: C
           <div className="live-dice-status">{phase === 'ready' ? 'CLICK THE DIE TO ROLL' : phase === 'rolling' ? 'ROLLING…' : 'RESULT: ' + face}</div>
           <div className="live-dice-history">{history.length ? history.join(' · ') : 'No rolls yet'}</div>
           <small>{config?.tool === 'dice' ? `${history.length} / ${config.rolls} rolls` : 'Click the die to roll'}</small>
-          <button type="button" className="live-spotlight-close" onClick={close} disabled={phase === 'rolling'}>Close spotlight</button>
+          <button type="button" className="live-spotlight-close" onClick={close} disabled={phase === 'rolling'}>Close</button>
         </div>
       </div>}
     </div>

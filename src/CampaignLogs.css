@@ -1,0 +1,22 @@
+.campaign-logs{color:#e6edf3;background:#151d25;border:1px solid #34414c;border-radius:10px;padding:22px;min-width:0}
+.campaign-logs-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}
+.campaign-logs-heading h2{display:flex;align-items:center;gap:10px;color:#e9bf4e;margin:0 0 6px;font-size:22px}
+.campaign-logs-heading p,.campaign-logs-heading>span{color:#a0adba;margin:0;font-size:13px}
+.campaign-logs-filters{display:grid;grid-template-columns:minmax(180px,2fr) repeat(4,minmax(110px,1fr));gap:12px;margin-bottom:18px}
+.campaign-logs-filters label{display:flex;flex-direction:column;gap:6px;color:#aebac5;font-size:12px}
+.campaign-logs-filters input,.campaign-logs-filters select{width:100%;min-width:0;box-sizing:border-box;background:#10171e;color:#edf2f7;border:1px solid #3b4a56;border-radius:5px;padding:10px;font:inherit;font-size:13px}
+.campaign-logs-table-wrap{overflow-x:auto;border:1px solid #34414c;border-radius:6px}
+.campaign-logs-table{width:100%;border-collapse:collapse;text-align:left;font-size:13px}
+.campaign-logs-table th{color:#e9bf4e;background:#1c2832;text-transform:uppercase;font-size:11px;letter-spacing:.04em;padding:13px 12px;white-space:nowrap}
+.campaign-logs-table td{padding:12px;border-top:1px solid #2d3943;color:#d4dee7;vertical-align:top}
+.campaign-logs-table tbody tr:hover{background:#202d37}
+.campaign-logs-time{white-space:nowrap;color:#a5b3c0!important;font-variant-numeric:tabular-nums}
+.campaign-logs-message{min-width:220px;overflow-wrap:anywhere}
+.campaign-logs-empty{padding:24px;text-align:center;color:#9faebd}
+.campaign-logs-error{color:#ff9999}
+.campaign-logs-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:14px;color:#98a8b7;font-size:12px}
+.campaign-logs-footer>div{display:flex;gap:8px}
+.campaign-logs-footer button{border:1px solid #52606b;background:#25313b;color:#e6edf3;border-radius:5px;padding:8px 12px;cursor:pointer}
+.campaign-logs-footer button:disabled{opacity:.5;cursor:default}
+@media(max-width:1000px){.campaign-logs-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.campaign-logs-search{grid-column:1/-1}}
+@media(max-width:600px){.campaign-logs{padding:12px}.campaign-logs-heading,.campaign-logs-footer{align-items:flex-start;flex-direction:column}.campaign-logs-table{min-width:670px}}
