@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import './TarotSpotlight.css';
+import { tarotMessages } from './tarotData';
 
 const CARD_NAMES = ["The Fool","The Magician","The High Priestess","The Empress","The Emperor","The Hierophant","The Lovers","The Chariot","Strength","The Hermit","Wheel of Fortune","Justice","The Hanged Man","Death","Temperance","The Devil","The Tower","The Star","The Moon","The Sun","Judgement","The World"];
 type Draw = { index: number; reversed: boolean };
 export default function TarotSpotlight({ onClose, forced, onReveal, playerMode = false, initiallyRevealed = false }: { onClose: () => void; forced?: Draw | null; onReveal?: (draw: Draw) => Promise<void>; playerMode?: boolean; initiallyRevealed?: boolean }) {
+  const [intro] = useState(() => tarotMessages[Math.floor(Math.random() * tarotMessages.length)]);
   const [draw, setDraw] = useState<Draw>(() => forced ?? ({
     index: Math.floor(Math.random() * CARD_NAMES.length),
     reversed: Math.random() < 0.5,
@@ -36,6 +38,8 @@ export default function TarotSpotlight({ onClose, forced, onReveal, playerMode =
   }
   return <div className="tarot-overlay" role="dialog" aria-modal="true" aria-label="Tarot spotlight">
     <div className="tarot-scene">
+      <div className="live-spotlight-title">TAROT READING</div>
+      <strong className="tarot-intro">{intro}</strong>
       <div className="tarot-card-stage" role="button" tabIndex={revealed || flipping ? -1 : 0} aria-label="Flip tarot card" onClick={reveal} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); reveal(); } }}>
         <div className={'tarot-card-surface' + (flipping || revealed ? ' tarot-flipped' : '')}>
           <div className="tarot-card-face tarot-card-back">
@@ -49,6 +53,7 @@ export default function TarotSpotlight({ onClose, forced, onReveal, playerMode =
           </div>
         </div>
       </div>
+      {!revealed && <span className="tarot-tap">TAP TO REVEAL</span>}
       <div className="tarot-result" aria-live="polite">
         {revealed && <><strong>{CARD_NAMES[draw.index]}</strong>
           <span className={draw.reversed ? 'tarot-negative' : 'tarot-positive'}>
