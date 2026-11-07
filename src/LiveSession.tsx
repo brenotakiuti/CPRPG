@@ -43,8 +43,21 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
       job.desired = job.confirmed;
       setLocalHP(id, job.confirmed);
     } else {
+      const previousHP = job.confirmed;
       job.confirmed = Number(data);
       onHPChanged(id, job.confirmed);
+      const appliedDelta = job.confirmed - previousHP;
+      if (appliedDelta !== 0) {
+        void supabase.from('campaign_events').insert({
+          campaign_id: campaignId,
+          character_id: id,
+          audience: 'character',
+          category: 'system',
+          message: `HEALTH ${appliedDelta > 0 ? '+' : ''}${appliedDelta} HP`,
+        }).then(({ error }) => {
+          if (error) console.error('[Campaign Log] Health change was not saved:', error.message);
+        });
+      }
     }
     if (job.desired !== job.confirmed) {
       job.timer = setTimeout(() => void flushHP(id), 400);
