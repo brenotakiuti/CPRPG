@@ -3,6 +3,7 @@ import { supabase } from './supabase';
 import { HeartPulse, Wallet, Dices, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History } from 'lucide-react';
 import './PlayerView.css';
 import PlayerLogs from './PlayerLogs';
+import PlayerSpotlights from './PlayerSpotlights';
 
 type PlayerCharacter = {
   id: string;
@@ -314,6 +315,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           </>
         ) : <section className="player-card player-message" role="status">{message}</section>}
       </div>
+      {character && feedCampaignId && <PlayerSpotlights campaignId={feedCampaignId} characterId={character.id} />}
       {logsOpen && character && feedCampaignId && <PlayerLogs campaignId={feedCampaignId} characterId={character.id} onClose={() => setLogsOpen(false)} />}
     </main>
   );
