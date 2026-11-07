@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowDownLeft, Clock3, Dices, History, MessageSquare, Wallet, X } from 'lucide-react';
 import { supabase } from './supabase';
 import './PlayerLogs.css';
-import { tarotFromLog } from './tarotData';
+import { displayLogMessage, tarotFromLog } from './tarotData';
 import TarotCardViewer from './TarotCardViewer';
 
 type LogEvent = {
@@ -128,13 +128,12 @@ export default function PlayerLogs({ campaignId, characterId, onClose }: {
           </button>)}
       </div>
       <div className="player-logs-list">
-        {visible.map(event => <article className="player-logs-entry" key={event.id}>
+        {visible.map(event => <article className="player-logs-entry" key={event.id} role={tarotFromLog(event.message) ? "button" : undefined} tabIndex={tarotFromLog(event.message) ? 0 : undefined} aria-label={tarotFromLog(event.message) ? `View artwork: ${displayLogMessage(event.message)}` : undefined} onClick={() => { const card = tarotFromLog(event.message); if (card) setSelectedCard(card); }} onKeyDown={e => { if (tarotFromLog(event.message) && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setSelectedCard(tarotFromLog(event.message)); } }} style={tarotFromLog(event.message) ? { cursor: "pointer" } : undefined}>
           <span className={event.audience === 'character' ? 'player-logs-icon personal' : 'player-logs-icon campaign'}>
             <EventIcon message={event.message} />
           </span>
           <div className="player-logs-entry-body">
-            <p>{event.message}</p>
-            {tarotFromLog(event.message) && <button type="button" className="tarot-log-view" onClick={() => setSelectedCard(tarotFromLog(event.message))}>View card</button>}
+            <p>{displayLogMessage(event.message)}</p>
             <span>{event.audience === 'character' ? 'Personal' : 'Campaign-wide'}</span>
           </div>
           <time dateTime={event.created_at} title={new Date(event.created_at).toLocaleString()}>
@@ -148,6 +147,6 @@ export default function PlayerLogs({ campaignId, characterId, onClose }: {
       </div>
       <footer className="player-logs-footer"><span>{visible.length} events shown</span><button type="button" onClick={onClose}>Close</button></footer>
     </section>
-    {selectedCard && <TarotCardViewer index={selectedCard.index} reversed={selectedCard.reversed} onClose={() => setSelectedCard(null)} />}
+    {selectedCard && <TarotCardViewer index={selectedCard.index} onClose={() => setSelectedCard(null)} />}
   </div>;
 }
