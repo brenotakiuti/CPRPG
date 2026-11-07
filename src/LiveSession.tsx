@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Heart, Minus, Plus, Wallet } from 'lucide-react';
 import { supabase } from './supabase';
 import './LiveSession.css';
-import TarotSpotlight from './TarotSpotlight';
-import FortuneCookieSpotlight from './FortuneCookieConfigured';
+import { fortunes } from './FortuneCookieConfigured';
 import SessionToolSettings, { type ToolConfig } from './SessionToolSettings';
 
 type Character = { id: string; name: string; balance: number; body: number | null; current_hp: number | null };
@@ -114,8 +113,9 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
   }
   const [npc, setNpc] = useState('Rogue');
   const [spotlight, setSpotlight] = useState(false);
-  const [tarotOpen, setTarotOpen] = useState(false);
-  const [fortuneOpen, setFortuneOpen] = useState(false);
+  const [deliveryError, setDeliveryError] = useState('');
+  const [deliveryNotice, setDeliveryNotice] = useState('');
+  const [delivering, setDelivering] = useState(false);
   const [config, setConfig] = useState<ToolConfig | null>(null);
   const [history, setHistory] = useState<number[]>([]);
   const [sides, setSides] = useState(20);
@@ -136,11 +136,43 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
     const id = setTimeout(() => { if (mounted.current) fn(); }, delay);
     timers.current.push(id);
   }
-  function launch(next: ToolConfig) {
-    setConfig(next);
-    if (next.tool === 'dice') { setSides(next.sides); setHistory([]); open(); }
-    else if (next.tool === 'tarot') setTarotOpen(true);
-    else setFortuneOpen(true);
+  async function launch(next: ToolConfig) {
+    if (next.tool === 'dice') {
+      setConfig(next); setSides(next.sides); setHistory([]); open(); return;
+    }
+    if (delivering) return;
+    setDeliveryError('');
+    setDeliveryNotice('');
+    const recipients = next.delivery.audience === 'all'
+      ? characters : characters.filter(c => c.id === next.delivery.characterId);
+    if (!recipients.length) { setDeliveryError('No recipients selected.'); return; }
+    setDelivering(true);
+    try {
+      const rows = recipients.map(recipient => {
+        let outcome: Record<string, unknown>;
+        if (next.tool === 'tarot') {
+          outcome = next.forced ?? {
+            index: Math.floor(Math.random() * 22),
+            reversed: Math.random() < 0.5,
+          };
+        } else {
+          const numbers = new Set<number>();
+          while (numbers.size < 5) numbers.add(Math.floor(Math.random() * 99) + 1);
+          outcome = {
+            message: fortunes[next.forcedMessage ?? Math.floor(Math.random() * fortunes.length)],
+            numbers: next.forcedNumbers ?? [...numbers].sort((a, b) => a - b),
+          };
+        }
+        return { campaign_id: campaignId, character_id: recipient.id, kind: next.tool, outcome };
+      });
+      const { error } = await supabase.from('player_spotlights').insert(rows);
+      if (error) throw error;
+      setDeliveryNotice(`Sent ${next.tool === 'tarot' ? 'Tarot' : 'Fortune Cookie'} to ${recipients.length} character(s).`);
+    } catch (error) {
+      setDeliveryError(error instanceof Error ? error.message : 'Could not deliver spotlight');
+    } finally {
+      setDelivering(false);
+    }
   }
   function open() {
     clearTimers(); rolling.current = false;
@@ -268,7 +300,10 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
           </section>
           <section className="live-panel">
             <h2>SESSION TOOLS</h2>
-            <SessionToolSettings onOpen={launch}/>
+            <SessionToolSettings onOpen={next => void launch(next)} characters={characters}/>
+            {deliveryError && <p className="live-hp-error" role="alert">{deliveryError}</p>}
+            {deliveryNotice && <p role="status" style={{ color: '#69dba8' }}>{deliveryNotice}</p>}
+            {delivering && <small>Sending spotlights...</small>}
           </section>
         </div>
       </div>
@@ -298,8 +333,6 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
           </div>
         </div>
       </div>}
-      {tarotOpen && <TarotSpotlight forced={config?.tool === 'tarot' ? config.forced : null} onClose={() => setTarotOpen(false)} />}
-      {fortuneOpen && <FortuneCookieSpotlight messageIndex={config?.tool === 'fortune' ? config.forcedMessage : null} luckyNumbers={config?.tool === 'fortune' ? config.forcedNumbers : null} onClose={() => setFortuneOpen(false)} />}
       {spotlight && <div className="live-spotlight" role="dialog" aria-modal="true" aria-label="Dice spotlight">
         <div className={'live-dice-scene ' + sceneStyle}>
           <div className="live-spotlight-title">DICE SPOTLIGHT</div>
