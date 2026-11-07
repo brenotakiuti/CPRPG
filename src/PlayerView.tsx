@@ -54,11 +54,10 @@ export default function PlayerView({ token }: PlayerViewProps) {
         if (event.audience !== 'campaign' && event.audience !== 'character') return;
         if (typeof event.message !== 'string' || !event.message.trim()) return;
         if (event.category !== 'system' && event.category !== 'text') return;
-        const maxLength = event.category === 'text' ? 48 : 24;
-        const raw = event.message.trim().replace(/\\s+/g, ' ');
-        const text = raw.length > maxLength
-          ? raw.slice(0, maxLength - 3).trimEnd() + '...'
-          : raw;
+        // Tarot and fortune results are already displayed in interactive spotlights.
+        // Keep them in campaign logs without duplicating them in the HUD.
+        if (/^(?:TAROT REVEALED|TAROT CARD|FORTUNE REVEALED):/i.test(event.message.trim())) return;
+        const text = event.message.trim().replace(/\s+/g, ' ');
         hudQueue.current.push({
           id: typeof event.id === 'string' ? event.id : crypto.randomUUID(),
           text,
