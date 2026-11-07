@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Copy, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Copy, ScrollText, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
 import LiveSession from './LiveSession';
+import CampaignLogs from './CampaignLogs';
 
 // Temporary visual thresholds; can later be supplied by campaign stat-tier records.
 const DEFAULT_STAT_TIERS = [
@@ -76,9 +77,9 @@ export default function GMConsole({
   campaign,
   onSwitchCampaign,
 }: GMConsoleProps) {
-  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'factions'>(() => {
+  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'factions' | 'logs'>(() => {
     const saved = sessionStorage.getItem('gm-page');
-    return saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' ? saved : 'live';
+    return saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' || saved === 'logs' ? saved : 'live';
   });
   const [selectedId, setSelectedId] = useState('');
   const [detailTab, setDetailTab] = useState<'stats' | 'cyberware' | 'inventory' | 'access'>('stats');
@@ -366,6 +367,7 @@ export default function GMConsole({
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'characters', label: 'Characters', icon: Users },
     { id: 'bank', label: 'Bank', icon: Landmark },
+    { id: 'logs', label: 'Logs', icon: ScrollText },
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'factions', label: 'Factions', icon: Shield },
   ] as const;
@@ -548,6 +550,8 @@ export default function GMConsole({
         </div>
       ) : page === 'bank' ? (
         <div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>
+      ) : page === 'logs' ? (
+        <CampaignLogs campaignId={campaign.id} characters={characters} />
       ) : page === 'overview' ? (
         <div className="gm-dashboard-panel gm-overview">
           <h2>Campaign Overview</h2>
