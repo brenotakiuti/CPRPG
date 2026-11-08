@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, ScrollText, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
@@ -110,6 +110,11 @@ export default function GMConsole({
   const [creationEnabled, setCreationEnabled] = useState(false);
   const [creationSaving, setCreationSaving] = useState(false);
   const [creationError, setCreationError] = useState('');
+  const [startingPoints, setStartingPoints] = useState(30);
+  const [startingMoney, setStartingMoney] = useState('0');
+  const [rulesLoading, setRulesLoading] = useState(true);
+  const [rulesSaving, setRulesSaving] = useState(false);
+  const [rulesMessage, setRulesMessage] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -131,6 +136,46 @@ export default function GMConsole({
     void loadSettings();
     return () => { active = false; };
   }, [campaign.id]);
+
+  useEffect(() => {
+    let active = true;
+    setRulesLoading(true);
+    setRulesMessage('');
+    async function loadRules() {
+      const { data, error } = await supabase.from('campaigns')
+        .select('starting_attribute_points, starting_money')
+        .eq('id', campaign.id).single();
+      if (!active) return;
+      if (error) setRulesMessage(error.message);
+      else {
+        setStartingPoints(data.starting_attribute_points);
+        setStartingMoney(String(data.starting_money));
+      }
+      setRulesLoading(false);
+    }
+    void loadRules();
+    return () => { active = false; };
+  }, [campaign.id]);
+
+  async function saveCreationRules() {
+    const amount = Number(startingMoney);
+    if (rulesSaving || rulesLoading || !Number.isInteger(startingPoints) ||
+      startingPoints < 15 || startingPoints > 100 ||
+      !/^\\d+$/.test(startingMoney.trim()) || !Number.isSafeInteger(amount) || amount < 0) return;
+    setRulesSaving(true);
+    setRulesMessage('');
+    const { data, error } = await supabase.from('campaigns')
+      .update({ starting_attribute_points: startingPoints, starting_money: amount })
+      .eq('id', campaign.id).eq('gm_id', campaign.gm_id)
+      .select('starting_attribute_points, starting_money').single();
+    if (error) setRulesMessage(error.message);
+    else {
+      setStartingPoints(data.starting_attribute_points);
+      setStartingMoney(String(data.starting_money));
+      setRulesMessage('Settings saved. New characters will use these values.');
+    }
+    setRulesSaving(false);
+  }
 
   async function toggleCreation() {
     if (!creationToken || creationSaving) return;
@@ -585,6 +630,43 @@ export default function GMConsole({
         <div className="gm-dashboard-panel gm-overview">
           <p className="gm-invitations-intro">Manage how new players join this campaign.</p>
           {creationControls}
+          <section className="gm-invitations-settings" aria-label="Character creation settings">
+            <div className="gm-invitations-settings-heading">
+              <h3><Settings2 size={18} aria-hidden="true" /> Character Creation Settings</h3>
+              <p>Starting conditions for new characters in this campaign.</p>
+            </div>
+            <div className="gm-invitations-settings-fields">
+              <label>
+                <span>Attribute Point Pool</span>
+                <div className="gm-invitations-points-row">
+                  <input type="range" min="15" max="100" value={startingPoints}
+                    disabled={rulesLoading || rulesSaving}
+                    onChange={e => { setStartingPoints(Number(e.target.value)); setRulesMessage(''); }} />
+                  <strong>{startingPoints}</strong>
+                </div>
+                <small>Total points available across five attributes.</small>
+              </label>
+              <label>
+                <span>Starting Money</span>
+                <div className="gm-invitations-money-row">
+                  <input type="number" min="0" step="1" value={startingMoney}
+                    disabled={rulesLoading || rulesSaving}
+                    onChange={e => { setStartingMoney(e.target.value); setRulesMessage(''); }} />
+                  <strong>E$</strong>
+                </div>
+                <small>Initial balance assigned when a character is created.</small>
+              </label>
+            </div>
+            <div className="gm-invitations-settings-footer">
+              {rulesMessage && <p role="status">{rulesMessage}</p>}
+              <button type="button" disabled={rulesLoading || rulesSaving ||
+                !/^\\d+$/.test(startingMoney.trim()) ||
+                !Number.isSafeInteger(Number(startingMoney)) || Number(startingMoney) < 0}
+                onClick={() => void saveCreationRules()}>
+                {rulesSaving ? 'Saving...' : 'Save Settings'}
+              </button>
+            </div>
+          </section>
           <section className="gm-invitations-controls">
             <div><h3>Campaign Controls</h3><p>Switch campaigns or end your GM session</p></div>
             <div className="gm-account-actions">
