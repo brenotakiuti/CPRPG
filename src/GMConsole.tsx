@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Copy, ScrollText, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, ScrollText, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
@@ -105,6 +105,7 @@ export default function GMConsole({
   const [resettingCharacterId, setResettingCharacterId] = useState<string | null>(null);
 
   const [creationQrVisible, setCreationQrVisible] = useState(false);
+  const [creationQrSeconds, setCreationQrSeconds] = useState(30);
   const [creationToken, setCreationToken] = useState('');
   const [creationEnabled, setCreationEnabled] = useState(false);
   const [creationSaving, setCreationSaving] = useState(false);
@@ -147,9 +148,19 @@ export default function GMConsole({
   // Creation QR is intentionally temporary; the reusable link remains available to the GM.
   useEffect(() => {
     if (!creationQrVisible) return;
-    const timeout = setTimeout(() => setCreationQrVisible(false), 30000);
-    return () => clearTimeout(timeout);
+    const expiresAt = Date.now() + 30000;
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      setCreationQrSeconds(remaining);
+      if (remaining === 0) setCreationQrVisible(false);
+    }, 250);
+    return () => clearInterval(interval);
   }, [creationQrVisible]);
+
+  function toggleCreationQr() {
+    if (!creationQrVisible) setCreationQrSeconds(30);
+    setCreationQrVisible(previous => !previous);
+  }
 
   const creationLink = creationToken
     ? window.location.origin + window.location.pathname + window.location.search + '#create=' + creationToken
@@ -364,7 +375,7 @@ export default function GMConsole({
   const visible = characters.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
   const navigation = [
     { id: 'live', label: 'Live Session', icon: LayoutDashboard },
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'overview', label: 'Campaign Invitations', icon: Mail },
     { id: 'characters', label: 'Characters', icon: Users },
     { id: 'bank', label: 'Bank', icon: Landmark },
     { id: 'inventory', label: 'Inventory', icon: Package },
@@ -372,43 +383,55 @@ export default function GMConsole({
     { id: 'logs', label: 'Logs', icon: ScrollText },
   ] as const;
   const creationControls = (
-    <section className="creation-link-section" aria-label="Character creation">
-      <div className="creation-link-heading">
-        <span>Character Creation Link</span>
-        <div className="creation-toggle-group">
-          <span>{creationEnabled ? 'Enabled' : 'Disabled'}</span>
-          <button type="button" className={creationEnabled ? 'creation-switch is-enabled' : 'creation-switch'}
-            role="switch" aria-checked={creationEnabled} aria-label="Enable character creation"
-            disabled={!creationToken || creationSaving} onClick={() => void toggleCreation()}>
-            <span className="creation-switch-thumb" />
+    <div className="gm-invitations-layout">
+      <section className="gm-invitations-access" aria-label="Character creation access">
+        <div className="gm-invitations-access-header">
+          <div>
+            <h3>Character Creation Access</h3>
+            <p>Share this link to let players create a new character.</p>
+          </div>
+          <div className="creation-toggle-group">
+            <span>{creationEnabled ? 'Enabled' : 'Disabled'}</span>
+            <button type="button" className={creationEnabled ? 'creation-switch is-enabled' : 'creation-switch'}
+              role="switch" aria-checked={creationEnabled} aria-label="Enable character creation"
+              disabled={!creationToken || creationSaving} onClick={() => void toggleCreation()}>
+              <span className="creation-switch-thumb" />
+            </button>
+          </div>
+        </div>
+        <label className="gm-invitations-link-label" htmlFor="gm-creation-link">INVITATION LINK</label>
+        <div className="creation-link-row">
+          <input id="gm-creation-link" readOnly aria-label="Character creation link" value={creationLink}
+            placeholder="Loading link..." title={creationLink} />
+          <button type="button" className="creation-copy-button" aria-label="Copy character creation link"
+            title="Copy character creation link" disabled={!creationLink}
+            onClick={() => void navigator.clipboard.writeText(creationLink)}>
+            <Copy size={18} aria-hidden="true" />
           </button>
         </div>
-      </div>
-      <div className="creation-link-row">
-        <input readOnly aria-label="Character creation link" value={creationLink}
-          placeholder="Loading link..." title={creationLink} />
-        <button type="button" className="creation-copy-button" aria-label="Copy character creation link"
-          title="Copy character creation link" disabled={!creationLink}
-          onClick={() => void navigator.clipboard.writeText(creationLink)}>
-          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="8" y="8" width="13" height="13" rx="2" />
-            <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
-          </svg>
+        <p className="gm-invitations-link-help">Anyone with this link can create a character while access is enabled.</p>
+        <button type="button" className="gm-invitations-qr-toggle" disabled={!creationLink || !creationEnabled}
+          onClick={toggleCreationQr}>
+          {creationQrVisible ? 'Hide QR Code' : 'Show QR Code'}
         </button>
-      </div>
-      <button type="button" disabled={!creationLink || !creationEnabled}
-        onClick={() => setCreationQrVisible(visible => !visible)}>
-        {creationQrVisible ? 'Hide QR Code' : 'Show QR Code'}
-      </button>
-      {creationQrVisible && creationEnabled && creationLink && (
-        <div className="gm-qr-panel">
-          <QRCodeSVG value={creationLink} size={220} marginSize={2} bgColor="#ffffff" fgColor="#111111" />
-          <span>Scan to create a character · hides after 30 seconds</span>
+        {creationError && <p className="creation-error" role="alert">{creationError}</p>}
+      </section>
+      <section className="gm-invitations-qr" aria-label="QR Code">
+        <h3>QR Code</h3>
+        <div className="gm-invitations-qr-body">
+          <div className="gm-invitations-qr-image">
+            {creationQrVisible && creationEnabled && creationLink ? (
+              <QRCodeSVG value={creationLink} size={126} marginSize={2} bgColor="#ffffff" fgColor="#111111" />
+            ) : (
+              <LockKeyhole size={38} strokeWidth={1.6} aria-label="QR code locked" />
+            )}
+          </div>
+          <div className="gm-invitations-qr-countdown" aria-live="off">
+            {creationQrVisible && creationEnabled && creationLink ? `00:${String(creationQrSeconds).padStart(2, '0')}` : '\u00a0'}
+          </div>
         </div>
-      )}
-      {creationError && <p className="creation-error" role="alert">{creationError}</p>}
-    </section>
+      </section>
+    </div>
   );
 
   return (
@@ -560,13 +583,15 @@ export default function GMConsole({
         <CampaignLogs campaignId={campaign.id} characters={characters} />
       ) : page === 'overview' ? (
         <div className="gm-dashboard-panel gm-overview">
-          <h2>Campaign Overview</h2>
-          <p>{characters.length} characters in this campaign</p>
+          <p className="gm-invitations-intro">Manage how new players join this campaign.</p>
           {creationControls}
-          <div className="gm-account-actions">
-            <button onClick={onSwitchCampaign}>Switch Campaign</button>
-            <button onClick={() => void supabase.auth.signOut()}>Log out</button>
-          </div>
+          <section className="gm-invitations-controls">
+            <div><h3>Campaign Controls</h3><p>Switch campaigns or end your GM session</p></div>
+            <div className="gm-account-actions">
+              <button onClick={onSwitchCampaign}>Switch Campaign</button>
+              <button onClick={() => void supabase.auth.signOut()}>Log Out</button>
+            </div>
+          </section>
         </div>
       ) : (
         <div className="gm-dashboard-panel gm-empty-detail">
