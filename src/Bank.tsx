@@ -143,7 +143,7 @@ export default function Bank({ campaignId }: BankProps) {
   return (
     <section className="gm-bank" aria-label="Bank Transfer">
       <div className="gm-bank-heading">
-        <h2><span aria-hidden="true">▣</span> Bank Transfer</h2>
+        <span className="gm-bank-context">Transfer funds between campaign accounts</span>
         <span className="gm-bank-badge">GM Control</span>
       </div>
       <div className="gm-bank-accounts">
