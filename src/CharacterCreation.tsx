@@ -12,7 +12,7 @@ const ATTRIBUTES = [
   { name: 'Cool', description: 'Composure, stealth and pressure control', Icon: Eye },
 ];
 const DEFAULT_VALUES = [3, 3, 3, 3, 3];
-const BUDGET = 30;
+const DEFAULT_BUDGET = 30;
 function tier(value: number) {
   if (value >= 20) return { name: 'Legendary', color: '#f59e0b' };
   if (value >= 15) return { name: 'Elite', color: '#bd7bea' };
@@ -24,13 +24,15 @@ function tier(value: number) {
 export default function CharacterCreation({ token }: Props) {
   const [status, setStatus] = useState('Connecting...');
   const [campaignName, setCampaignName] = useState<string | null>(null);
+  const [budget, setBudget] = useState(DEFAULT_BUDGET);
+  const [startingMoney, setStartingMoney] = useState(0);
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [values, setValues] = useState([...DEFAULT_VALUES]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [created, setCreated] = useState(false);
-  const remaining = BUDGET - values.reduce((sum, value) => sum + value, 0);
+  const remaining = budget - values.reduce((sum, value) => sum + value, 0);
 
   useEffect(() => {
     let active = true;
@@ -75,6 +77,15 @@ export default function CharacterCreation({ token }: Props) {
         setStatus('Character creation is disabled for this campaign.');
         return;
       }
+      // Read only the two public creation rules using the same invitation token.
+      const { data: rules, error: rulesError } = await supabase.rpc(
+        'get_character_creation_rules', { p_token: token }
+      );
+      if (!active) return;
+      if (rulesError) { setStatus(rulesError.message); return; }
+      if (!rules?.[0]) { setStatus('Character creation settings unavailable.'); return; }
+      setBudget(Number(rules[0].starting_attribute_points));
+      setStartingMoney(Number(rules[0].starting_money));
       setCampaignName(data[0].campaign_name);
       setStatus('');
     }
@@ -138,8 +149,8 @@ export default function CharacterCreation({ token }: Props) {
           {step === 1 && <>
             <section className="cc-card cc-budget">
               <div className="cc-budget-top"><div><div className="cc-muted-label">ATTRIBUTE POINTS</div><div className="cc-remaining">{remaining} <span>remaining</span></div></div><SlidersHorizontal size={23} /></div>
-              <div className="cc-progress"><div style={{ width: `${(BUDGET - remaining) / BUDGET * 100}%` }} /></div>
-              <small>30 total points · Default 3 · Minimum 1 · Maximum 20</small>
+              <div className="cc-progress"><div style={{ width: `${(budget - remaining) / budget * 100}%` }} /></div>
+              <small>{budget} total points · Default 3 · Minimum 1 · Maximum 20</small>
               <button className="cc-reset" onClick={() => setValues([...DEFAULT_VALUES])}><RotateCcw size={15} /> Reset</button>
             </section>
             {ATTRIBUTES.map(({ name: label, description, Icon }, i) => {
@@ -156,7 +167,7 @@ export default function CharacterCreation({ token }: Props) {
             <div className="cc-footer"><button className="cc-secondary" onClick={() => setStep(0)}><ArrowLeft size={17} /> Back</button><button className="cc-primary" disabled={remaining !== 0} onClick={() => setStep(2)}>Review <ArrowRight size={17} /></button></div>
           </>}
           {created ? <section className="cc-card cc-review"><div className="cc-section-label"><Check size={20} /> CHARACTER CREATED</div><h2>{name.trim()}</h2><p>Your character is ready. You can now open your player dashboard.</p><button className="cc-primary" onClick={() => { window.location.hash = "player"; window.location.reload(); }}>Open player dashboard <ArrowRight size={17} /></button></section> : step === 2 && <>
-            <section className="cc-card cc-review"><div className="cc-section-label"><Check size={20} /> CHARACTER PROFILE</div><h2>{name.trim()}</h2><div className="cc-review-list">{ATTRIBUTES.map((attribute, i) => <div className="cc-review-row" key={attribute.name}><span>{attribute.name}</span><span style={{ color: tier(values[i]).color }}>{tier(values[i]).name} <strong>{values[i]}</strong></span></div>)}</div><div className="cc-review-row"><strong>Total points</strong><strong>30 / 30</strong></div></section>
+            <section className="cc-card cc-review"><div className="cc-section-label"><Check size={20} /> CHARACTER PROFILE</div><h2>{name.trim()}</h2><div className="cc-review-list">{ATTRIBUTES.map((attribute, i) => <div className="cc-review-row" key={attribute.name}><span>{attribute.name}</span><span style={{ color: tier(values[i]).color }}>{tier(values[i]).name} <strong>{values[i]}</strong></span></div>)}</div><div className="cc-review-row"><strong>Total points</strong><strong>{budget} / {budget}</strong></div><div className="cc-review-row"><strong>Starting balance</strong><strong>{startingMoney.toLocaleString('en-US')} E$</strong></div></section>
             <div className="cc-footer"><button className="cc-secondary" onClick={() => setStep(1)}><ArrowLeft size={17} /> Edit</button><button className="cc-primary" disabled={submitting || remaining !== 0} onClick={() => void createCharacter()}>{submitting ? "Creating..." : "Create character"} <Check size={17} /></button></div>
             {submitError && <p className="cc-error" role="alert">{submitError}</p>}
           </>}
