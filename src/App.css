@@ -375,3 +375,13 @@
 .gm-invitation-link-row{display:flex;align-items:center;gap:8px;width:100%;min-width:0}
 .gm-invitation-link-row input{flex:1;min-width:0;width:0}
 .gm-invitation-copy-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 38px;width:38px;height:38px;padding:0}
+
+/* Solution A: compact icon-only GM navigation with a page title. */
+.gm-tabs { gap:10px; padding:10px 0; margin-bottom:16px; }
+.gm-tabs .gm-tab { display:inline-flex; align-items:center; justify-content:center; width:46px; height:46px; padding:0; border:1px solid #394959; border-radius:10px; background:#192633; color:#b7c7d8; }
+.gm-tabs .gm-tab.active { background:#3a321e; border-color:#d5ac37; color:#f0d052; }
+.gm-tabs .gm-tab:focus-visible { outline:2px solid #e5c34d; outline-offset:2px; }
+.gm-sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.gm-page-title { display:flex; align-items:center; gap:10px; margin:0 0 18px; font-size:18px; font-weight:700; color:#f3f3f3; }
+.gm-page-title svg { color:#e5c34d; flex-shrink:0; }
+@media(max-width:650px) { .gm-tabs .gm-tab { width:44px; height:44px; padding:0; } }
