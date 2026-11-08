@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollText } from 'lucide-react';
 import { supabase } from './supabase';
 import './CampaignLogs.css';
 import { displayLogMessage, tarotFromLog } from './tarotData';
@@ -115,7 +114,7 @@ export default function CampaignLogs({ campaignId, characters }: {
 
   return <section className="campaign-logs">
     <div className="campaign-logs-heading">
-      <div><h2><ScrollText size={22} aria-hidden="true" /> Campaign Logs</h2><p>Complete event history for this campaign</p></div>
+      <div><p>Complete event history for this campaign</p></div>
       <span>{visible.length} shown · {events.length} loaded</span>
     </div>
     <div className="campaign-logs-filters">
