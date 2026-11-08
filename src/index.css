@@ -33,3 +33,6 @@ body {
   padding: 0;
   display: block;
 }
+
+/* Keep GM pages at a fixed top position when their content height changes. */
+#root:has(.gm-dashboard) { align-items: flex-start; }
