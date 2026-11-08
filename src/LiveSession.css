@@ -96,3 +96,9 @@
 .live-money-actions button.live-money-submit{background:#e8bd4a;border-color:#e8bd4a;color:#101820;font-weight:700}
 .live-money-scene button:disabled{opacity:.4;cursor:default}
 .live-money-error{margin:0;color:#ff9da7;font-size:12px;text-align:center}
+
+/* Party Monitor: keep data separate from equal-sized GM action controls. */
+.live-hp-actions{justify-content:flex-end;gap:8px;margin-top:12px}
+.live-hp-actions button{box-sizing:border-box;flex:0 0 58px;width:58px;height:40px;padding:0;gap:3px}
+.live-hp-actions button:first-child{color:#e8bd4a}
+.live-hp-row .live-hp-track{width:100%}
