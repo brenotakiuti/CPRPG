@@ -282,13 +282,12 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
             {hpError && <p className="live-hp-error" role="alert">{hpError}</p>}
             {characters.length ? characters.map(c => { const hp = hpOverrides[c.id] ?? c.current_hp; return (
               <div className="live-character" key={c.id}>
-                <div className="live-character-main"><strong>{c.name}</strong><div className="live-character-money"><span>{Number(c.balance).toLocaleString('en-US')} E$</span><button type="button" title={'Adjust funds for ' + c.name} aria-label={'Adjust funds for ' + c.name} onClick={() => openMoney(c.id)}><Wallet size={17}/></button></div></div>
+                <div className="live-character-main"><strong>{c.name}</strong><div className="live-character-money"><span>{Number(c.balance).toLocaleString('en-US')} E$</span></div></div>
                 {c.body !== null && hp !== null ? <div className="live-character-vitals">
                   <div className="live-hp-info"><span>HP</span><span>{hp} / {maxHP(c.body)}</span></div>
-                  <div className="live-hp-row"><div className="live-hp-track" role="progressbar" aria-label={c.name + ' HP'} aria-valuemin={0} aria-valuemax={maxHP(c.body)} aria-valuenow={hp}><div className={"live-hp-fill " + hpLevel(hp, maxHP(c.body))} style={{ width: (100 * hp / maxHP(c.body)) + '%' }} /></div>
-                    <div className="live-hp-actions"><button type="button" title="Remove 5 HP" aria-label={'Remove 5 HP from ' + c.name} disabled={hp <= 0} onClick={() => void adjustHP(c, -5)}><Heart size={14}/><Minus size={13}/></button><button type="button" className="live-hp-heal" title="Restore 5 HP" aria-label={'Restore 5 HP to ' + c.name} disabled={hp >= maxHP(c.body)} onClick={() => void adjustHP(c, 5)}><Heart size={14}/><Plus size={13}/></button></div>
-                  </div>
+                  <div className="live-hp-row"><div className="live-hp-track" role="progressbar" aria-label={c.name + ' HP'} aria-valuemin={0} aria-valuemax={maxHP(c.body)} aria-valuenow={hp}><div className={"live-hp-fill " + hpLevel(hp, maxHP(c.body))} style={{ width: (100 * hp / maxHP(c.body)) + '%' }} /></div></div>
                 </div> : <small className="live-hp-unavailable">HP unavailable</small>}
+                <div className="live-hp-actions"><button type="button" title={'Adjust funds for ' + c.name} aria-label={'Adjust funds for ' + c.name} onClick={() => openMoney(c.id)}><Wallet size={17}/></button><button type="button" title="Remove 5 HP" aria-label={'Remove 5 HP from ' + c.name} disabled={hp === null || hp <= 0 || c.body === null} onClick={() => void adjustHP(c, -5)}><Heart size={14}/><Minus size={13}/></button><button type="button" className="live-hp-heal" title="Restore 5 HP" aria-label={'Restore 5 HP to ' + c.name} disabled={hp === null || c.body === null || hp >= maxHP(c.body)} onClick={() => void adjustHP(c, 5)}><Heart size={14}/><Plus size={13}/></button></div>
               </div>
              ); }) : <p className="live-empty">No characters in this campaign yet.</p>}
           </section>
