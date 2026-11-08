@@ -23,6 +23,7 @@ export default function SessionToolSettings({ onOpen, characters }: { onOpen: (c
   const [fortune, setFortune] = useState(0);
   const [luckyNumbers, setLuckyNumbers] = useState('7, 13, 21, 42, 77');
   const [error, setError] = useState('');
+  const toolLabels = { dice: 'DICE', tarot: 'TAROT', fortune: 'FORTUNE COOKIE' } as const;
   function launch() {
     setError('');
     if (tool !== 'dice' && audience === 'character' && !characters.some(c => c.id === characterId)) { setError('Select a character.'); return; }
@@ -50,11 +51,13 @@ export default function SessionToolSettings({ onOpen, characters }: { onOpen: (c
     setRig(false);
   }
   return <div className="session-tool-settings">
+    <div className="session-tool-heading"><strong>SELECT TOOL</strong><span>● TOOL SELECTED</span></div>
     <div className="live-tools">
-      <button type="button" className={'live-roll-open' + (tool === 'dice' ? ' selected' : '')} onClick={() => { setTool('dice'); setError(''); }}><Dices size={22}/>DICE ROLL</button>
-      <button type="button" className={'live-roll-open' + (tool === 'tarot' ? ' selected' : '')} onClick={() => { setTool('tarot'); setError(''); }}><SunMoon size={22}/>TAROT</button>
-      <button type="button" className={'live-roll-open' + (tool === 'fortune' ? ' selected' : '')} onClick={() => { setTool('fortune'); setError(''); }}><Cookie size={22}/>FORTUNE COOKIE</button>
+      <button type="button" aria-pressed={tool === 'dice'} className={'live-roll-open' + (tool === 'dice' ? ' selected' : '')} onClick={() => { setTool('dice'); setError(''); }}><Dices size={22}/>DICE ROLL</button>
+      <button type="button" aria-pressed={tool === 'tarot'} className={'live-roll-open' + (tool === 'tarot' ? ' selected' : '')} onClick={() => { setTool('tarot'); setError(''); }}><SunMoon size={22}/>TAROT</button>
+      <button type="button" aria-pressed={tool === 'fortune'} className={'live-roll-open' + (tool === 'fortune' ? ' selected' : '')} onClick={() => { setTool('fortune'); setError(''); }}><Cookie size={22}/>FORTUNE COOKIE</button>
     </div>
+    <div className="session-selected-heading">{toolLabels[tool]} SETTINGS <span>READY</span></div>
     {tool === 'dice' && <div className="session-settings-row">
       <label>Die type<select value={sides} onChange={e => setSides(Number(e.target.value))}>{[6,10,20,100].map(n => <option key={n} value={n}>D{n}</option>)}</select></label>
       <label>Number of rolls<input type="number" min={1} max={100} value={rolls} onChange={e => setRolls(Number(e.target.value))}/></label>
@@ -68,7 +71,8 @@ export default function SessionToolSettings({ onOpen, characters }: { onOpen: (c
       {tool === 'fortune' && <label>Lucky numbers (five unique values, 1–99)<input value={luckyNumbers} onChange={e => setLuckyNumbers(e.target.value)} placeholder="7, 13, 21, 42, 77"/></label>}
     </div>}
     {error && <p className="session-settings-error" role="alert">{error}</p>}
-    <button type="button" className="session-open-button" onClick={launch}>Execute</button>
+    <div className="session-ready-label">Ready to execute: <strong>{toolLabels[tool]}</strong></div>
+    <button type="button" className="session-open-button" onClick={launch}>EXECUTE {toolLabels[tool]}</button>
     <small>Tarot and Fortune Cookie are delivered to selected player HUDs.</small>
   </div>;
 }
