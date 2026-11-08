@@ -424,11 +424,17 @@ export default function GMConsole({
         {navigation.map((item) => (
           <button key={item.id} type="button" className={page === item.id ? 'gm-tab active' : 'gm-tab'}
             aria-current={page === item.id ? 'page' : undefined} onClick={() => setPage(item.id)}>
-            <item.icon size={17} strokeWidth={1.9} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 8 }} />
-            {item.label}
+            <item.icon size={19} strokeWidth={1.9} aria-hidden="true" />
+            <span className="gm-sr-only">{item.label}</span>
           </button>
         ))}
       </nav>
+      <h2 className="gm-page-title">
+        {(() => {
+          const current = navigation.find((item) => item.id === page)!;
+          return <><current.icon size={19} strokeWidth={1.9} aria-hidden="true" />{current.label}</>;
+        })()}
+      </h2>
       {page === 'live' ? (
         <LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} />
       ) : page === 'characters' ? (
