@@ -20,3 +20,6 @@
 .campaign-logs-footer button:disabled{opacity:.5;cursor:default}
 @media(max-width:1000px){.campaign-logs-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.campaign-logs-search{grid-column:1/-1}}
 @media(max-width:600px){.campaign-logs{padding:12px}.campaign-logs-heading,.campaign-logs-footer{align-items:flex-start;flex-direction:column}.campaign-logs-table{min-width:670px}}
+
+/* The shared GM page title now identifies Campaign Logs. */
+.campaign-logs-heading { margin-bottom:14px; }
