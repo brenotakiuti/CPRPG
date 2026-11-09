@@ -161,7 +161,7 @@ export default function GMConsole({
     const amount = Number(startingMoney);
     if (rulesSaving || rulesLoading || !Number.isInteger(startingPoints) ||
       startingPoints < 15 || startingPoints > 100 ||
-      !/^\\d+$/.test(startingMoney.trim()) || !Number.isSafeInteger(amount) || amount < 0) return;
+      !/^\d+$/.test(startingMoney.trim()) || !Number.isSafeInteger(amount) || amount < 0) return;
     setRulesSaving(true);
     setRulesMessage('');
     const { data, error } = await supabase.from('campaigns')
@@ -660,7 +660,7 @@ export default function GMConsole({
             <div className="gm-invitations-settings-footer">
               {rulesMessage && <p role="status">{rulesMessage}</p>}
               <button type="button" disabled={rulesLoading || rulesSaving ||
-                !/^\\d+$/.test(startingMoney.trim()) ||
+                !/^\d+$/.test(startingMoney.trim()) ||
                 !Number.isSafeInteger(Number(startingMoney)) || Number(startingMoney) < 0}
                 onClick={() => void saveCreationRules()}>
                 {rulesSaving ? 'Saving...' : 'Save Settings'}
