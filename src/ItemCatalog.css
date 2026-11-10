@@ -5,4 +5,4 @@
 /* Description is a separate readable panel. */
 .item-catalog-description{margin:14px 0;padding:14px 16px;border:1px solid #414a58;border-radius:9px;background:#202a36;color:#e8edf4;font-size:14px;line-height:1.6}
 .item-catalog-description h4{margin:0 0 10px;padding-bottom:9px;border-bottom:1px solid #414a58;color:#f5d742;font-size:14px;font-weight:700}
-.item-catalog-description p{margin:0}
+.item-catalog-description p{margin:0;text-align:justify;text-justify:inter-word}
