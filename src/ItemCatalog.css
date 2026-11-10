@@ -16,3 +16,15 @@
 .item-catalog-weapon-stats dt{color:#b7c0ce}
 .item-catalog-weapon-stats dd{margin:0;text-align:right;font-weight:600;color:#f5d742;font-variant-numeric:tabular-nums;text-transform:capitalize}
 .item-catalog-weapon-stats dl>div:nth-last-child(-n+2) dd{color:#e8edf4}
+
+/* Description is available on demand beside the rarity badge. */
+.item-catalog-detail-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.item-catalog-rarity{font-size:12px;color:#b7c0ce;border:1px solid #435061;border-radius:6px;padding:5px 9px}
+.item-catalog-description-anchor{position:relative}
+.item-catalog-description-button{display:flex;align-items:center;gap:6px;border:1px solid #435061;border-radius:6px;padding:5px 9px;background:#202a36;color:#e8edf4;font-size:12px;cursor:pointer}
+.item-catalog-description-button:hover{border-color:#f5d742}
+.item-catalog-description-popover{position:absolute;z-index:20;right:0;top:calc(100% + 8px);width:min(320px,calc(100vw - 48px));padding:14px 16px;border:1px solid #596575;border-radius:9px;background:#202a36;box-shadow:0 12px 30px #0009;color:#e8edf4}
+.item-catalog-popover-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-bottom:9px;border-bottom:1px solid #414a58;color:#f5d742}
+.item-catalog-popover-head button{border:0;background:transparent;color:#b7c0ce;cursor:pointer;font-size:20px;line-height:1}
+.item-catalog-description-popover p{margin:10px 0 0;font-size:13px;line-height:1.6;text-align:justify;text-justify:inter-word}
+@media(max-width:600px){.item-catalog-detail-head{flex-wrap:wrap}.item-catalog-detail-actions{margin-left:auto}}
