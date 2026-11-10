@@ -12,6 +12,133 @@ type PlayerCharacter = {
   current_hp: number | null;
 };
 
+
+type InventoryEntry = {
+  id: string;
+  item_id: string;
+  quantity: number;
+  equipped_slot: string | null;
+  instance_data: Record<string, unknown>;
+};
+type CatalogEntry = {
+  id: string;
+  name: string;
+  category: string;
+  rarity: string;
+  description: string | null;
+  properties: Record<string, unknown>;
+};
+const inventoryPanel: React.CSSProperties = { background: '#172331', border: '1px solid #3c4c5c', borderRadius: 8, padding: 16 };
+const inventoryMuted: React.CSSProperties = { color: '#9baebe', fontSize: 12 };
+const inventoryRow: React.CSSProperties = { background: '#202e3e', border: '1px solid #405268', color: '#e6edf5', borderRadius: 6, padding: 12, width: '100%', textAlign: 'left', cursor: 'pointer' };
+function PlayerInventory({ characterId, onBack }: { characterId: string; onBack: () => void }) {
+  const [entries, setEntries] = useState<InventoryEntry[]>([]);
+  const [catalog, setCatalog] = useState<Record<string, CatalogEntry>>({});
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  async function refresh() {
+    const { data, error: readError } = await supabase.from('character_inventory')
+      .select('id, item_id, quantity, equipped_slot, instance_data')
+      .eq('character_id', characterId).order('created_at');
+    if (readError) { setError(readError.message); setLoading(false); return; }
+    const rows = (data ?? []) as InventoryEntry[];
+    const ids = [...new Set(rows.map(row => row.item_id))];
+    if (ids.length) {
+      const { data: itemRows, error: itemError } = await supabase.from('items')
+        .select('id, name, category, rarity, description, properties').in('id', ids);
+      if (itemError) { setError(itemError.message); setLoading(false); return; }
+      setCatalog(Object.fromEntries(((itemRows ?? []) as CatalogEntry[]).map(item => [item.id, item])));
+    } else setCatalog({});
+    setEntries(rows);
+    setSelectedId(previous => rows.some(row => row.id === previous) ? previous : (rows.find(row => !row.equipped_slot)?.id ?? rows[0]?.id ?? null));
+    setError('');
+    setLoading(false);
+  }
+  useEffect(() => {
+    void refresh();
+    const channel = supabase.channel('player-inventory-' + characterId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'character_inventory', filter: 'character_id=eq.' + characterId }, () => { void refresh(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [characterId]);
+  const selected = entries.find(row => row.id === selectedId);
+  const item = selected ? catalog[selected.item_id] : undefined;
+  const properties = (item?.properties ?? {}) as Record<string, any>;
+  const attack = properties.attack ?? {};
+  const magazine = properties.magazine ?? {};
+  const actionButton: React.CSSProperties = { background: '#e8bd4a', border: 0, borderRadius: 5, color: '#111922', padding: '10px 12px', fontWeight: 800, cursor: 'pointer', flex: 1 };
+  async function changeSlot(slot: string | null) {
+    if (!selected || busy) return;
+    setBusy(true);
+    const { error: equipError } = await supabase.rpc('equip_character_item', { p_inventory_id: selected.id, p_slot: slot });
+    if (equipError) setError(equipError.message);
+    else await refresh();
+    setBusy(false);
+  }
+  return <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <button type="button" onClick={onBack} style={{ alignSelf: 'flex-start', background: 'transparent', border: 0, color: '#e8bd4a', padding: '6px 0', cursor: 'pointer' }}>← Dashboard</button>
+    <section style={inventoryPanel}>
+      <h2 style={{ margin: '0 0 12px', color: '#e8bd4a', fontSize: 13 }}>EQUIPPED WEAPONS <span style={{ float: 'right', color: '#9baebe' }}>{entries.filter(x => x.equipped_slot === 'weapon_1' || x.equipped_slot === 'weapon_2').length} / 2</span></h2>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        {(['weapon_1', 'weapon_2'] as const).map((slot, index) => {
+          const entry = entries.find(x => x.equipped_slot === slot);
+          return <button key={slot} type="button" onClick={() => entry && setSelectedId(entry.id)}
+            style={{ ...inventoryRow, minHeight: 105, textAlign: 'center', borderColor: entry?.id === selectedId ? '#e8bd4a' : '#405268' }}>
+            <div style={inventoryMuted}>SLOT {index + 1}</div>
+            <div style={{ fontSize: 21, color: '#e8bd4a', margin: '7px 0' }}>{entry ? '⌖' : '+'}</div>
+            <strong>{entry ? (catalog[entry.item_id]?.name ?? 'Item') : 'Empty'}</strong>
+            <div style={inventoryMuted}>{entry ? (catalog[entry.item_id]?.properties?.weapon_class as string ?? 'Weapon') : 'Weapon slot'}</div>
+          </button>;
+        })}
+      </div>
+    </section>
+    <section style={inventoryPanel}>
+      <h2 style={{ margin: '0 0 12px', color: '#e8bd4a', fontSize: 13 }}>CARRIED ITEMS <span style={{ float: 'right', color: '#9baebe' }}>{entries.filter(x => !x.equipped_slot).length}</span></h2>
+      {loading && <p style={inventoryMuted}>Loading inventory…</p>}
+      {!loading && !entries.some(x => !x.equipped_slot) && <p style={inventoryMuted}>No carried items.</p>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {entries.filter(x => !x.equipped_slot).map(entry => <button key={entry.id} type="button" onClick={() => setSelectedId(entry.id)}
+          style={{ ...inventoryRow, borderColor: selectedId === entry.id ? '#e8bd4a' : '#405268', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span><strong>{catalog[entry.item_id]?.name ?? 'Unknown item'}</strong><br/><span style={inventoryMuted}>{catalog[entry.item_id]?.category ?? 'Item'} · {catalog[entry.item_id]?.rarity ?? ''}</span></span>
+          <span style={inventoryMuted}>×{entry.quantity} ›</span>
+        </button>)}
+      </div>
+    </section>
+    {selected && <section style={{ ...inventoryPanel, borderColor: '#e8bd4a' }}>
+      <div style={{ color: '#e8bd4a', fontSize: 12, fontWeight: 800 }}>ITEM DETAILS</div>
+      <h2 style={{ margin: '8px 0 4px', fontSize: 21 }}>{item?.name ?? 'Unknown item'}</h2>
+      <p style={{ ...inventoryMuted, margin: '0 0 14px' }}>{item?.category ?? 'Item'} · {item?.rarity ?? ''}</p>
+      {item?.description && <p style={{ ...inventoryMuted, lineHeight: 1.5 }}>{item.description}</p>}
+      {item?.category === 'Weapon' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+        {[
+          ['ATTACK', String(attack.dice ?? properties.attack_dice ?? '—') + 'd6'],
+          ['ACCURACY', String(attack.accuracy_threshold ?? properties.accuracy_threshold ?? '—') + '+'],
+          ['DAMAGE', String(attack.damage_per_success ?? properties.damage_per_success ?? '—') + '/success'],
+          ['MAGAZINE', String(selected.instance_data?.remaining_attacks ?? '—') + ' / ' + String(magazine.capacity ?? properties.magazine_capacity ?? '—')],
+          ['ACTION COST', String(attack.action_cost ?? properties.action_cost ?? '—')],
+          ['RELOAD COST', String(magazine.reload_cost ?? properties.reload_cost ?? '—')]
+        ].map(([label, value]) => <div key={label} style={{ background: '#101a26', borderRadius: 5, padding: 9 }}><div style={{ ...inventoryMuted, fontSize: 10 }}>{label}</div><strong>{value}</strong></div>)}
+      </div>}
+      {item?.category === 'Weapon' && <>
+        <div style={{ ...inventoryMuted, marginBottom: 8 }}>EQUIP IN SLOT</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {(['weapon_1', 'weapon_2'] as const).map((slot, index) => <button key={slot} type="button" disabled={busy || selected.equipped_slot === slot}
+            onClick={() => void changeSlot(slot)} style={{ ...actionButton, opacity: busy || selected.equipped_slot === slot ? .5 : 1 }}>
+            {selected.equipped_slot === slot ? '✓ ' : ''}Slot {index + 1}
+          </button>)}
+        </div>
+        {selected.equipped_slot && <button type="button" disabled={busy} onClick={() => void changeSlot(null)}
+          style={{ ...actionButton, marginTop: 8, width: '100%', background: '#202e3e', color: '#e6edf5', border: '1px solid #405268' }}>Unequip</button>}
+        <p style={{ ...inventoryMuted, marginBottom: 0 }}>Equipping into an occupied slot moves the previous weapon to carried items.</p>
+      </>}
+      {item?.category !== 'Weapon' && <p style={inventoryMuted}>Equipment controls for this item category will be added in a later phase.</p>}
+    </section>}
+    {error && <div role="alert" style={{ color: '#ffb3b3', background: '#401e24', padding: 10, borderRadius: 6 }}>{error}</div>}
+  </div>;
+}
+
 type PlayerViewProps = {
   token: string | null;
 };
@@ -20,6 +147,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const [character, setCharacter] = useState<PlayerCharacter | null>(null);
   const [body, setBody] = useState<number | null>(null);
   const [logsOpen, setLogsOpen] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
   const [feedCampaignId, setFeedCampaignId] = useState<string | null>(null);
   const [hudMessage, setHudMessage] = useState<{ id: string; text: string; duration: number } | null>(null);
   const hudQueue = useRef<Array<{ id: string; text: string; duration: number }>>([]);
@@ -279,7 +407,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <h1>{character?.name ?? 'PLAYER TERMINAL'}</h1>
           <p>CHARACTER DASHBOARD</p>
         </header>
-        {character ? (
+        {character && inventoryOpen ? <PlayerInventory characterId={character.id} onBack={() => setInventoryOpen(false)} /> : character ? (
           <>
             <section className="player-card player-health" aria-label="Character health">
               <div className="player-section-heading"><span><HeartPulse size={19} aria-hidden="true" /> HEALTH</span><strong>{hp !== null && maximum !== null ? `${hp} / ${maximum} HP` : 'HP unavailable'}</strong></div>
@@ -302,7 +430,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
               <h2>CHARACTER <span>›</span></h2>
               <div className="player-nav-grid">
                 <div className="player-nav-tile"><UserRound size={24} aria-hidden="true" /><span>STATS</span></div>
-                <div className="player-nav-tile"><Backpack size={24} aria-hidden="true" /><span>INVENTORY</span></div>
+                <button type="button" className="player-nav-tile" onClick={() => setInventoryOpen(true)} style={{ cursor: "pointer", font: "inherit" }}><Backpack size={24} aria-hidden="true" /><span>INVENTORY</span></button>
                 <div className="player-nav-tile"><Smartphone size={24} aria-hidden="true" /><span>PHONE</span></div>
               </div>
             </section>
