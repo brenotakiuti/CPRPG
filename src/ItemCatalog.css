@@ -28,3 +28,8 @@
 .item-catalog-popover-head button{border:0;background:transparent;color:#b7c0ce;cursor:pointer;font-size:20px;line-height:1}
 .item-catalog-description-popover p{margin:10px 0 0;font-size:13px;line-height:1.6;text-align:justify;text-justify:inter-word}
 @media(max-width:600px){.item-catalog-detail-head{flex-wrap:wrap}.item-catalog-detail-actions{margin-left:auto}}
+
+/* Full-width subtype row beneath the item title and header actions. */
+.item-catalog-detail-head{align-items:center}
+.item-catalog-detail-head h3{min-width:0;overflow-wrap:anywhere}
+.item-catalog-detail-subtype{margin:5px 0 0;color:#9ca7b6;line-height:1.45}
