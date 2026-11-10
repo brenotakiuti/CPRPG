@@ -4,6 +4,7 @@ import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Cop
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
+import ItemCatalog from './ItemCatalog';
 import LiveSession from './LiveSession';
 import CampaignLogs from './CampaignLogs';
 
@@ -675,10 +676,10 @@ export default function GMConsole({
             </div>
           </section>
         </div>
+      ) : page === 'inventory' ? (
+        <ItemCatalog />
       ) : (
-        <div className="gm-dashboard-panel gm-empty-detail">
-          {page === 'inventory' ? 'Inventory' : 'Factions'} — coming later
-        </div>
+        <div className="gm-dashboard-panel gm-empty-detail">Factions — coming later</div>
       )}
     </div>
   );
