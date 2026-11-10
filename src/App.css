@@ -320,7 +320,7 @@
 
 
 /* Unified GM Bank form */
-.gm-dashboard-panel .gm-bank { display:flex; flex-direction:column; gap:18px; max-width:700px; color:#f3f3f3; }
+.gm-dashboard-panel .gm-bank { display:flex; flex-direction:column; gap:18px; width:100%; max-width:none; color:#f3f3f3; }
 .gm-bank-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .gm-bank-heading h2 { display:flex; align-items:center; gap:10px; margin:0; font-size:20px; }
 .gm-bank-heading h2 span { color:#e6c34d; font-size:23px; }
