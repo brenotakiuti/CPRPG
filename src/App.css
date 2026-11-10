@@ -431,3 +431,6 @@
 .gm-invitations-settings-footer button { background:#e6c34d; color:#171a1f; border:0; border-radius:7px; font-size:12px; font-weight:700; padding:11px 16px; cursor:pointer; }
 .gm-invitations-settings-footer button:disabled { opacity:.5; cursor:not-allowed; }
 @media(max-width:700px) { .gm-invitations-settings-fields { grid-template-columns:1fr; } }
+
+/* Use a stable GM width across page changes, including short pages. */
+.gm-dashboard{width:100%;max-width:1100px;min-width:0}
