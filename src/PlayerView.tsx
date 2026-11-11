@@ -90,7 +90,7 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null }: { ch
   return <section style={{ background: '#10151d', color: '#f0f2f5', borderRadius: 10, padding: '16px 14px', minHeight: 300 }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
       <button type="button" onClick={() => selectedId ? setSelectedId(null) : onBack()} aria-label={selectedId ? 'Back to inventory' : 'Back to dashboard'}
-        style={{ background: 'transparent', border: 0, color: '#e8bd4a', cursor: 'pointer', fontSize: 22, padding: 0 }}>←</button>
+        style={{ background: '#202e3e', border: '1px solid #405268', borderRadius: 6, color: '#e8bd4a', cursor: 'pointer', fontSize: 13, fontWeight: 700, padding: '9px 12px', display: 'inline-flex', alignItems: 'center', gap: 7 }}>← Back</button>
       <h2 style={{ margin: 0, fontSize: 23, fontWeight: 600 }}>{selectedId ? 'Item details' : 'Inventory'}</h2>
     </div>
     {error && <p role="alert" style={{ color: '#ffb3b3', fontSize: 13 }}>{error}</p>}
@@ -138,7 +138,7 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null }: { ch
           </button>)}
         </div>
         {selected.equipped_slot && <button type="button" disabled={busy} onClick={() => void changeSlot(null)}
-          style={{ background: 'transparent', border: 0, color: '#aab4c2', cursor: 'pointer', padding: 12, width: '100%', marginTop: 8 }}>Unequip</button>}
+          style={{ background: '#241c24', border: '1px solid #b66a72', borderRadius: 6, color: '#ffb3b3', cursor: busy ? 'not-allowed' : 'pointer', fontWeight: 700, padding: '11px 12px', width: '100%', marginTop: 12 }}>⊖ Unequip weapon</button>}
       </>}
       {item?.category !== 'Weapon' && <p style={inventoryMuted}>Item actions for this category will be added later.</p>}
     </> : <p style={inventoryMuted}>Item no longer available. <button onClick={() => setSelectedId(null)}>Back to inventory</button></p>}
@@ -183,8 +183,8 @@ function PlayerLoadout({ characterId, onInspect, onInventory }: { characterId: s
         return <button key={slot} type="button" onClick={() => entry ? onInspect(entry.id) : onInventory()}
           aria-label={entry ? 'Inspect ' + (item?.name ?? 'equipped weapon') : 'Open inventory to equip weapon in slot ' + (index + 1)}
           style={{ background: '#101a26', border: '1px solid #354556', borderRadius: 6, color: '#e6edf5', padding: 9, cursor: 'pointer', minWidth: 0, textAlign: 'left' }}>
-          <div style={{ height: 84, display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
-            {typeof image === 'string' && image ? <img src={image} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> :
+          <div style={{ width: '100%', aspectRatio: '4 / 3', display: 'grid', placeItems: 'center', overflow: 'hidden', background: '#0d1520', borderRadius: 5 }}>
+            {typeof image === 'string' && image ? <img src={image} alt="" style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center' }} /> :
               <span aria-hidden="true" style={{ color: '#697d91', fontSize: 30 }}>{entry ? '⌖' : '+'}</span>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 7 }}>
