@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
-import { HeartPulse, Wallet, Dices, Crosshair, Swords, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History } from 'lucide-react';
+import { HeartPulse, Wallet, Dices, Crosshair, Swords, ArrowLeft, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History } from 'lucide-react';
 import './PlayerView.css';
 import PlayerLogs from './PlayerLogs';
 import PlayerSpotlights from './PlayerSpotlights';
@@ -41,10 +41,11 @@ function inventoryIcon(category: string) {
     default: return '□';
   }
 }
-function PlayerInventory({ characterId, onBack, initialSelectedId = null }: { characterId: string; onBack: () => void; initialSelectedId?: string | null }) {
+function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSelect }: { characterId: string; onBack: () => void; initialSelectedId?: string | null; onSelect: (id: string | null) => void }) {
   const [entries, setEntries] = useState<InventoryEntry[]>([]);
   const [catalog, setCatalog] = useState<Record<string, CatalogEntry>>({});
-  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
+  const selectedId = initialSelectedId;
+  const setSelectedId = onSelect;
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -90,7 +91,7 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null }: { ch
   return <section style={{ background: '#10151d', color: '#f0f2f5', borderRadius: 10, padding: '16px 14px', minHeight: 300 }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
       <button type="button" onClick={() => selectedId ? setSelectedId(null) : onBack()} aria-label={selectedId ? 'Back to inventory' : 'Back to dashboard'}
-        style={{ background: '#202e3e', border: '1px solid #405268', borderRadius: 6, color: '#e8bd4a', cursor: 'pointer', fontSize: 13, fontWeight: 700, padding: '9px 12px', display: 'inline-flex', alignItems: 'center', gap: 7 }}>← Back</button>
+        style={{ background: '#202e3e', border: '1px solid #405268', borderRadius: 6, color: '#e8bd4a', cursor: 'pointer', fontSize: 13, fontWeight: 700, padding: '9px 12px', display: 'inline-flex', alignItems: 'center', gap: 7 }}><ArrowLeft size={19} strokeWidth={2} aria-hidden="true" />Back</button>
       <h2 style={{ margin: 0, fontSize: 23, fontWeight: 600 }}>{selectedId ? 'Item details' : 'Inventory'}</h2>
     </div>
     {error && <p role="alert" style={{ color: '#ffb3b3', fontSize: 13 }}>{error}</p>}
@@ -197,7 +198,7 @@ function PlayerLoadout({ characterId, onInspect, onInventory }: { characterId: s
             {typeof image === 'string' && image ? <img src={image} alt="" style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center' }} /> :
               <span aria-hidden="true" style={{ color: '#697d91', fontSize: 30 }}>{entry ? '⌖' : '+'}</span>}
           </div>
-          {entry ? <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 4, marginTop: 7 }}>
+          {entry ? <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 4, marginTop: 3 }}>
             {stats.map(({ label, value, Icon }) => <div key={label} title={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, minWidth: 0 }}>
               <div style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Icon size={18} color="#e8bd4a" strokeWidth={2} aria-hidden="true" />
@@ -229,6 +230,42 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const [logsOpen, setLogsOpen] = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [inventorySelection, setInventorySelection] = useState<string | null>(null);
+  const navRef = useRef<{ inventory: boolean; selected: string | null; logs: boolean }>({ inventory: false, selected: null, logs: false });
+  const navigationKey = useRef('player-navigation-' + Math.random().toString(36).slice(2));
+  function navigate(next: { inventory: boolean; selected: string | null; logs: boolean }) {
+    navRef.current = next;
+    window.history.pushState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: next }, '');
+    setInventoryOpen(next.inventory);
+    setInventorySelection(next.selected);
+    setLogsOpen(next.logs);
+  }
+  function goBack() {
+    if (navRef.current.logs || navRef.current.selected || navRef.current.inventory) window.history.back();
+  }
+  useEffect(() => {
+    window.history.replaceState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: { inventory: false, selected: null, logs: false } }, '');
+    const onPopState = (event: PopStateEvent) => {
+      const next = event.state?.playerNavigationKey === navigationKey.current
+        ? event.state.playerScreen as { inventory: boolean; selected: string | null; logs: boolean }
+        : { inventory: false, selected: null, logs: false };
+      navRef.current = next;
+      setInventoryOpen(next.inventory);
+      setInventorySelection(next.selected);
+      setLogsOpen(next.logs);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+  function openInventory(selected: string | null = null) {
+    if (selected) {
+      navigate({ inventory: true, selected: null, logs: false });
+      navigate({ inventory: true, selected, logs: false });
+    } else navigate({ inventory: true, selected: null, logs: false });
+  }
+  function selectInventoryItem(id: string | null) {
+    if (id) navigate({ inventory: true, selected: id, logs: false });
+    else goBack();
+  }
   const [feedCampaignId, setFeedCampaignId] = useState<string | null>(null);
   const [hudMessage, setHudMessage] = useState<{ id: string; text: string; duration: number } | null>(null);
   const hudQueue = useRef<Array<{ id: string; text: string; duration: number }>>([]);
@@ -484,11 +521,11 @@ export default function PlayerView({ token }: PlayerViewProps) {
       {hudMessage && <div className="player-hud-feed" role="status" key={hudMessage.id} style={{ animationDuration: `${hudMessage.duration}ms` }}>{hudMessage.text}</div>}
       <div className="player-shell">
         <header className="player-card player-header">
-          <div className="player-header-top"><span>NIGHT CITY // 2077</span><div className="player-header-actions"><RadioTower size={16} aria-hidden="true" />{character && feedCampaignId && <button type="button" className="player-logs-trigger" aria-label="Open personal logs" title="Personal logs" onClick={() => setLogsOpen(true)}><History size={19} aria-hidden="true" /></button>}</div></div>
+          <div className="player-header-top"><span>NIGHT CITY // 2077</span><div className="player-header-actions"><RadioTower size={16} aria-hidden="true" />{character && feedCampaignId && <button type="button" className="player-logs-trigger" aria-label="Open personal logs" title="Personal logs" onClick={() => navigate({ ...navRef.current, logs: true })}><History size={19} aria-hidden="true" /></button>}</div></div>
           <h1>{character?.name ?? 'PLAYER TERMINAL'}</h1>
           <p>CHARACTER DASHBOARD</p>
         </header>
-        {character && inventoryOpen ? <PlayerInventory key={inventorySelection ?? "inventory-list"} characterId={character.id} initialSelectedId={inventorySelection} onBack={() => { setInventoryOpen(false); setInventorySelection(null); }} /> : character ? (
+        {character && inventoryOpen ? <PlayerInventory key={inventorySelection ?? "inventory-list"} characterId={character.id} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /> : character ? (
           <>
             <section className="player-card player-health" aria-label="Character health">
               <div className="player-section-heading"><span><HeartPulse size={19} aria-hidden="true" /> HEALTH</span><strong>{hp !== null && maximum !== null ? `${hp} / ${maximum} HP` : 'HP unavailable'}</strong></div>
@@ -507,12 +544,12 @@ export default function PlayerView({ token }: PlayerViewProps) {
                 <div className="player-dice-placeholder" aria-label="Dice rolling coming soon"><Dices size={17} aria-hidden="true" /> ROLL</div>
               </section>
             </div>
-            <PlayerLoadout characterId={character.id} onInspect={id => { setInventorySelection(id); setInventoryOpen(true); }} onInventory={() => { setInventorySelection(null); setInventoryOpen(true); }} />
+            <PlayerLoadout characterId={character.id} onInspect={id => openInventory(id)} onInventory={() => openInventory()} />
             <section className="player-card player-navigation">
               <h2>CHARACTER <span>›</span></h2>
               <div className="player-nav-grid">
                 <div className="player-nav-tile"><UserRound size={24} aria-hidden="true" /><span>STATS</span></div>
-                <button type="button" className="player-nav-tile" onClick={() => { setInventorySelection(null); setInventoryOpen(true); }} style={{ cursor: "pointer", font: "inherit" }}><Backpack size={24} aria-hidden="true" /><span>INVENTORY</span></button>
+                <button type="button" className="player-nav-tile" onClick={() => openInventory()} style={{ cursor: "pointer", font: "inherit" }}><Backpack size={24} aria-hidden="true" /><span>INVENTORY</span></button>
                 <div className="player-nav-tile"><Smartphone size={24} aria-hidden="true" /><span>PHONE</span></div>
               </div>
             </section>
@@ -525,7 +562,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
         ) : <section className="player-card player-message" role="status">{message}</section>}
       </div>
       {character && feedCampaignId && <PlayerSpotlights campaignId={feedCampaignId} characterId={character.id} />}
-      {logsOpen && character && feedCampaignId && <PlayerLogs campaignId={feedCampaignId} characterId={character.id} onClose={() => setLogsOpen(false)} />}
+      {logsOpen && character && feedCampaignId && <PlayerLogs campaignId={feedCampaignId} characterId={character.id} onClose={goBack} />}
     </main>
   );
 }
