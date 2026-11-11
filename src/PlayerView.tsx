@@ -63,7 +63,9 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSele
       setCatalog(Object.fromEntries(((itemRows ?? []) as CatalogEntry[]).map(item => [item.id, item])));
     } else setCatalog({});
     setEntries(rows);
-    setSelectedId(previous => rows.some(row => row.id === previous) ? previous : null);
+    if (selectedId && !rows.some(row => row.id === selectedId)) {
+      setSelectedId(null);
+    }
     setError('');
     setLoading(false);
   }
