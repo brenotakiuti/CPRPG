@@ -41,10 +41,10 @@ function inventoryIcon(category: string) {
     default: return '□';
   }
 }
-function PlayerInventory({ characterId, onBack }: { characterId: string; onBack: () => void }) {
+function PlayerInventory({ characterId, onBack, initialSelectedId = null }: { characterId: string; onBack: () => void; initialSelectedId?: string | null }) {
   const [entries, setEntries] = useState<InventoryEntry[]>([]);
   const [catalog, setCatalog] = useState<Record<string, CatalogEntry>>({});
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -145,6 +145,58 @@ function PlayerInventory({ characterId, onBack }: { characterId: string; onBack:
   </section>;
 }
 
+
+function PlayerLoadout({ characterId, onInspect, onInventory }: { characterId: string; onInspect: (inventoryId: string) => void; onInventory: () => void }) {
+  const [equipped, setEquipped] = useState<InventoryEntry[]>([]);
+  const [catalog, setCatalog] = useState<Record<string, CatalogEntry>>({});
+  useEffect(() => {
+    let active = true;
+    async function refresh() {
+      const { data, error } = await supabase.from('character_inventory')
+        .select('id, item_id, quantity, equipped_slot, instance_data')
+        .eq('character_id', characterId).in('equipped_slot', ['weapon_1', 'weapon_2']);
+      if (error) { console.warn('[Player Loadout]', error.message); return; }
+      const rows = (data ?? []) as InventoryEntry[];
+      const ids = [...new Set(rows.map(row => row.item_id))];
+      const result = ids.length ? await supabase.from('items')
+        .select('id, name, category, rarity, description, properties').in('id', ids) : null;
+      if (!active) return;
+      if (result?.error) console.warn('[Player Loadout catalog]', result.error.message);
+      setEquipped(rows);
+      setCatalog(Object.fromEntries(((result?.data ?? []) as CatalogEntry[]).map(item => [item.id, item])));
+    }
+    void refresh();
+    const channel = supabase.channel('player-loadout-' + characterId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'character_inventory', filter: 'character_id=eq.' + characterId }, () => { void refresh(); })
+      .subscribe();
+    return () => { active = false; void supabase.removeChannel(channel); };
+  }, [characterId]);
+  return <section className="player-card" aria-label="Loadout" style={{ padding: 16 }}>
+    <div className="player-section-heading" style={{ marginBottom: 12 }}>
+      <span>LOADOUT</span><strong style={{ color: '#9baebe', fontSize: 11 }}>{equipped.length} / 2 EQUIPPED</strong>
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+      {(['weapon_1', 'weapon_2'] as const).map((slot, index) => {
+        const entry = equipped.find(row => row.equipped_slot === slot);
+        const item = entry ? catalog[entry.item_id] : undefined;
+        const image = item?.properties?.image;
+        return <button key={slot} type="button" onClick={() => entry ? onInspect(entry.id) : onInventory()}
+          aria-label={entry ? 'Inspect ' + (item?.name ?? 'equipped weapon') : 'Open inventory to equip weapon in slot ' + (index + 1)}
+          style={{ background: '#101a26', border: '1px solid #354556', borderRadius: 6, color: '#e6edf5', padding: 9, cursor: 'pointer', minWidth: 0, textAlign: 'left' }}>
+          <div style={{ height: 84, display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
+            {typeof image === 'string' && image ? <img src={image} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> :
+              <span aria-hidden="true" style={{ color: '#697d91', fontSize: 30 }}>{entry ? '⌖' : '+'}</span>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 7 }}>
+            <strong style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item?.name ?? (entry ? 'Weapon' : 'Empty')}</strong>
+            <span style={{ color: '#9baebe', fontSize: 10 }}>0{index + 1}</span>
+          </div>
+        </button>;
+      })}
+    </div>
+  </section>;
+}
+
 type PlayerViewProps = {
   token: string | null;
 };
@@ -154,6 +206,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const [body, setBody] = useState<number | null>(null);
   const [logsOpen, setLogsOpen] = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [inventorySelection, setInventorySelection] = useState<string | null>(null);
   const [feedCampaignId, setFeedCampaignId] = useState<string | null>(null);
   const [hudMessage, setHudMessage] = useState<{ id: string; text: string; duration: number } | null>(null);
   const hudQueue = useRef<Array<{ id: string; text: string; duration: number }>>([]);
@@ -413,7 +466,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <h1>{character?.name ?? 'PLAYER TERMINAL'}</h1>
           <p>CHARACTER DASHBOARD</p>
         </header>
-        {character && inventoryOpen ? <PlayerInventory characterId={character.id} onBack={() => setInventoryOpen(false)} /> : character ? (
+        {character && inventoryOpen ? <PlayerInventory key={inventorySelection ?? "inventory-list"} characterId={character.id} initialSelectedId={inventorySelection} onBack={() => { setInventoryOpen(false); setInventorySelection(null); }} /> : character ? (
           <>
             <section className="player-card player-health" aria-label="Character health">
               <div className="player-section-heading"><span><HeartPulse size={19} aria-hidden="true" /> HEALTH</span><strong>{hp !== null && maximum !== null ? `${hp} / ${maximum} HP` : 'HP unavailable'}</strong></div>
@@ -432,11 +485,12 @@ export default function PlayerView({ token }: PlayerViewProps) {
                 <div className="player-dice-placeholder" aria-label="Dice rolling coming soon"><Dices size={17} aria-hidden="true" /> ROLL</div>
               </section>
             </div>
+            <PlayerLoadout characterId={character.id} onInspect={id => { setInventorySelection(id); setInventoryOpen(true); }} onInventory={() => { setInventorySelection(null); setInventoryOpen(true); }} />
             <section className="player-card player-navigation">
               <h2>CHARACTER <span>›</span></h2>
               <div className="player-nav-grid">
                 <div className="player-nav-tile"><UserRound size={24} aria-hidden="true" /><span>STATS</span></div>
-                <button type="button" className="player-nav-tile" onClick={() => setInventoryOpen(true)} style={{ cursor: "pointer", font: "inherit" }}><Backpack size={24} aria-hidden="true" /><span>INVENTORY</span></button>
+                <button type="button" className="player-nav-tile" onClick={() => { setInventorySelection(null); setInventoryOpen(true); }} style={{ cursor: "pointer", font: "inherit" }}><Backpack size={24} aria-hidden="true" /><span>INVENTORY</span></button>
                 <div className="player-nav-tile"><Smartphone size={24} aria-hidden="true" /><span>PHONE</span></div>
               </div>
             </section>
