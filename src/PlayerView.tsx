@@ -28,9 +28,19 @@ type CatalogEntry = {
   description: string | null;
   properties: Record<string, unknown>;
 };
-const inventoryPanel: React.CSSProperties = { background: '#172331', border: '1px solid #3c4c5c', borderRadius: 8, padding: 16 };
-const inventoryMuted: React.CSSProperties = { color: '#9baebe', fontSize: 12 };
-const inventoryRow: React.CSSProperties = { background: '#202e3e', border: '1px solid #405268', color: '#e6edf5', borderRadius: 6, padding: 12, width: '100%', textAlign: 'left', cursor: 'pointer' };
+
+const inventoryMuted: React.CSSProperties = { color: '#8996a5', fontSize: 12 };
+const inventoryAction: React.CSSProperties = { flex: 1, padding: '11px 8px', background: '#e8bd4a', border: 0, borderRadius: 5, color: '#10151d', fontWeight: 700, cursor: 'pointer' };
+function inventoryIcon(category: string) {
+  switch (category.toLowerCase()) {
+    case 'weapon': return '⌖';
+    case 'armor': return '◇';
+    case 'cyberware': return '◈';
+    case 'quickhack': return '▣';
+    case 'consumable': return '+';
+    default: return '□';
+  }
+}
 function PlayerInventory({ characterId, onBack }: { characterId: string; onBack: () => void }) {
   const [entries, setEntries] = useState<InventoryEntry[]>([]);
   const [catalog, setCatalog] = useState<Record<string, CatalogEntry>>({});
@@ -52,7 +62,7 @@ function PlayerInventory({ characterId, onBack }: { characterId: string; onBack:
       setCatalog(Object.fromEntries(((itemRows ?? []) as CatalogEntry[]).map(item => [item.id, item])));
     } else setCatalog({});
     setEntries(rows);
-    setSelectedId(previous => rows.some(row => row.id === previous) ? previous : (rows.find(row => !row.equipped_slot)?.id ?? rows[0]?.id ?? null));
+    setSelectedId(previous => rows.some(row => row.id === previous) ? previous : null);
     setError('');
     setLoading(false);
   }
@@ -68,7 +78,7 @@ function PlayerInventory({ characterId, onBack }: { characterId: string; onBack:
   const properties = (item?.properties ?? {}) as Record<string, any>;
   const attack = properties.attack ?? {};
   const magazine = properties.magazine ?? {};
-  const actionButton: React.CSSProperties = { background: '#e8bd4a', border: 0, borderRadius: 5, color: '#111922', padding: '10px 12px', fontWeight: 800, cursor: 'pointer', flex: 1 };
+  const imagePath = typeof properties.image === 'string' ? properties.image : null;
   async function changeSlot(slot: string | null) {
     if (!selected || busy) return;
     setBusy(true);
@@ -77,66 +87,62 @@ function PlayerInventory({ characterId, onBack }: { characterId: string; onBack:
     else await refresh();
     setBusy(false);
   }
-  return <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-    <button type="button" onClick={onBack} style={{ alignSelf: 'flex-start', background: 'transparent', border: 0, color: '#e8bd4a', padding: '6px 0', cursor: 'pointer' }}>← Dashboard</button>
-    <section style={inventoryPanel}>
-      <h2 style={{ margin: '0 0 12px', color: '#e8bd4a', fontSize: 13 }}>EQUIPPED WEAPONS <span style={{ float: 'right', color: '#9baebe' }}>{entries.filter(x => x.equipped_slot === 'weapon_1' || x.equipped_slot === 'weapon_2').length} / 2</span></h2>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        {(['weapon_1', 'weapon_2'] as const).map((slot, index) => {
-          const entry = entries.find(x => x.equipped_slot === slot);
-          return <button key={slot} type="button" onClick={() => entry && setSelectedId(entry.id)}
-            style={{ ...inventoryRow, minHeight: 105, textAlign: 'center', borderColor: entry?.id === selectedId ? '#e8bd4a' : '#405268' }}>
-            <div style={inventoryMuted}>SLOT {index + 1}</div>
-            <div style={{ fontSize: 21, color: '#e8bd4a', margin: '7px 0' }}>{entry ? '⌖' : '+'}</div>
-            <strong>{entry ? (catalog[entry.item_id]?.name ?? 'Item') : 'Empty'}</strong>
-            <div style={inventoryMuted}>{entry ? (catalog[entry.item_id]?.properties?.weapon_class as string ?? 'Weapon') : 'Weapon slot'}</div>
-          </button>;
-        })}
+  return <section style={{ background: '#10151d', color: '#f0f2f5', borderRadius: 10, padding: '16px 14px', minHeight: 300 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+      <button type="button" onClick={() => selectedId ? setSelectedId(null) : onBack()} aria-label={selectedId ? 'Back to inventory' : 'Back to dashboard'}
+        style={{ background: 'transparent', border: 0, color: '#e8bd4a', cursor: 'pointer', fontSize: 22, padding: 0 }}>←</button>
+      <h2 style={{ margin: 0, fontSize: 23, fontWeight: 600 }}>{selectedId ? 'Item details' : 'Inventory'}</h2>
+    </div>
+    {error && <p role="alert" style={{ color: '#ffb3b3', fontSize: 13 }}>{error}</p>}
+    {!selectedId ? <>
+      <p style={{ ...inventoryMuted, margin: '0 0 12px' }}>{loading ? 'Loading inventory…' : entries.length + (entries.length === 1 ? ' item' : ' items')}</p>
+      {!loading && entries.length === 0 && <p style={inventoryMuted}>No items in inventory.</p>}
+      {entries.map(entry => {
+        const catalogItem = catalog[entry.item_id];
+        return <button key={entry.id} type="button" onClick={() => setSelectedId(entry.id)}
+          style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '13px 0', background: 'transparent', color: '#f0f2f5', border: 0, borderBottom: '1px solid #303a47', textAlign: 'left', cursor: 'pointer' }}>
+          <span aria-hidden="true" style={{ width: 42, height: 42, flexShrink: 0, borderRadius: 6, display: 'grid', placeItems: 'center', background: '#1b2430', color: '#e8bd4a', fontSize: 22 }}>{inventoryIcon(catalogItem?.category ?? '')}</span>
+          <span style={{ flex: 1, minWidth: 0 }}><strong style={{ display: 'block', fontSize: 14 }}>{catalogItem?.name ?? 'Unknown item'}</strong>
+            <span style={inventoryMuted}>{catalogItem?.properties?.weapon_class as string ?? catalogItem?.category ?? 'Item'}{entry.quantity > 1 ? ' · ×' + entry.quantity : ''}</span></span>
+          {entry.equipped_slot && <span style={{ color: '#e8bd4a', fontSize: 10 }}>EQUIPPED</span>}
+          <span aria-hidden="true" style={{ color: '#8996a5' }}>›</span>
+        </button>;
+      })}
+    </> : selected ? <>
+      <h3 style={{ margin: '0 0 4px', fontSize: 25, fontWeight: 600 }}>{item?.name ?? 'Unknown item'}</h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 16 }}>
+        <span style={inventoryMuted}>{item?.properties?.weapon_class as string ?? item?.category ?? 'Item'} · {item?.rarity ?? ''}</span>
+        {selected.equipped_slot && <span style={{ color: '#e8bd4a', fontSize: 12 }}>Equipped</span>}
       </div>
-    </section>
-    <section style={inventoryPanel}>
-      <h2 style={{ margin: '0 0 12px', color: '#e8bd4a', fontSize: 13 }}>CARRIED ITEMS <span style={{ float: 'right', color: '#9baebe' }}>{entries.filter(x => !x.equipped_slot).length}</span></h2>
-      {loading && <p style={inventoryMuted}>Loading inventory…</p>}
-      {!loading && !entries.some(x => !x.equipped_slot) && <p style={inventoryMuted}>No carried items.</p>}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {entries.filter(x => !x.equipped_slot).map(entry => <button key={entry.id} type="button" onClick={() => setSelectedId(entry.id)}
-          style={{ ...inventoryRow, borderColor: selectedId === entry.id ? '#e8bd4a' : '#405268', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <span><strong>{catalog[entry.item_id]?.name ?? 'Unknown item'}</strong><br/><span style={inventoryMuted}>{catalog[entry.item_id]?.category ?? 'Item'} · {catalog[entry.item_id]?.rarity ?? ''}</span></span>
-          <span style={inventoryMuted}>×{entry.quantity} ›</span>
-        </button>)}
-      </div>
-    </section>
-    {selected && <section style={{ ...inventoryPanel, borderColor: '#e8bd4a' }}>
-      <div style={{ color: '#e8bd4a', fontSize: 12, fontWeight: 800 }}>ITEM DETAILS</div>
-      <h2 style={{ margin: '8px 0 4px', fontSize: 21 }}>{item?.name ?? 'Unknown item'}</h2>
-      <p style={{ ...inventoryMuted, margin: '0 0 14px' }}>{item?.category ?? 'Item'} · {item?.rarity ?? ''}</p>
-      {item?.description && <p style={{ ...inventoryMuted, lineHeight: 1.5 }}>{item.description}</p>}
-      {item?.category === 'Weapon' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
-        {[
-          ['ATTACK', String(attack.dice ?? properties.attack_dice ?? '—') + 'd6'],
-          ['ACCURACY', String(attack.accuracy_threshold ?? properties.accuracy_threshold ?? '—') + '+'],
-          ['DAMAGE', String(attack.damage_per_success ?? properties.damage_per_success ?? '—') + '/success'],
-          ['MAGAZINE', String(selected.instance_data?.remaining_attacks ?? '—') + ' / ' + String(magazine.capacity ?? properties.magazine_capacity ?? '—')],
-          ['ACTION COST', String(attack.action_cost ?? properties.action_cost ?? '—')],
-          ['RELOAD COST', String(magazine.reload_cost ?? properties.reload_cost ?? '—')]
-        ].map(([label, value]) => <div key={label} style={{ background: '#101a26', borderRadius: 5, padding: 9 }}><div style={{ ...inventoryMuted, fontSize: 10 }}>{label}</div><strong>{value}</strong></div>)}
+      {imagePath && <div style={{ background: '#151d28', borderRadius: 8, padding: 8, marginBottom: 16, display: 'grid', placeItems: 'center', minHeight: 150 }}>
+        <img src={imagePath} alt={item?.name ?? 'Item artwork'} style={{ width: '100%', maxHeight: 220, objectFit: 'contain' }}/>
       </div>}
+      {item?.description && <p style={{ fontSize: 13, color: '#aab4c2', lineHeight: 1.6, margin: '0 0 18px' }}>{item.description}</p>}
       {item?.category === 'Weapon' && <>
-        <div style={{ ...inventoryMuted, marginBottom: 8 }}>EQUIP IN SLOT</div>
+        <div style={{ borderTop: '1px solid #303a47', paddingTop: 14, marginBottom: 12, color: '#8996a5', fontSize: 11 }}>WEAPON STATS</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16, marginBottom: 18 }}>
+          {[
+            ['ATTACK', String(attack.dice ?? properties.attack_dice ?? '—') + 'd6'],
+            ['HIT', String(attack.accuracy_threshold ?? properties.accuracy_threshold ?? '—') + '+'],
+            ['DAMAGE', String(attack.damage_per_success ?? properties.damage_per_success ?? '—')],
+            ['MAGAZINE', String(selected.instance_data?.remaining_attacks ?? '—') + ' / ' + String(magazine.capacity ?? properties.magazine_capacity ?? '—')],
+            ['ACTION COST', String(attack.action_cost ?? properties.action_cost ?? '—')],
+            ['RELOAD COST', String(magazine.reload_cost ?? properties.reload_cost ?? '—')]
+          ].map(([label, value]) => <div key={label}><div style={{ ...inventoryMuted, fontSize: 10, marginBottom: 4 }}>{label}</div><strong>{value}</strong></div>)}
+        </div>
+        <div style={{ borderTop: '1px solid #303a47', paddingTop: 16, marginBottom: 9, color: '#8996a5', fontSize: 12 }}>EQUIP TO</div>
         <div style={{ display: 'flex', gap: 8 }}>
           {(['weapon_1', 'weapon_2'] as const).map((slot, index) => <button key={slot} type="button" disabled={busy || selected.equipped_slot === slot}
-            onClick={() => void changeSlot(slot)} style={{ ...actionButton, opacity: busy || selected.equipped_slot === slot ? .5 : 1 }}>
-            {selected.equipped_slot === slot ? '✓ ' : ''}Slot {index + 1}
+            onClick={() => void changeSlot(slot)} style={{ ...inventoryAction, opacity: busy || selected.equipped_slot === slot ? .5 : 1 }}>
+            {selected.equipped_slot === slot ? 'Equipped ' : 'Slot '}{index + 1}
           </button>)}
         </div>
         {selected.equipped_slot && <button type="button" disabled={busy} onClick={() => void changeSlot(null)}
-          style={{ ...actionButton, marginTop: 8, width: '100%', background: '#202e3e', color: '#e6edf5', border: '1px solid #405268' }}>Unequip</button>}
-        <p style={{ ...inventoryMuted, marginBottom: 0 }}>Equipping into an occupied slot moves the previous weapon to carried items.</p>
+          style={{ background: 'transparent', border: 0, color: '#aab4c2', cursor: 'pointer', padding: 12, width: '100%', marginTop: 8 }}>Unequip</button>}
       </>}
-      {item?.category !== 'Weapon' && <p style={inventoryMuted}>Equipment controls for this item category will be added in a later phase.</p>}
-    </section>}
-    {error && <div role="alert" style={{ color: '#ffb3b3', background: '#401e24', padding: 10, borderRadius: 6 }}>{error}</div>}
-  </div>;
+      {item?.category !== 'Weapon' && <p style={inventoryMuted}>Item actions for this category will be added later.</p>}
+    </> : <p style={inventoryMuted}>Item no longer available. <button onClick={() => setSelectedId(null)}>Back to inventory</button></p>}
+  </section>;
 }
 
 type PlayerViewProps = {
