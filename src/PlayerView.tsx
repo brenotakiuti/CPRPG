@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
-import { HeartPulse, Wallet, Dices, Crosshair, Swords, ArrowLeft, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History } from 'lucide-react';
+import { HeartPulse, Wallet, Dices, Crosshair, Swords, ArrowLeft, Utensils, BriefcaseMedical, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History } from 'lucide-react';
 import './PlayerView.css';
 import PlayerLogs from './PlayerLogs';
 import PlayerSpotlights from './PlayerSpotlights';
@@ -40,6 +40,11 @@ function inventoryIcon(category: string) {
     case 'consumable': return '+';
     default: return '□';
   }
+}
+const rarityColors: Record<string, string> = { Common: '#aab4c2', Rare: '#6caeff', Epic: '#c08aff', Legendary: '#f0c55c' };
+function consumableIcon(item?: CatalogEntry) {
+  if (item?.category !== 'Consumable') return null;
+  return item.properties?.subtype === 'food' ? Utensils : item.properties?.subtype === 'medical' ? BriefcaseMedical : null;
 }
 function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSelect }: { characterId: string; onBack: () => void; initialSelectedId?: string | null; onSelect: (id: string | null) => void }) {
   const [entries, setEntries] = useState<InventoryEntry[]>([]);
@@ -90,6 +95,15 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSele
     else await refresh();
     setBusy(false);
   }
+  async function useConsumable() {
+    if (!selected || item?.category !== 'Consumable' || busy) return;
+    setBusy(true);
+    setError('');
+    const { error: useError } = await supabase.rpc('consume_character_item', { p_inventory_id: selected.id });
+    if (useError) setError(useError.message);
+    else await refresh();
+    setBusy(false);
+  }
   return <section style={{ background: '#10151d', color: '#f0f2f5', borderRadius: 10, padding: '16px 14px', minHeight: 300 }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
       <button type="button" onClick={() => selectedId ? setSelectedId(null) : onBack()} aria-label={selectedId ? 'Back to inventory' : 'Back to dashboard'}
@@ -103,11 +117,13 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSele
       <div style={{ background: '#14202c', border: '1px solid #354556', borderRadius: 8, padding: '4px 12px' }}>
       {entries.map(entry => {
         const catalogItem = catalog[entry.item_id];
+        const CategoryIcon = consumableIcon(catalogItem);
+        const rarityColor = rarityColors[catalogItem?.rarity ?? ''] ?? '#8996a5';
         return <button key={entry.id} type="button" onClick={() => setSelectedId(entry.id)}
           style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '13px 0', background: 'transparent', color: '#f0f2f5', border: 0, borderBottom: '1px solid #303a47', textAlign: 'left', cursor: 'pointer' }}>
-          <span aria-hidden="true" style={{ width: 42, height: 42, flexShrink: 0, borderRadius: 6, display: 'grid', placeItems: 'center', background: '#1b2430', color: '#e8bd4a', fontSize: 22 }}>{inventoryIcon(catalogItem?.category ?? '')}</span>
+          <span aria-hidden="true" style={{ width: 42, height: 42, flexShrink: 0, borderRadius: 6, display: 'grid', placeItems: 'center', background: '#1b2430', color: '#e8bd4a', fontSize: 22 }}>{CategoryIcon ? <CategoryIcon size={21} strokeWidth={1.8} /> : inventoryIcon(catalogItem?.category ?? '')}</span>
           <span style={{ flex: 1, minWidth: 0 }}><strong style={{ display: 'block', fontSize: 14 }}>{catalogItem?.name ?? 'Unknown item'}</strong>
-            <span style={inventoryMuted}>{catalogItem?.properties?.weapon_class as string ?? catalogItem?.category ?? 'Item'}{entry.quantity > 1 ? ' · ×' + entry.quantity : ''}</span></span>
+            <span style={{ ...inventoryMuted, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: rarityColor }} /><span style={{ color: rarityColor }}>{catalogItem?.rarity ?? 'Common'}</span> · {catalogItem?.category === 'Consumable' ? (catalogItem.properties?.subtype === 'food' ? 'Food' : 'Medical') : (catalogItem?.properties?.weapon_class as string ?? catalogItem?.category ?? 'Item')}{' · ×' + entry.quantity}</span></span>
           {entry.equipped_slot && <span style={{ color: '#e8bd4a', fontSize: 10 }}>EQUIPPED</span>}
           <span aria-hidden="true" style={{ color: '#8996a5' }}>›</span>
         </button>;
@@ -116,7 +132,7 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSele
     </> : selected ? <>
       <h3 style={{ margin: '0 0 4px', fontSize: 25, fontWeight: 600 }}>{item?.name ?? 'Unknown item'}</h3>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 16 }}>
-        <span style={inventoryMuted}>{item?.properties?.weapon_class as string ?? item?.category ?? 'Item'} · {item?.rarity ?? ''}</span>
+        <span style={inventoryMuted}>{item?.properties?.weapon_class as string ?? (item?.category === 'Consumable' ? (properties.subtype === 'food' ? 'Food · Consumable' : 'Medical · Consumable') : item?.category ?? 'Item')} · <span style={{ color: rarityColors[item?.rarity ?? ''] ?? '#8996a5' }}>● {item?.rarity ?? ''}</span></span>
         {selected.equipped_slot && <span style={{ color: '#e8bd4a', fontSize: 12 }}>Equipped</span>}
       </div>
       {imagePath && <div style={{ background: '#151d28', borderRadius: 8, padding: 8, marginBottom: 16, display: 'grid', placeItems: 'center', minHeight: 150 }}>
@@ -145,7 +161,12 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSele
         {selected.equipped_slot && <button type="button" disabled={busy} onClick={() => void changeSlot(null)}
           style={{ background: '#241c24', border: '1px solid #b66a72', borderRadius: 6, color: '#ffb3b3', cursor: busy ? 'not-allowed' : 'pointer', fontWeight: 700, padding: '11px 12px', width: '100%', marginTop: 12 }}>⊖ Unequip weapon</button>}
       </>}
-      {item?.category !== 'Weapon' && <p style={inventoryMuted}>Item actions for this category will be added later.</p>}
+      {item?.category === 'Consumable' && <>
+        {properties.subtype === 'food' && <div style={{ borderTop: '1px solid #303a47', paddingTop: 14, marginBottom: 12, display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span style={inventoryMuted}>NOURISHMENT</span><strong>{String(properties.nourishment ?? '—')}</strong></div>}
+        <div style={{ borderTop: '1px solid #303a47', paddingTop: 14, marginBottom: 14, display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span style={inventoryMuted}>QUANTITY</span><strong>{selected.quantity}</strong></div>
+        <button type="button" disabled={busy || selected.quantity < 1} onClick={() => void useConsumable()} style={{ ...inventoryAction, width: '100%', opacity: busy ? 0.6 : 1 }}>{busy ? 'Using…' : 'Use item'}</button>
+      </>}
+      {item?.category !== 'Weapon' && item?.category !== 'Consumable' && <p style={inventoryMuted}>Item actions for this category will be added later.</p>}
     </> : <p style={inventoryMuted}>Item no longer available. <button onClick={() => setSelectedId(null)}>Back to inventory</button></p>}
   </section>;
 }
