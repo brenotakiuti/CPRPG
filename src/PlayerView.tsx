@@ -100,6 +100,7 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSele
     {!selectedId ? <>
       <p style={{ ...inventoryMuted, margin: '0 0 12px' }}>{loading ? 'Loading inventory…' : entries.length + (entries.length === 1 ? ' item' : ' items')}</p>
       {!loading && entries.length === 0 && <p style={inventoryMuted}>No items in inventory.</p>}
+      <div style={{ background: '#14202c', border: '1px solid #354556', borderRadius: 8, padding: '4px 12px' }}>
       {entries.map(entry => {
         const catalogItem = catalog[entry.item_id];
         return <button key={entry.id} type="button" onClick={() => setSelectedId(entry.id)}
@@ -111,6 +112,7 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSele
           <span aria-hidden="true" style={{ color: '#8996a5' }}>›</span>
         </button>;
       })}
+      </div>
     </> : selected ? <>
       <h3 style={{ margin: '0 0 4px', fontSize: 25, fontWeight: 600 }}>{item?.name ?? 'Unknown item'}</h3>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 16 }}>
