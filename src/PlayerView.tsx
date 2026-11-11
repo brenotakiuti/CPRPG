@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
-import { HeartPulse, Wallet, Dices, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History } from 'lucide-react';
+import { HeartPulse, Wallet, Dices, Crosshair, Swords, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History } from 'lucide-react';
 import './PlayerView.css';
 import PlayerLogs from './PlayerLogs';
 import PlayerSpotlights from './PlayerSpotlights';
@@ -179,18 +179,40 @@ function PlayerLoadout({ characterId, onInspect, onInventory }: { characterId: s
       {(['weapon_1', 'weapon_2'] as const).map((slot, index) => {
         const entry = equipped.find(row => row.equipped_slot === slot);
         const item = entry ? catalog[entry.item_id] : undefined;
-        const image = item?.properties?.image;
+        const properties = (item?.properties ?? {}) as Record<string, any>;
+        const image = properties.image;
+        const attack = properties.attack ?? {};
+        const magazine = properties.magazine ?? {};
+        const remaining = entry?.instance_data?.remaining_attacks;
+        const ammo = typeof remaining === 'number' ? remaining : magazine.capacity;
+        const stats = [
+          { label: 'Attack dice', value: typeof attack.dice === 'number' ? attack.dice + 'd6' : '—', Icon: Dices },
+          { label: 'Hit threshold', value: typeof attack.accuracy_threshold === 'number' ? attack.accuracy_threshold + '+' : '—', Icon: Crosshair },
+          { label: 'Damage per success', value: typeof attack.damage_per_success === 'number' ? String(attack.damage_per_success) : '—', Icon: Swords },
+        ];
         return <button key={slot} type="button" onClick={() => entry ? onInspect(entry.id) : onInventory()}
           aria-label={entry ? 'Inspect ' + (item?.name ?? 'equipped weapon') : 'Open inventory to equip weapon in slot ' + (index + 1)}
           style={{ background: '#101a26', border: '1px solid #354556', borderRadius: 6, color: '#e6edf5', padding: 9, cursor: 'pointer', minWidth: 0, textAlign: 'left' }}>
-          <div style={{ width: '100%', aspectRatio: '4 / 3', display: 'grid', placeItems: 'center', overflow: 'hidden', background: '#0d1520', borderRadius: 5 }}>
+          <div style={{ width: '100%', aspectRatio: '4 / 3', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
             {typeof image === 'string' && image ? <img src={image} alt="" style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center' }} /> :
               <span aria-hidden="true" style={{ color: '#697d91', fontSize: 30 }}>{entry ? '⌖' : '+'}</span>}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 7 }}>
-            <strong style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item?.name ?? (entry ? 'Weapon' : 'Empty')}</strong>
-            <span style={{ color: '#9baebe', fontSize: 10 }}>0{index + 1}</span>
-          </div>
+          {entry ? <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 4, marginTop: 7 }}>
+            {stats.map(({ label, value, Icon }) => <div key={label} title={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, minWidth: 0 }}>
+              <div style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon size={18} color="#e8bd4a" strokeWidth={2} aria-hidden="true" />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 600, lineHeight: '15px', fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+            </div>)}
+            <div title="Remaining ammunition / magazine capacity" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, minWidth: 0 }}>
+              <div style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg viewBox="0 0 32 24" width="23" height="20" fill="none" stroke="#e8bd4a" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  {[9, 16, 23].map(x => <path key={x} d={`M${x-2.5} 9 V7 C${x-2.5} 4.8 ${x-1.4} 3.1 ${x} 3.1 C${x+1.4} 3.1 ${x+2.5} 4.8 ${x+2.5} 7 V9 M${x-2.5} 9 H${x+2.5} V21 H${x-2.5} Z M${x-2.5} 18 H${x+2.5}`} />)}
+                </svg>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 600, lineHeight: '15px', fontVariantNumeric: 'tabular-nums' }}>{ammo ?? '—'}/{magazine.capacity ?? '—'}</span>
+            </div>
+          </div> : <div style={{ marginTop: 7, textAlign: 'center', color: '#9baebe', fontSize: 11 }}>Empty slot 0{index + 1}</div>}
         </button>;
       })}
     </div>
