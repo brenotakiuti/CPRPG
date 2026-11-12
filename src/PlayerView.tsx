@@ -129,7 +129,11 @@ function PlayerInventory({ inventory, onBack, initialSelectedId = null, onSelect
       <p style={{ ...inventoryMuted, margin: '0 0 12px' }}>{loading ? 'Loading inventory…' : entries.length + (entries.length === 1 ? ' item' : ' items')}</p>
       {!loading && entries.length === 0 && <p style={inventoryMuted}>No items in inventory.</p>}
       <div style={{ background: '#14202c', border: '1px solid #354556', borderRadius: 8, padding: '4px 12px' }}>
-      {entries.map(entry => {
+      {[...entries].sort((a, b) => {
+        const nameA = catalog[a.item_id]?.name ?? 'Unknown item';
+        const nameB = catalog[b.item_id]?.name ?? 'Unknown item';
+        return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' }) || a.id.localeCompare(b.id);
+      }).map(entry => {
         const catalogItem = catalog[entry.item_id];
         const CategoryIcon = consumableIcon(catalogItem);
         const rarityColor = rarityColors[catalogItem?.rarity ?? ''] ?? '#8996a5';
@@ -293,10 +297,8 @@ export default function PlayerView({ token }: PlayerViewProps) {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
   function openInventory(selected: string | null = null) {
-    if (selected) {
-      navigate({ inventory: true, selected: null, logs: false });
-      navigate({ inventory: true, selected, logs: false });
-    } else navigate({ inventory: true, selected: null, logs: false });
+    if (selected) navigate({ inventory: true, selected, logs: false });
+    else navigate({ inventory: true, selected: null, logs: false });
   }
   function selectInventoryItem(id: string | null) {
     if (id) navigate({ inventory: true, selected: id, logs: false });
