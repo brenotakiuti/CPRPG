@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
+import ItemCatalog from './ItemCatalog';
 import LiveSession from './LiveSession';
+import CampaignLogs from './CampaignLogs';
 
 // Temporary visual thresholds; can later be supplied by campaign stat-tier records.
 const DEFAULT_STAT_TIERS = [
@@ -75,12 +78,26 @@ export default function GMConsole({
   campaign,
   onSwitchCampaign,
 }: GMConsoleProps) {
-  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'factions'>(() => {
-    const saved = sessionStorage.getItem('gm-page');
-    return saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' ? saved : 'live';
+  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'factions' | 'logs'>(() => {
+    const saved = sessionStorage.getItem('gm-page:' + campaign.id);
+    return saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' || saved === 'logs' ? saved : 'live';
   });
-  const [selectedId, setSelectedId] = useState('');
-  const [detailTab, setDetailTab] = useState<'stats' | 'cyberware' | 'inventory' | 'access'>('stats');
+  // Mount data-heavy tools on first visit, then retain their data and Realtime subscriptions.
+  const [visitedTools, setVisitedTools] = useState<string[]>(() => {
+    const saved = sessionStorage.getItem('gm-page:' + campaign.id) ?? 'live';
+    return ['live', 'bank', 'logs', 'inventory'].includes(saved) ? [saved] : [];
+  });
+  const openPage = (next: typeof page) => {
+    setPage(next);
+    if (['live', 'bank', 'logs', 'inventory'].includes(next)) {
+      setVisitedTools(previous => previous.includes(next) ? previous : [...previous, next]);
+    }
+  };
+  const [selectedId, setSelectedId] = useState(() => sessionStorage.getItem('gm-selected-character:' + campaign.id) || '');
+  const [detailTab, setDetailTab] = useState<'stats' | 'cyberware' | 'inventory' | 'access'>(() => {
+    const saved = sessionStorage.getItem('gm-character-tab:' + campaign.id);
+    return saved === 'cyberware' || saved === 'inventory' || saved === 'access' ? saved : 'stats';
+  });
   const [search, setSearch] = useState('');
 
   type CharacterOption = {
@@ -102,13 +119,21 @@ export default function GMConsole({
   const [inviteMessage, setInviteMessage] = useState('');
   const [resettingCharacterId, setResettingCharacterId] = useState<string | null>(null);
 
+  const [creationQrVisible, setCreationQrVisible] = useState(false);
+  const [creationQrSeconds, setCreationQrSeconds] = useState(30);
   const [creationToken, setCreationToken] = useState('');
   const [creationEnabled, setCreationEnabled] = useState(false);
   const [creationSaving, setCreationSaving] = useState(false);
   const [creationError, setCreationError] = useState('');
+  const [startingPoints, setStartingPoints] = useState(30);
+  const [startingMoney, setStartingMoney] = useState('0');
+  const [rulesLoading, setRulesLoading] = useState(true);
+  const [rulesSaving, setRulesSaving] = useState(false);
+  const [rulesMessage, setRulesMessage] = useState('');
 
   useEffect(() => {
     let active = true;
+    setCreationQrVisible(false);
     setCreationToken('');
     setCreationEnabled(false);
     setCreationError('');
@@ -127,6 +152,46 @@ export default function GMConsole({
     return () => { active = false; };
   }, [campaign.id]);
 
+  useEffect(() => {
+    let active = true;
+    setRulesLoading(true);
+    setRulesMessage('');
+    async function loadRules() {
+      const { data, error } = await supabase.from('campaigns')
+        .select('starting_attribute_points, starting_money')
+        .eq('id', campaign.id).single();
+      if (!active) return;
+      if (error) setRulesMessage(error.message);
+      else {
+        setStartingPoints(data.starting_attribute_points);
+        setStartingMoney(String(data.starting_money));
+      }
+      setRulesLoading(false);
+    }
+    void loadRules();
+    return () => { active = false; };
+  }, [campaign.id]);
+
+  async function saveCreationRules() {
+    const amount = Number(startingMoney);
+    if (rulesSaving || rulesLoading || !Number.isInteger(startingPoints) ||
+      startingPoints < 15 || startingPoints > 100 ||
+      !/^\d+$/.test(startingMoney.trim()) || !Number.isSafeInteger(amount) || amount < 0) return;
+    setRulesSaving(true);
+    setRulesMessage('');
+    const { data, error } = await supabase.from('campaigns')
+      .update({ starting_attribute_points: startingPoints, starting_money: amount })
+      .eq('id', campaign.id).eq('gm_id', campaign.gm_id)
+      .select('starting_attribute_points, starting_money').single();
+    if (error) setRulesMessage(error.message);
+    else {
+      setStartingPoints(data.starting_attribute_points);
+      setStartingMoney(String(data.starting_money));
+      setRulesMessage('Settings saved. New characters will use these values.');
+    }
+    setRulesSaving(false);
+  }
+
   async function toggleCreation() {
     if (!creationToken || creationSaving) return;
     setCreationSaving(true);
@@ -138,6 +203,23 @@ export default function GMConsole({
     if (error) setCreationError(error.message);
     else setCreationEnabled(data);
     setCreationSaving(false);
+  }
+
+  // Creation QR is intentionally temporary; the reusable link remains available to the GM.
+  useEffect(() => {
+    if (!creationQrVisible) return;
+    const expiresAt = Date.now() + 30000;
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      setCreationQrSeconds(remaining);
+      if (remaining === 0) setCreationQrVisible(false);
+    }, 250);
+    return () => clearInterval(interval);
+  }, [creationQrVisible]);
+
+  function toggleCreationQr() {
+    if (!creationQrVisible) setCreationQrSeconds(30);
+    setCreationQrVisible(previous => !previous);
   }
 
   const creationLink = creationToken
@@ -302,8 +384,10 @@ export default function GMConsole({
   }
 
   useEffect(() => {
-    sessionStorage.setItem('gm-page', page);
-  }, [page]);
+    sessionStorage.setItem('gm-page:' + campaign.id, page);
+  }, [page, campaign.id]);
+  useEffect(() => { sessionStorage.setItem('gm-selected-character:' + campaign.id, selectedId); }, [campaign.id, selectedId]);
+  useEffect(() => { sessionStorage.setItem('gm-character-tab:' + campaign.id, detailTab); }, [campaign.id, detailTab]);
 
   const selected = characters.find((c) => c.id === selectedId) ?? characters[0];
   useEffect(() => {
@@ -353,40 +437,63 @@ export default function GMConsole({
   const visible = characters.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
   const navigation = [
     { id: 'live', label: 'Live Session', icon: LayoutDashboard },
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'overview', label: 'Campaign Invitations', icon: Mail },
     { id: 'characters', label: 'Characters', icon: Users },
     { id: 'bank', label: 'Bank', icon: Landmark },
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'factions', label: 'Factions', icon: Shield },
+    { id: 'logs', label: 'Logs', icon: ScrollText },
   ] as const;
   const creationControls = (
-    <section className="creation-link-section" aria-label="Character creation">
-      <div className="creation-link-heading">
-        <span>Character Creation Link</span>
-        <div className="creation-toggle-group">
-          <span>{creationEnabled ? 'Enabled' : 'Disabled'}</span>
-          <button type="button" className={creationEnabled ? 'creation-switch is-enabled' : 'creation-switch'}
-            role="switch" aria-checked={creationEnabled} aria-label="Enable character creation"
-            disabled={!creationToken || creationSaving} onClick={() => void toggleCreation()}>
-            <span className="creation-switch-thumb" />
+    <div className="gm-invitations-layout">
+      <section className="gm-invitations-access" aria-label="Character creation access">
+        <div className="gm-invitations-access-header">
+          <div>
+            <h3>Character Creation Access</h3>
+            <p>Share this link to let players create a new character.</p>
+          </div>
+          <div className="creation-toggle-group">
+            <span>{creationEnabled ? 'Enabled' : 'Disabled'}</span>
+            <button type="button" className={creationEnabled ? 'creation-switch is-enabled' : 'creation-switch'}
+              role="switch" aria-checked={creationEnabled} aria-label="Enable character creation"
+              disabled={!creationToken || creationSaving} onClick={() => void toggleCreation()}>
+              <span className="creation-switch-thumb" />
+            </button>
+          </div>
+        </div>
+        <label className="gm-invitations-link-label" htmlFor="gm-creation-link">INVITATION LINK</label>
+        <div className="creation-link-row">
+          <input id="gm-creation-link" readOnly aria-label="Character creation link" value={creationLink}
+            placeholder="Loading link..." title={creationLink} />
+          <button type="button" className="creation-copy-button" aria-label="Copy character creation link"
+            title="Copy character creation link" disabled={!creationLink}
+            onClick={() => void navigator.clipboard.writeText(creationLink)}>
+            <Copy size={18} aria-hidden="true" />
           </button>
         </div>
-      </div>
-      <div className="creation-link-row">
-        <input readOnly aria-label="Character creation link" value={creationLink}
-          placeholder="Loading link..." title={creationLink} />
-        <button type="button" className="creation-copy-button" aria-label="Copy character creation link"
-          title="Copy character creation link" disabled={!creationLink}
-          onClick={() => void navigator.clipboard.writeText(creationLink)}>
-          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="8" y="8" width="13" height="13" rx="2" />
-            <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
-          </svg>
+        <p className="gm-invitations-link-help">Anyone with this link can create a character while access is enabled.</p>
+        <button type="button" className="gm-invitations-qr-toggle" disabled={!creationLink || !creationEnabled}
+          onClick={toggleCreationQr}>
+          {creationQrVisible ? 'Hide QR Code' : 'Show QR Code'}
         </button>
-      </div>
-      {creationError && <p className="creation-error" role="alert">{creationError}</p>}
-    </section>
+        {creationError && <p className="creation-error" role="alert">{creationError}</p>}
+      </section>
+      <section className="gm-invitations-qr" aria-label="QR Code">
+        <h3>QR Code</h3>
+        <div className="gm-invitations-qr-body">
+          <div className="gm-invitations-qr-image">
+            {creationQrVisible && creationEnabled && creationLink ? (
+              <QRCodeSVG value={creationLink} size={126} marginSize={2} bgColor="#ffffff" fgColor="#111111" />
+            ) : (
+              <LockKeyhole size={38} strokeWidth={1.6} aria-label="QR code locked" />
+            )}
+          </div>
+          <div className="gm-invitations-qr-countdown" aria-live="off">
+            {creationQrVisible && creationEnabled && creationLink ? `00:${String(creationQrSeconds).padStart(2, '0')}` : '\u00a0'}
+          </div>
+        </div>
+      </section>
+    </div>
   );
 
   return (
@@ -401,15 +508,19 @@ export default function GMConsole({
       <nav className="gm-tabs" aria-label="GM tools">
         {navigation.map((item) => (
           <button key={item.id} type="button" className={page === item.id ? 'gm-tab active' : 'gm-tab'}
-            aria-current={page === item.id ? 'page' : undefined} onClick={() => setPage(item.id)}>
-            <item.icon size={17} strokeWidth={1.9} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 8 }} />
-            {item.label}
+            aria-current={page === item.id ? 'page' : undefined} onClick={() => openPage(item.id)}>
+            <item.icon size={19} strokeWidth={1.9} aria-hidden="true" />
+            <span className="gm-sr-only">{item.label}</span>
           </button>
         ))}
       </nav>
-      {page === 'live' ? (
-        <LiveSession characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} />
-      ) : page === 'characters' ? (
+      <h2 className="gm-page-title">
+        {(() => {
+          const current = navigation.find((item) => item.id === page)!;
+          return <><current.icon size={19} strokeWidth={1.9} aria-hidden="true" />{current.label}</>;
+        })()}
+      </h2>
+      {page === 'live' ? null : page === 'characters' ? (
         <div className="gm-characters-layout">
           <aside className="gm-roster">
             <div className="gm-roster-heading"><strong>Roster</strong><span>{characters.length}</span></div>
@@ -498,11 +609,23 @@ export default function GMConsole({
                       </div>
                     ) : (
                       <>
-                        <button onClick={() => void generateInvitation(selected.id)}>Generate Invitation</button>
+                        {!invitations[selected.id] && (
+                          <button type="button" onClick={() => void generateInvitation(selected.id)}>Generate Invitation</button>
+                        )}
                         {invitations[selected.id] && (
                           <div className="gm-invitation">
-                            <input readOnly aria-label="Character invitation" value={invitations[selected.id]} />
-                            <button onClick={() => void navigator.clipboard.writeText(invitations[selected.id])}>Copy Link</button>
+                            <div className="gm-qr-panel">
+                              <QRCodeSVG value={invitations[selected.id]} size={220} marginSize={2} bgColor="#ffffff" fgColor="#111111" />
+                              <span>Scan to access {selected.name} · valid until claimed</span>
+                            </div>
+                            <div className="gm-invitation-link-row">
+                              <input readOnly aria-label="Character invitation" value={invitations[selected.id]} />
+                              <button type="button" className="gm-invitation-copy-button"
+                                aria-label="Copy character invitation link" title="Copy character invitation link"
+                                onClick={() => void navigator.clipboard.writeText(invitations[selected.id])}>
+                                <Copy size={23} aria-hidden="true" />
+                              </button>
+                            </div>
                           </div>
                         )}
                       </>
@@ -514,23 +637,62 @@ export default function GMConsole({
             ) : <p className="gm-muted">No characters in this campaign yet.</p>}
           </main>
         </div>
-      ) : page === 'bank' ? (
-        <div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>
-      ) : page === 'overview' ? (
+      ) : page === 'bank' || page === 'logs' ? null : page === 'overview' ? (
         <div className="gm-dashboard-panel gm-overview">
-          <h2>Campaign Overview</h2>
-          <p>{characters.length} characters in this campaign</p>
+          <p className="gm-invitations-intro">Manage how new players join this campaign.</p>
           {creationControls}
-          <div className="gm-account-actions">
-            <button onClick={onSwitchCampaign}>Switch Campaign</button>
-            <button onClick={() => void supabase.auth.signOut()}>Log out</button>
-          </div>
+          <section className="gm-invitations-settings" aria-label="Character creation settings">
+            <div className="gm-invitations-settings-heading">
+              <h3><Settings2 size={18} aria-hidden="true" /> Character Creation Settings</h3>
+              <p>Starting conditions for new characters in this campaign.</p>
+            </div>
+            <div className="gm-invitations-settings-fields">
+              <label>
+                <span>Attribute Point Pool</span>
+                <div className="gm-invitations-points-row">
+                  <input type="range" min="15" max="100" value={startingPoints}
+                    disabled={rulesLoading || rulesSaving}
+                    onChange={e => { setStartingPoints(Number(e.target.value)); setRulesMessage(''); }} />
+                  <strong>{startingPoints}</strong>
+                </div>
+                <small>Total points available across five attributes.</small>
+              </label>
+              <label>
+                <span>Starting Money</span>
+                <div className="gm-invitations-money-row">
+                  <input type="number" min="0" step="1" value={startingMoney}
+                    disabled={rulesLoading || rulesSaving}
+                    onChange={e => { setStartingMoney(e.target.value); setRulesMessage(''); }} />
+                  <strong>E$</strong>
+                </div>
+                <small>Initial balance assigned when a character is created.</small>
+              </label>
+            </div>
+            <div className="gm-invitations-settings-footer">
+              {rulesMessage && <p role="status">{rulesMessage}</p>}
+              <button type="button" disabled={rulesLoading || rulesSaving ||
+                !/^\d+$/.test(startingMoney.trim()) ||
+                !Number.isSafeInteger(Number(startingMoney)) || Number(startingMoney) < 0}
+                onClick={() => void saveCreationRules()}>
+                {rulesSaving ? 'Saving...' : 'Save Settings'}
+              </button>
+            </div>
+          </section>
+          <section className="gm-invitations-controls">
+            <div><h3>Campaign Controls</h3><p>Switch campaigns or end your GM session</p></div>
+            <div className="gm-account-actions">
+              <button onClick={onSwitchCampaign}>Switch Campaign</button>
+              <button onClick={() => void supabase.auth.signOut()}>Log Out</button>
+            </div>
+          </section>
         </div>
-      ) : (
-        <div className="gm-dashboard-panel gm-empty-detail">
-          {page === 'inventory' ? 'Inventory' : 'Factions'} — coming later
-        </div>
+      ) : page === 'inventory' ? null : (
+        <div className="gm-dashboard-panel gm-empty-detail">Factions — coming later</div>
       )}
+      {visitedTools.includes('live') && <div style={{ display: page === 'live' ? undefined : 'none' }}><LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} /></div>}
+      {visitedTools.includes('bank') && <div style={{ display: page === 'bank' ? undefined : 'none' }} className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>}
+      {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
+      {visitedTools.includes('inventory') && <div style={{ display: page === 'inventory' ? undefined : 'none' }}><ItemCatalog /></div>}
     </div>
   );
 }

@@ -81,3 +81,24 @@
 .live-hp-actions button:disabled{opacity:.35;cursor:default}
 .live-hp-unavailable{display:block;margin-top:8px;color:#8b9bad}
 .live-hp-error{color:#ff9da7;font-size:12px;padding:0 14px}
+
+.live-character-money{display:flex;align-items:center;gap:9px}
+.live-character-money button{display:inline-flex;align-items:center;justify-content:center;padding:5px 7px;background:#1c2a39;border:1px solid #435569;border-radius:5px;color:#e8bd4a;cursor:pointer}
+.live-character-money button:hover{background:#293c4c}
+.live-money-scene{width:min(100%,380px);display:flex;flex-direction:column;align-items:center;gap:14px;background:#141f2b;border:1px solid #806a36;border-radius:12px;padding:28px 22px;box-shadow:0 0 40px #0008;color:#e5edf5}
+.live-money-scene strong{font-size:19px}
+.live-money-scene small{color:#a7b8c8}
+.live-money-scene label{align-self:stretch;font-size:11px;letter-spacing:1px;color:#e8bd4a}
+.live-money-scene input{box-sizing:border-box;width:100%;background:#101a26;border:1px solid #435569;border-radius:5px;color:#fff;font-size:18px;padding:11px}
+.live-money-modes,.live-money-presets,.live-money-actions{display:flex;gap:8px;width:100%}
+.live-money-modes button,.live-money-presets button,.live-money-actions button{flex:1;min-width:0;background:#1c2a39;border:1px solid #435569;border-radius:5px;color:#e5edf5;padding:10px 7px;cursor:pointer}
+.live-money-modes button.selected{border-color:#e8bd4a;background:#3c3422;color:#ffe3a0}
+.live-money-actions button.live-money-submit{background:#e8bd4a;border-color:#e8bd4a;color:#101820;font-weight:700}
+.live-money-scene button:disabled{opacity:.4;cursor:default}
+.live-money-error{margin:0;color:#ff9da7;font-size:12px;text-align:center}
+
+/* Party Monitor: keep data separate from equal-sized GM action controls. */
+.live-hp-actions{justify-content:flex-end;gap:8px;margin-top:12px}
+.live-hp-actions button{box-sizing:border-box;flex:0 0 58px;width:58px;height:40px;padding:0;gap:3px}
+.live-hp-actions button:first-child{color:#e8bd4a}
+.live-hp-row .live-hp-track{width:100%}

@@ -28,3 +28,15 @@ body {
 
   padding: 20px;
 }
+
+#root:has(.player-terminal) {
+  padding: 0;
+  display: block;
+}
+
+/* Keep GM pages at a fixed top position when their content height changes. */
+#root:has(.gm-dashboard) { align-items: flex-start; }
+
+/* Reserve vertical scrollbar space so GM pages don't shift horizontally. */
+html{scrollbar-gutter:stable}
+#root:has(.gm-dashboard){width:100%;min-width:0}

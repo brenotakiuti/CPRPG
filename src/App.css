@@ -320,7 +320,7 @@
 
 
 /* Unified GM Bank form */
-.gm-dashboard-panel .gm-bank { display:flex; flex-direction:column; gap:18px; max-width:700px; color:#f3f3f3; }
+.gm-dashboard-panel .gm-bank { display:flex; flex-direction:column; gap:18px; width:100%; max-width:none; color:#f3f3f3; }
 .gm-bank-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .gm-bank-heading h2 { display:flex; align-items:center; gap:10px; margin:0; font-size:20px; }
 .gm-bank-heading h2 span { color:#e6c34d; font-size:23px; }
@@ -362,3 +362,75 @@
 .gm-stat-value small { font-size:11px; }
 .gm-stat-track { height:6px; margin-top:10px; border-radius:8px; background:#41454e; overflow:hidden; }
 .gm-stat-fill { height:100%; border-radius:8px; transition:width .2s ease; }
+
+/* QR codes are generated locally from the existing invitation URLs. */
+.gm-qr-panel{display:flex;flex-direction:column;align-items:center;gap:9px;width:max-content;max-width:100%;padding:12px;margin-top:10px;border:1px solid #405268;border-radius:8px;background:#172332;color:#b7c5d3;font-size:12px;text-align:center}
+.gm-qr-panel svg{display:block;max-width:100%;height:auto;background:#fff;border-radius:5px}
+.gm-invitation{flex-wrap:wrap}
+.gm-invitation .gm-qr-panel{flex-basis:100%}
+
+/* Character attribution: QR above the invitation URL, copy icon beside the field. */
+.gm-invitation{display:flex;flex-direction:column;align-items:flex-start;gap:12px;min-width:0;width:100%}
+.gm-invitation .gm-qr-panel{align-self:center;flex-basis:auto;margin-top:0}
+.gm-invitation-link-row{display:flex;align-items:center;gap:8px;width:100%;min-width:0}
+.gm-invitation-link-row input{flex:1;min-width:0;width:0}
+.gm-invitation-copy-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 38px;width:38px;height:38px;padding:0}
+
+/* Solution A: compact icon-only GM navigation with a page title. */
+.gm-tabs { gap:10px; padding:10px 0; margin-bottom:16px; }
+.gm-tabs .gm-tab { display:inline-flex; align-items:center; justify-content:center; width:46px; height:46px; padding:0; border:1px solid #394959; border-radius:10px; background:#192633; color:#b7c7d8; }
+.gm-tabs .gm-tab.active { background:#3a321e; border-color:#d5ac37; color:#f0d052; }
+.gm-tabs .gm-tab:focus-visible { outline:2px solid #e5c34d; outline-offset:2px; }
+.gm-sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.gm-page-title { display:flex; align-items:center; gap:10px; margin:0 0 18px; font-size:18px; font-weight:700; color:#f3f3f3; }
+.gm-page-title svg { color:#e5c34d; flex-shrink:0; }
+@media(max-width:650px) { .gm-tabs .gm-tab { width:44px; height:44px; padding:0; } }
+
+/* Campaign Invitations: retain the GM palette and controls while grouping access and QR. */
+.gm-overview { background:transparent; padding:0; }
+.gm-invitations-intro { color:#a4b1bf; font-size:13px; margin:0 0 16px; }
+.gm-invitations-layout { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(220px,1fr); gap:14px; align-items:stretch; }
+.gm-invitations-access,.gm-invitations-qr,.gm-invitations-controls { background:#181e27; border:1px solid #303b48; border-radius:12px; padding:18px; min-width:0; }
+.gm-invitations-access h3,.gm-invitations-qr h3,.gm-invitations-controls h3 { color:#e6ebf1; font-size:15px; margin:0; }
+.gm-invitations-access p,.gm-invitations-controls p { font-size:12px; color:#a4b1bf; margin:6px 0 0; }
+.gm-invitations-access-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:22px; }
+.gm-invitations-access-header .creation-toggle-group { flex:none; }
+.gm-invitations-link-label { display:block; color:#9caabb; font-size:11px; font-weight:700; letter-spacing:.07em; margin-bottom:8px; }
+.gm-overview .creation-link-row { display:flex; gap:8px; align-items:center; }
+.gm-overview .creation-link-row input { background:#101720; border:1px solid #465362; border-radius:7px; padding:12px; color:#aebbc9; font-size:12px; }
+.gm-overview .creation-copy-button { display:flex; align-items:center; justify-content:center; width:42px; height:42px; padding:0; border:1px solid #465361; border-radius:7px; background:#252f3b; color:#e0e5eb; }
+.gm-overview .creation-switch { border:0; cursor:pointer; }
+.gm-overview .gm-invitations-link-help { margin-top:10px; }
+.gm-overview .gm-invitations-qr-toggle { background:#e6c34d; color:#171a1f; border:0; border-radius:7px; font-size:12px; font-weight:700; margin-top:20px; padding:11px 15px; }
+.gm-overview .gm-invitations-qr-toggle:disabled { opacity:.5; cursor:not-allowed; }
+.gm-invitations-qr { display:flex; flex-direction:column; }
+.gm-invitations-qr-body { display:flex; flex:1; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:10px 0 0; }
+.gm-invitations-qr-image { display:flex; align-items:center; justify-content:center; width:140px; height:140px; flex:none; border:1px dashed #4c5a69; border-radius:9px; background:#111923; color:#8192a5; }
+.gm-invitations-qr-image:has(svg:not([aria-label])) { background:#fff; border:7px solid #fff; border-radius:5px; }
+.gm-invitations-qr-image svg { display:block; }
+.gm-invitations-qr-countdown { height:18px; font-size:13px; line-height:18px; font-weight:700; font-variant-numeric:tabular-nums; color:#e6c34d; }
+.gm-invitations-controls { display:flex; justify-content:space-between; align-items:center; gap:14px; margin-top:14px; flex-wrap:wrap; }
+.gm-overview .gm-invitations-controls button { background:#252f3b; color:#e0e5eb; border:1px solid #465361; border-radius:7px; font-size:12px; font-weight:400; padding:10px 14px; }
+@media(max-width:700px) { .gm-invitations-layout { grid-template-columns:1fr; } .gm-invitations-access-header { flex-wrap:wrap; } }
+
+/* Campaign Invitations: campaign-specific character creation rules. */
+.gm-invitations-settings { margin-top:14px; background:#181e27; border:1px solid #303b48; border-radius:12px; padding:18px; min-width:0; }
+.gm-invitations-settings h3 { display:flex; align-items:center; gap:9px; color:#e6ebf1; font-size:15px; margin:0; }
+.gm-invitations-settings h3 svg { color:#e6c34d; }
+.gm-invitations-settings-heading p { font-size:12px; color:#a4b1bf; margin:6px 0 0; }
+.gm-invitations-settings-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; border-top:1px solid #303b48; margin-top:16px; padding-top:16px; }
+.gm-invitations-settings-fields label { display:flex; flex-direction:column; gap:10px; min-width:0; font-size:13px; font-weight:700; color:#e6ebf1; }
+.gm-invitations-settings-fields small { font-size:12px; font-weight:400; color:#a4b1bf; }
+.gm-invitations-points-row,.gm-invitations-money-row { display:flex; align-items:center; gap:12px; min-height:42px; }
+.gm-invitations-points-row input { flex:1; min-width:0; accent-color:#e6c34d; }
+.gm-invitations-points-row strong { color:#e6c34d; background:#252f3b; border:1px solid #465361; border-radius:7px; padding:9px 14px; min-width:54px; text-align:center; }
+.gm-invitations-money-row input { width:100%; min-width:0; background:#101720; color:#e6ebf1; border:1px solid #465362; border-radius:7px; padding:11px; font-size:14px; }
+.gm-invitations-money-row strong { color:#e6c34d; }
+.gm-invitations-settings-footer { display:flex; justify-content:flex-end; align-items:center; gap:14px; flex-wrap:wrap; margin-top:18px; }
+.gm-invitations-settings-footer p { margin:0; color:#a4b1bf; font-size:12px; }
+.gm-invitations-settings-footer button { background:#e6c34d; color:#171a1f; border:0; border-radius:7px; font-size:12px; font-weight:700; padding:11px 16px; cursor:pointer; }
+.gm-invitations-settings-footer button:disabled { opacity:.5; cursor:not-allowed; }
+@media(max-width:700px) { .gm-invitations-settings-fields { grid-template-columns:1fr; } }
+
+/* Use a stable GM width across page changes, including short pages. */
+.gm-dashboard{width:100%;max-width:1100px;min-width:0}

@@ -1,6 +1,9 @@
 .session-tool-settings{padding:0 12px 12px;display:flex;flex-direction:column;gap:12px}
 .session-tool-settings .live-tools{padding:12px 0 0}
-.session-tool-settings .live-roll-open.selected{outline:2px solid #f1d078;outline-offset:-3px}
+.session-tool-settings .live-roll-open{background:#192634;color:#e5edf5;border:1px solid #425366;border-radius:5px}
+.session-tool-settings .live-roll-open svg{color:#b9c7d5}
+.session-tool-settings .live-roll-open.selected{background:#2d2b23;border-color:#e9c053}
+.session-tool-settings .live-roll-open.selected svg{color:#f0cd71}
 .session-settings-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .session-tool-settings label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#c6d3e1;min-width:0}
 .session-tool-settings select,.session-tool-settings input:not([type=checkbox]){box-sizing:border-box;width:100%;min-width:0;padding:9px;background:#101a26;color:#f1e5c8;border:1px solid #425366;border-radius:5px}
