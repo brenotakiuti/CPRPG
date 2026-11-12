@@ -79,11 +79,14 @@ export default function GMConsole({
   onSwitchCampaign,
 }: GMConsoleProps) {
   const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'factions' | 'logs'>(() => {
-    const saved = sessionStorage.getItem('gm-page');
-    return saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' || saved === 'logs' ? saved : 'live';
+    const saved = sessionStorage.getItem('gm-page:' + campaign.id);
+    return saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' || saved === 'logs' ? saved : 'live';
   });
-  const [selectedId, setSelectedId] = useState('');
-  const [detailTab, setDetailTab] = useState<'stats' | 'cyberware' | 'inventory' | 'access'>('stats');
+  const [selectedId, setSelectedId] = useState(() => sessionStorage.getItem('gm-selected-character:' + campaign.id) || '');
+  const [detailTab, setDetailTab] = useState<'stats' | 'cyberware' | 'inventory' | 'access'>(() => {
+    const saved = sessionStorage.getItem('gm-character-tab:' + campaign.id);
+    return saved === 'cyberware' || saved === 'inventory' || saved === 'access' ? saved : 'stats';
+  });
   const [search, setSearch] = useState('');
 
   type CharacterOption = {
@@ -370,8 +373,10 @@ export default function GMConsole({
   }
 
   useEffect(() => {
-    sessionStorage.setItem('gm-page', page);
-  }, [page]);
+    sessionStorage.setItem('gm-page:' + campaign.id, page);
+  }, [page, campaign.id]);
+  useEffect(() => { sessionStorage.setItem('gm-selected-character:' + campaign.id, selectedId); }, [campaign.id, selectedId]);
+  useEffect(() => { sessionStorage.setItem('gm-character-tab:' + campaign.id, detailTab); }, [campaign.id, detailTab]);
 
   const selected = characters.find((c) => c.id === selectedId) ?? characters[0];
   useEffect(() => {
