@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import { HeartPulse, Wallet, Dices, Crosshair, Swords, ArrowLeft, Utensils, BriefcaseMedical, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History } from 'lucide-react';
 import './PlayerView.css';
@@ -47,41 +47,54 @@ function consumableIcon(item?: CatalogEntry) {
   if (item?.category !== 'Consumable') return null;
   return item.properties?.subtype === 'food' ? Utensils : item.properties?.subtype === 'medical' ? BriefcaseMedical : null;
 }
-function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSelect }: { characterId: string; onBack: () => void; initialSelectedId?: string | null; onSelect: (id: string | null) => void }) {
+type PlayerInventoryData = { entries: InventoryEntry[]; catalog: Record<string, CatalogEntry>; loading: boolean; error: string; refresh: () => Promise<void> };
+
+function usePlayerInventory(characterId: string | null): PlayerInventoryData {
   const [entries, setEntries] = useState<InventoryEntry[]>([]);
   const [catalog, setCatalog] = useState<Record<string, CatalogEntry>>({});
-  const selectedId = initialSelectedId;
-  const setSelectedId = onSelect;
-  const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  async function refresh() {
+  const versionRef = useRef(0);
+  const refresh = useCallback(async () => {
+    if (!characterId) return;
+    const version = ++versionRef.current;
     const { data, error: readError } = await supabase.from('character_inventory')
-      .select('id, item_id, quantity, equipped_slot, instance_data')
-      .eq('character_id', characterId).order('created_at');
+      .select('id, item_id, quantity, equipped_slot, instance_data').eq('character_id', characterId).order('created_at');
+    if (version !== versionRef.current) return;
     if (readError) { setError(readError.message); setLoading(false); return; }
     const rows = (data ?? []) as InventoryEntry[];
     const ids = [...new Set(rows.map(row => row.item_id))];
+    let nextCatalog: Record<string, CatalogEntry> = {};
     if (ids.length) {
       const { data: itemRows, error: itemError } = await supabase.from('items')
         .select('id, name, category, rarity, description, properties').in('id', ids);
+      if (version !== versionRef.current) return;
       if (itemError) { setError(itemError.message); setLoading(false); return; }
-      setCatalog(Object.fromEntries(((itemRows ?? []) as CatalogEntry[]).map(item => [item.id, item])));
-    } else setCatalog({});
-    setEntries(rows);
-    if (selectedId && !rows.some(row => row.id === selectedId)) {
-      setSelectedId(null);
+      nextCatalog = Object.fromEntries(((itemRows ?? []) as CatalogEntry[]).map(item => [item.id, item]));
     }
-    setError('');
-    setLoading(false);
-  }
-  useEffect(() => {
-    void refresh();
-    const channel = supabase.channel('player-inventory-' + characterId)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'character_inventory', filter: 'character_id=eq.' + characterId }, () => { void refresh(); })
-      .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    if (version !== versionRef.current) return;
+    setEntries(rows); setCatalog(nextCatalog); setError(''); setLoading(false);
   }, [characterId]);
+  useEffect(() => {
+    ++versionRef.current; setEntries([]); setCatalog({}); setError(''); setLoading(true);
+    if (!characterId) return;
+    void refresh();
+    const channel = supabase.channel('player-shared-inventory-' + characterId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'character_inventory', filter: 'character_id=eq.' + characterId }, () => { void refresh(); }).subscribe();
+    return () => { ++versionRef.current; void supabase.removeChannel(channel); };
+  }, [characterId, refresh]);
+  return { entries, catalog, loading, error, refresh };
+}
+
+function PlayerInventory({ inventory, onBack, initialSelectedId = null, onSelect }: { inventory: PlayerInventoryData; onBack: () => void; initialSelectedId?: string | null; onSelect: (id: string | null) => void }) {
+  const { entries, catalog, loading, error, refresh } = inventory;
+  const [actionError, setActionError] = useState('');
+  const selectedId = initialSelectedId;
+  const setSelectedId = onSelect;
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!loading && selectedId && !entries.some(row => row.id === selectedId)) setSelectedId(null);
+  }, [entries, loading, selectedId, setSelectedId]);
   const selected = entries.find(row => row.id === selectedId);
   const item = selected ? catalog[selected.item_id] : undefined;
   const properties = (item?.properties ?? {}) as Record<string, any>;
@@ -92,16 +105,16 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSele
     if (!selected || busy) return;
     setBusy(true);
     const { error: equipError } = await supabase.rpc('equip_character_item', { p_inventory_id: selected.id, p_slot: slot });
-    if (equipError) setError(equipError.message);
-    else await refresh();
+    if (equipError) setActionError(equipError.message);
+    else { setActionError(''); await refresh(); }
     setBusy(false);
   }
   async function useConsumable() {
     if (!selected || item?.category !== 'Consumable' || busy) return;
     setBusy(true);
-    setError('');
+    setActionError('');
     const { error: useError } = await supabase.rpc('consume_character_item', { p_inventory_id: selected.id });
-    if (useError) setError(useError.message);
+    if (useError) setActionError(useError.message);
     else await refresh();
     setBusy(false);
   }
@@ -111,7 +124,7 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSele
         style={{ background: '#202e3e', border: '1px solid #405268', borderRadius: 6, color: '#e8bd4a', cursor: 'pointer', fontSize: 13, fontWeight: 700, padding: '9px 12px', display: 'inline-flex', alignItems: 'center', gap: 7 }}><ArrowLeft size={19} strokeWidth={2} aria-hidden="true" />Back</button>
       <h2 style={{ margin: 0, fontSize: 23, fontWeight: 600 }}>{selectedId ? 'Item details' : 'Inventory'}</h2>
     </div>
-    {error && <p role="alert" style={{ color: '#ffb3b3', fontSize: 13 }}>{error}</p>}
+    {(error || actionError) && <p role="alert" style={{ color: '#ffb3b3', fontSize: 13 }}>{actionError || error}</p>}
     {!selectedId ? <>
       <p style={{ ...inventoryMuted, margin: '0 0 12px' }}>{loading ? 'Loading inventory…' : entries.length + (entries.length === 1 ? ' item' : ' items')}</p>
       {!loading && entries.length === 0 && <p style={inventoryMuted}>No items in inventory.</p>}
@@ -174,31 +187,9 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSele
 }
 
 
-function PlayerLoadout({ characterId, onInspect, onInventory }: { characterId: string; onInspect: (inventoryId: string) => void; onInventory: () => void }) {
-  const [equipped, setEquipped] = useState<InventoryEntry[]>([]);
-  const [catalog, setCatalog] = useState<Record<string, CatalogEntry>>({});
-  useEffect(() => {
-    let active = true;
-    async function refresh() {
-      const { data, error } = await supabase.from('character_inventory')
-        .select('id, item_id, quantity, equipped_slot, instance_data')
-        .eq('character_id', characterId).in('equipped_slot', ['weapon_1', 'weapon_2']);
-      if (error) { console.warn('[Player Loadout]', error.message); return; }
-      const rows = (data ?? []) as InventoryEntry[];
-      const ids = [...new Set(rows.map(row => row.item_id))];
-      const result = ids.length ? await supabase.from('items')
-        .select('id, name, category, rarity, description, properties').in('id', ids) : null;
-      if (!active) return;
-      if (result?.error) console.warn('[Player Loadout catalog]', result.error.message);
-      setEquipped(rows);
-      setCatalog(Object.fromEntries(((result?.data ?? []) as CatalogEntry[]).map(item => [item.id, item])));
-    }
-    void refresh();
-    const channel = supabase.channel('player-loadout-' + characterId)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'character_inventory', filter: 'character_id=eq.' + characterId }, () => { void refresh(); })
-      .subscribe();
-    return () => { active = false; void supabase.removeChannel(channel); };
-  }, [characterId]);
+function PlayerLoadout({ inventory, onInspect, onInventory }: { inventory: PlayerInventoryData; onInspect: (inventoryId: string) => void; onInventory: () => void }) {
+  const { entries, catalog } = inventory;
+  const equipped = entries.filter(row => row.equipped_slot === 'weapon_1' || row.equipped_slot === 'weapon_2');
   return <section className="player-card" aria-label="Loadout" style={{ padding: 16 }}>
     <div className="player-section-heading" style={{ marginBottom: 12 }}>
       <span>LOADOUT</span><strong style={{ color: '#9baebe', fontSize: 11 }}>{equipped.length} / 2 EQUIPPED</strong>
@@ -253,6 +244,7 @@ type PlayerViewProps = {
 
 export default function PlayerView({ token }: PlayerViewProps) {
   const [character, setCharacter] = useState<PlayerCharacter | null>(null);
+  const inventoryData = usePlayerInventory(character?.id ?? null);
   const [body, setBody] = useState<number | null>(null);
   type PlayerScreen = { inventory: boolean; selected: string | null; logs: boolean };
   const screenKey = 'player-screen:' + (token ?? 'current');
@@ -569,7 +561,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <h1>{character?.name ?? 'PLAYER TERMINAL'}</h1>
           <p>CHARACTER DASHBOARD</p>
         </header>
-        {character && inventoryVisited && <div style={{ display: inventoryOpen ? undefined : 'none' }}><PlayerInventory characterId={character.id} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
+        {character && inventoryVisited && <div style={{ display: inventoryOpen ? undefined : 'none' }}><PlayerInventory inventory={inventoryData} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
         {character ? (
           <div hidden={inventoryOpen}>
             <section className="player-card player-health" aria-label="Character health">
@@ -589,7 +581,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
                 <div className="player-dice-placeholder" aria-label="Dice rolling coming soon"><Dices size={17} aria-hidden="true" /> ROLL</div>
               </section>
             </div>
-            <PlayerLoadout characterId={character.id} onInspect={id => openInventory(id)} onInventory={() => openInventory()} />
+            <PlayerLoadout inventory={inventoryData} onInspect={id => openInventory(id)} onInventory={() => openInventory()} />
             <section className="player-card player-navigation">
               <h2>CHARACTER <span>›</span></h2>
               <div className="player-nav-grid">
