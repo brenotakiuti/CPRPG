@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import { HeartPulse, Wallet, Dices, Crosshair, Swords, ArrowLeft, Utensils, BriefcaseMedical, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History } from 'lucide-react';
 import './PlayerView.css';
+import { ArtworkZoomButton } from './ArtworkViewer';
 import PlayerLogs from './PlayerLogs';
 import PlayerSpotlights from './PlayerSpotlights';
 
@@ -135,8 +136,9 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSele
         <span style={inventoryMuted}>{item?.properties?.weapon_class as string ?? (item?.category === 'Consumable' ? (properties.subtype === 'food' ? 'Food · Consumable' : 'Medical · Consumable') : item?.category ?? 'Item')} · <span style={{ color: rarityColors[item?.rarity ?? ''] ?? '#8996a5' }}>● {item?.rarity ?? ''}</span></span>
         {selected.equipped_slot && <span style={{ color: '#e8bd4a', fontSize: 12 }}>Equipped</span>}
       </div>
-      {imagePath && <div style={{ background: '#151d28', borderRadius: 8, padding: 8, marginBottom: 16, display: 'grid', placeItems: 'center', minHeight: 150 }}>
+      {imagePath && <div style={{ background: '#151d28', borderRadius: 8, padding: 8, marginBottom: 16, display: 'grid', placeItems: 'center', minHeight: 150, position: 'relative' }}>
         <img src={imagePath} alt={item?.name ?? 'Item artwork'} style={{ width: '100%', maxHeight: 220, objectFit: 'contain' }}/>
+        <ArtworkZoomButton src={imagePath} alt={item?.name ?? 'Item'} />
       </div>}
       {item?.description && <p style={{ fontSize: 13, color: '#aab4c2', lineHeight: 1.6, margin: '0 0 18px' }}>{item.description}</p>}
       {item?.category === 'Weapon' && <>
@@ -252,13 +254,23 @@ type PlayerViewProps = {
 export default function PlayerView({ token }: PlayerViewProps) {
   const [character, setCharacter] = useState<PlayerCharacter | null>(null);
   const [body, setBody] = useState<number | null>(null);
-  const [logsOpen, setLogsOpen] = useState(false);
-  const [inventoryOpen, setInventoryOpen] = useState(false);
-  const [inventorySelection, setInventorySelection] = useState<string | null>(null);
-  const navRef = useRef<{ inventory: boolean; selected: string | null; logs: boolean }>({ inventory: false, selected: null, logs: false });
+  type PlayerScreen = { inventory: boolean; selected: string | null; logs: boolean };
+  const screenKey = 'player-screen:' + (token ?? 'current');
+  function restoreScreen(): PlayerScreen {
+    try {
+      const value = JSON.parse(sessionStorage.getItem(screenKey) || 'null');
+      return { inventory: value?.inventory === true, selected: typeof value?.selected === 'string' ? value.selected : null, logs: value?.logs === true };
+    } catch { return { inventory: false, selected: null, logs: false }; }
+  }
+  const [initialScreen] = useState(restoreScreen);
+  const [logsOpen, setLogsOpen] = useState(initialScreen.logs);
+  const [inventoryOpen, setInventoryOpen] = useState(initialScreen.inventory);
+  const [inventorySelection, setInventorySelection] = useState<string | null>(initialScreen.selected);
+  const navRef = useRef<PlayerScreen>(initialScreen);
   const navigationKey = useRef('player-navigation-' + Math.random().toString(36).slice(2));
   function navigate(next: { inventory: boolean; selected: string | null; logs: boolean }) {
     navRef.current = next;
+    sessionStorage.setItem(screenKey, JSON.stringify(next));
     window.history.pushState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: next }, '');
     setInventoryOpen(next.inventory);
     setInventorySelection(next.selected);
@@ -268,12 +280,13 @@ export default function PlayerView({ token }: PlayerViewProps) {
     if (navRef.current.logs || navRef.current.selected || navRef.current.inventory) window.history.back();
   }
   useEffect(() => {
-    window.history.replaceState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: { inventory: false, selected: null, logs: false } }, '');
+    window.history.replaceState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: navRef.current }, '');
     const onPopState = (event: PopStateEvent) => {
       const next = event.state?.playerNavigationKey === navigationKey.current
         ? event.state.playerScreen as { inventory: boolean; selected: string | null; logs: boolean }
         : { inventory: false, selected: null, logs: false };
       navRef.current = next;
+      sessionStorage.setItem(screenKey, JSON.stringify(next));
       setInventoryOpen(next.inventory);
       setInventorySelection(next.selected);
       setLogsOpen(next.logs);
