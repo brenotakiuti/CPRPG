@@ -549,7 +549,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       if (active && characterLoaded.current) {
         loadCharacter();
       }
-    }, 5000);
+    }, 30000);
 
     return () => {
       active = false;
