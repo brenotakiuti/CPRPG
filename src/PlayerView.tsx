@@ -130,9 +130,19 @@ function PlayerInventory({ inventory, onBack, initialSelectedId = null, onSelect
       {!loading && entries.length === 0 && <p style={inventoryMuted}>No items in inventory.</p>}
       <div style={{ background: '#14202c', border: '1px solid #354556', borderRadius: 8, padding: '4px 12px' }}>
       {[...entries].sort((a, b) => {
-        const nameA = catalog[a.item_id]?.name ?? 'Unknown item';
-        const nameB = catalog[b.item_id]?.name ?? 'Unknown item';
-        return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' }) || a.id.localeCompare(b.id);
+        const itemA = catalog[a.item_id];
+        const itemB = catalog[b.item_id];
+        const group = (item?: CatalogEntry) => {
+          if (item?.category === 'Weapon') return 0;
+          if (item?.category === 'Consumable' && item.properties?.subtype === 'medical') return 1;
+          if (item?.category === 'Consumable' && item.properties?.subtype === 'food') return 2;
+          return 3;
+        };
+        const groupDifference = group(itemA) - group(itemB);
+        if (groupDifference) return groupDifference;
+        const categoryDifference = (itemA?.category ?? '').localeCompare(itemB?.category ?? '', undefined, { sensitivity: 'base' });
+        if (group(itemA) === 3 && categoryDifference) return categoryDifference;
+        return (itemA?.name ?? 'Unknown item').localeCompare(itemB?.name ?? 'Unknown item', undefined, { sensitivity: 'base' }) || a.id.localeCompare(b.id);
       }).map(entry => {
         const catalogItem = catalog[entry.item_id];
         const CategoryIcon = consumableIcon(catalogItem);
@@ -565,7 +575,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
         </header>
         {character && inventoryVisited && <div style={{ display: inventoryOpen ? undefined : 'none' }}><PlayerInventory inventory={inventoryData} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
         {character ? (
-          <div hidden={inventoryOpen}>
+          <div style={{ display: inventoryOpen ? 'none' : 'flex', flexDirection: 'column', gap: 12 }}>
             <section className="player-card player-health" aria-label="Character health">
               <div className="player-section-heading"><span><HeartPulse size={19} aria-hidden="true" /> HEALTH</span><strong>{hp !== null && maximum !== null ? `${hp} / ${maximum} HP` : 'HP unavailable'}</strong></div>
               <div className="player-hp-track" role="progressbar" aria-label="HP" aria-valuemin={0} aria-valuemax={maximum ?? 100} aria-valuenow={hp ?? 0}>
