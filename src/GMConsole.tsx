@@ -82,6 +82,17 @@ export default function GMConsole({
     const saved = sessionStorage.getItem('gm-page:' + campaign.id);
     return saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' || saved === 'logs' ? saved : 'live';
   });
+  // Mount data-heavy tools on first visit, then retain their data and Realtime subscriptions.
+  const [visitedTools, setVisitedTools] = useState<string[]>(() => {
+    const saved = sessionStorage.getItem('gm-page:' + campaign.id) ?? 'live';
+    return ['live', 'bank', 'logs', 'inventory'].includes(saved) ? [saved] : [];
+  });
+  const openPage = (next: typeof page) => {
+    setPage(next);
+    if (['live', 'bank', 'logs', 'inventory'].includes(next)) {
+      setVisitedTools(previous => previous.includes(next) ? previous : [...previous, next]);
+    }
+  };
   const [selectedId, setSelectedId] = useState(() => sessionStorage.getItem('gm-selected-character:' + campaign.id) || '');
   const [detailTab, setDetailTab] = useState<'stats' | 'cyberware' | 'inventory' | 'access'>(() => {
     const saved = sessionStorage.getItem('gm-character-tab:' + campaign.id);
@@ -497,7 +508,7 @@ export default function GMConsole({
       <nav className="gm-tabs" aria-label="GM tools">
         {navigation.map((item) => (
           <button key={item.id} type="button" className={page === item.id ? 'gm-tab active' : 'gm-tab'}
-            aria-current={page === item.id ? 'page' : undefined} onClick={() => setPage(item.id)}>
+            aria-current={page === item.id ? 'page' : undefined} onClick={() => openPage(item.id)}>
             <item.icon size={19} strokeWidth={1.9} aria-hidden="true" />
             <span className="gm-sr-only">{item.label}</span>
           </button>
@@ -509,9 +520,7 @@ export default function GMConsole({
           return <><current.icon size={19} strokeWidth={1.9} aria-hidden="true" />{current.label}</>;
         })()}
       </h2>
-      {page === 'live' ? (
-        <LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} />
-      ) : page === 'characters' ? (
+      {page === 'live' ? null : page === 'characters' ? (
         <div className="gm-characters-layout">
           <aside className="gm-roster">
             <div className="gm-roster-heading"><strong>Roster</strong><span>{characters.length}</span></div>
@@ -628,11 +637,7 @@ export default function GMConsole({
             ) : <p className="gm-muted">No characters in this campaign yet.</p>}
           </main>
         </div>
-      ) : page === 'bank' ? (
-        <div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>
-      ) : page === 'logs' ? (
-        <CampaignLogs campaignId={campaign.id} characters={characters} />
-      ) : page === 'overview' ? (
+      ) : page === 'bank' || page === 'logs' ? null : page === 'overview' ? (
         <div className="gm-dashboard-panel gm-overview">
           <p className="gm-invitations-intro">Manage how new players join this campaign.</p>
           {creationControls}
@@ -681,11 +686,13 @@ export default function GMConsole({
             </div>
           </section>
         </div>
-      ) : page === 'inventory' ? (
-        <ItemCatalog />
-      ) : (
+      ) : page === 'inventory' ? null : (
         <div className="gm-dashboard-panel gm-empty-detail">Factions — coming later</div>
       )}
+      {visitedTools.includes('live') && <div hidden={page !== 'live'}><LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} /></div>}
+      {visitedTools.includes('bank') && <div hidden={page !== 'bank'} className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>}
+      {visitedTools.includes('logs') && <div hidden={page !== 'logs'}><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
+      {visitedTools.includes('inventory') && <div hidden={page !== 'inventory'}><ItemCatalog /></div>}
     </div>
   );
 }
