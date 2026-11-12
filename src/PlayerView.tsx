@@ -266,6 +266,8 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const [logsOpen, setLogsOpen] = useState(initialScreen.logs);
   const [inventoryOpen, setInventoryOpen] = useState(initialScreen.inventory);
   const [inventorySelection, setInventorySelection] = useState<string | null>(initialScreen.selected);
+  const [inventoryVisited, setInventoryVisited] = useState(initialScreen.inventory);
+  const [logsVisited, setLogsVisited] = useState(initialScreen.logs);
   const navRef = useRef<PlayerScreen>(initialScreen);
   const navigationKey = useRef('player-navigation:' + (token ?? 'current'));
   function navigate(next: { inventory: boolean; selected: string | null; logs: boolean }) {
@@ -275,6 +277,8 @@ export default function PlayerView({ token }: PlayerViewProps) {
     setInventoryOpen(next.inventory);
     setInventorySelection(next.selected);
     setLogsOpen(next.logs);
+    if (next.inventory) setInventoryVisited(true);
+    if (next.logs) setLogsVisited(true);
   }
   function goBack() {
     if (navRef.current.logs || navRef.current.selected || navRef.current.inventory) window.history.back();
@@ -290,6 +294,8 @@ export default function PlayerView({ token }: PlayerViewProps) {
       setInventoryOpen(next.inventory);
       setInventorySelection(next.selected);
       setLogsOpen(next.logs);
+      if (next.inventory) setInventoryVisited(true);
+      if (next.logs) setLogsVisited(true);
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -563,8 +569,9 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <h1>{character?.name ?? 'PLAYER TERMINAL'}</h1>
           <p>CHARACTER DASHBOARD</p>
         </header>
-        {character && inventoryOpen ? <PlayerInventory key={inventorySelection ?? "inventory-list"} characterId={character.id} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /> : character ? (
-          <>
+        {character && inventoryVisited && <div hidden={!inventoryOpen}><PlayerInventory characterId={character.id} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
+        {character ? (
+          <div hidden={inventoryOpen}>
             <section className="player-card player-health" aria-label="Character health">
               <div className="player-section-heading"><span><HeartPulse size={19} aria-hidden="true" /> HEALTH</span><strong>{hp !== null && maximum !== null ? `${hp} / ${maximum} HP` : 'HP unavailable'}</strong></div>
               <div className="player-hp-track" role="progressbar" aria-label="HP" aria-valuemin={0} aria-valuemax={maximum ?? 100} aria-valuenow={hp ?? 0}>
@@ -596,11 +603,11 @@ export default function PlayerView({ token }: PlayerViewProps) {
               <p>No new notifications</p>
             </section>
             <footer className="player-footer"><span className={connected ? "player-online" : "player-offline"}>{connected ? <Wifi size={14} aria-hidden="true" /> : <WifiOff size={14} aria-hidden="true" />}{connected ? "CONNECTED" : "DISCONNECTED"}</span><span>PLAYER TERMINAL</span></footer>
-          </>
+          </div>
         ) : <section className="player-card player-message" role="status">{message}</section>}
       </div>
       {character && feedCampaignId && <PlayerSpotlights campaignId={feedCampaignId} characterId={character.id} />}
-      {logsOpen && character && feedCampaignId && <PlayerLogs campaignId={feedCampaignId} characterId={character.id} onClose={goBack} />}
+      {logsVisited && character && feedCampaignId && <div hidden={!logsOpen}><PlayerLogs campaignId={feedCampaignId} characterId={character.id} onClose={goBack} /></div>}
     </main>
   );
 }
