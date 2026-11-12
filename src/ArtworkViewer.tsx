@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 type Props = { src: string; alt: string };
 
