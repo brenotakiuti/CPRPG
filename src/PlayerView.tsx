@@ -569,7 +569,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <h1>{character?.name ?? 'PLAYER TERMINAL'}</h1>
           <p>CHARACTER DASHBOARD</p>
         </header>
-        {character && inventoryVisited && <div hidden={!inventoryOpen}><PlayerInventory characterId={character.id} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
+        {character && inventoryVisited && <div style={{ display: inventoryOpen ? undefined : 'none' }}><PlayerInventory characterId={character.id} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
         {character ? (
           <div hidden={inventoryOpen}>
             <section className="player-card player-health" aria-label="Character health">
@@ -607,7 +607,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
         ) : <section className="player-card player-message" role="status">{message}</section>}
       </div>
       {character && feedCampaignId && <PlayerSpotlights campaignId={feedCampaignId} characterId={character.id} />}
-      {logsVisited && character && feedCampaignId && <div hidden={!logsOpen}><PlayerLogs campaignId={feedCampaignId} characterId={character.id} onClose={goBack} /></div>}
+      {logsVisited && character && feedCampaignId && <div style={{ display: logsOpen ? undefined : 'none' }}><PlayerLogs campaignId={feedCampaignId} characterId={character.id} onClose={goBack} /></div>}
     </main>
   );
 }
