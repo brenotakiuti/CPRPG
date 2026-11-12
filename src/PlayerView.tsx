@@ -267,7 +267,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const [inventoryOpen, setInventoryOpen] = useState(initialScreen.inventory);
   const [inventorySelection, setInventorySelection] = useState<string | null>(initialScreen.selected);
   const navRef = useRef<PlayerScreen>(initialScreen);
-  const navigationKey = useRef('player-navigation-' + Math.random().toString(36).slice(2));
+  const navigationKey = useRef('player-navigation:' + (token ?? 'current'));
   function navigate(next: { inventory: boolean; selected: string | null; logs: boolean }) {
     navRef.current = next;
     sessionStorage.setItem(screenKey, JSON.stringify(next));
