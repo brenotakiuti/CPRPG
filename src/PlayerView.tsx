@@ -527,7 +527,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
         setCharacter(previous => ({
           ...data,
           current_hp: hpError
-            ? (previous?.id === data.id ? previous.current_hp : null)
+            ? (previous && previous.id === data.id ? previous.current_hp : null)
             : (hpData?.current_hp == null ? null : Number(hpData.current_hp)),
         }));
 
