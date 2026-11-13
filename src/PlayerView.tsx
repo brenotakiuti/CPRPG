@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
-import { HeartPulse, Wallet, Dices, Crosshair, Swords, ArrowLeft, Utensils, BriefcaseMedical, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History } from 'lucide-react';
+import { HeartPulse, Wallet, Dices, Crosshair, Swords, ArrowLeft, Utensils, BriefcaseMedical, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History, Bug, Copy } from 'lucide-react';
 import './PlayerView.css';
 import { ArtworkZoomButton } from './ArtworkViewer';
 import PlayerLogs from './PlayerLogs';
@@ -260,46 +260,49 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const [character, setCharacter] = useState<PlayerCharacter | null>(null);
   const inventoryData = usePlayerInventory(character?.id ?? null);
   const [body, setBody] = useState<number | null>(null);
-  type PlayerScreen = { inventory: boolean; selected: string | null; logs: boolean };
+  type PlayerScreen = { inventory: boolean; selected: string | null; logs: boolean; diagnostics?: boolean };
   const screenKey = 'player-screen:' + (token ?? 'current');
   function restoreScreen(): PlayerScreen {
     try {
       const value = JSON.parse(sessionStorage.getItem(screenKey) || 'null');
-      return { inventory: value?.inventory === true, selected: typeof value?.selected === 'string' ? value.selected : null, logs: value?.logs === true };
-    } catch { return { inventory: false, selected: null, logs: false }; }
+      return { inventory: value?.inventory === true, selected: typeof value?.selected === 'string' ? value.selected : null, logs: value?.logs === true, diagnostics: value?.diagnostics === true };
+    } catch { return { inventory: false, selected: null, logs: false, diagnostics: false }; }
   }
   const [initialScreen] = useState(restoreScreen);
   const [logsOpen, setLogsOpen] = useState(initialScreen.logs);
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(initialScreen.diagnostics === true);
   const [inventoryOpen, setInventoryOpen] = useState(initialScreen.inventory);
   const [inventorySelection, setInventorySelection] = useState<string | null>(initialScreen.selected);
   const [inventoryVisited, setInventoryVisited] = useState(initialScreen.inventory);
   const [logsVisited, setLogsVisited] = useState(initialScreen.logs);
   const navRef = useRef<PlayerScreen>(initialScreen);
   const navigationKey = useRef('player-navigation:' + (token ?? 'current'));
-  function navigate(next: { inventory: boolean; selected: string | null; logs: boolean }) {
+  function navigate(next: PlayerScreen) {
     navRef.current = next;
     sessionStorage.setItem(screenKey, JSON.stringify(next));
     window.history.pushState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: next }, '');
     setInventoryOpen(next.inventory);
     setInventorySelection(next.selected);
     setLogsOpen(next.logs);
+    setDiagnosticsOpen(next.diagnostics === true);
     if (next.inventory) setInventoryVisited(true);
     if (next.logs) setLogsVisited(true);
   }
   function goBack() {
-    if (navRef.current.logs || navRef.current.selected || navRef.current.inventory) window.history.back();
+    if (navRef.current.logs || navRef.current.diagnostics || navRef.current.selected || navRef.current.inventory) window.history.back();
   }
   useEffect(() => {
     window.history.replaceState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: navRef.current }, '');
     const onPopState = (event: PopStateEvent) => {
       const next = event.state?.playerNavigationKey === navigationKey.current
-        ? event.state.playerScreen as { inventory: boolean; selected: string | null; logs: boolean }
-        : { inventory: false, selected: null, logs: false };
+        ? event.state.playerScreen as PlayerScreen
+        : { inventory: false, selected: null, logs: false, diagnostics: false };
       navRef.current = next;
       sessionStorage.setItem(screenKey, JSON.stringify(next));
       setInventoryOpen(next.inventory);
       setInventorySelection(next.selected);
       setLogsOpen(next.logs);
+      setDiagnosticsOpen(next.diagnostics === true);
       if (next.inventory) setInventoryVisited(true);
       if (next.logs) setLogsVisited(true);
     };
@@ -314,6 +317,33 @@ export default function PlayerView({ token }: PlayerViewProps) {
     if (id) navigate({ inventory: true, selected: id, logs: false });
     else goBack();
   }
+  type DiagnosticEntry = { time: string; source: string; message: string };
+  const diagnosticKey = 'player-diagnostics';
+  const [diagnostics, setDiagnostics] = useState<DiagnosticEntry[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(diagnosticKey) || '[]');
+      return Array.isArray(stored) ? stored.slice(-50) : [];
+    } catch { return []; }
+  });
+  const recordDiagnostic = useCallback((source: string, detail: unknown) => {
+    const message = detail instanceof Error ? detail.message : String(detail ?? 'Unknown error');
+    const entry = { time: new Date().toISOString(), source, message };
+    setDiagnostics(previous => {
+      const next = [...previous, entry].slice(-50);
+      try { localStorage.setItem(diagnosticKey, JSON.stringify(next)); } catch { /* Storage unavailable */ }
+      return next;
+    });
+  }, []);
+  useEffect(() => {
+    const onError = (event: ErrorEvent) => recordDiagnostic('Browser error', event.message);
+    const onRejection = (event: PromiseRejectionEvent) => recordDiagnostic('Unhandled promise', event.reason);
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onRejection);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onRejection);
+    };
+  }, [recordDiagnostic]);
   const [feedCampaignId, setFeedCampaignId] = useState<string | null>(null);
   const [hudMessage, setHudMessage] = useState<{ id: string; text: string; duration: number } | null>(null);
   const hudQueue = useRef<Array<{ id: string; text: string; duration: number }>>([]);
@@ -381,7 +411,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
     let active = true;
     let subscribedCharacterId: string | null = null;
     let characterChannel: ReturnType<typeof supabase.channel> | null = null;
-    const onOffline = () => { if (active) setConnected(false); };
+    const onOffline = () => { if (active) { setConnected(false); recordDiagnostic('Network', 'Browser went offline'); } };
     window.addEventListener('offline', onOffline);
 
     async function connectPlayer() {
@@ -392,6 +422,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       if (!active) return;
 
       if (sessionError) {
+        recordDiagnostic('Auth session', sessionError.message);
         setMessage(sessionError.message);
         return;
       }
@@ -404,6 +435,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
         if (!active) return;
 
         if (error) {
+          recordDiagnostic('Anonymous sign-in', error.message);
           setMessage(error.message);
           return;
         }
@@ -412,6 +444,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       }
 
       if (!session) {
+        recordDiagnostic('Auth session', 'Could not establish a player session');
         setMessage('Could not establish a player session.');
         return;
       }
@@ -432,6 +465,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
         if (!active) return;
 
         if (error) {
+          recordDiagnostic('Claim character', error.message);
           setMessage(error.message);
           return;
         }
@@ -457,6 +491,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       if (!active) return;
 
       if (error) {
+        recordDiagnostic('Load character', error.message);
         setConnected(false);
         setCharacter(null);
         setFeedCampaignId(null);
@@ -466,34 +501,35 @@ export default function PlayerView({ token }: PlayerViewProps) {
         // A GM may revoke access while this browser remains signed in.
         setCharacter(null);
         setFeedCampaignId(null);
+        recordDiagnostic('Load character', 'No character assigned');
         setMessage('No character assigned. Ask your GM for a new invitation.');
       } else {
         // Read HP separately so older databases can still show the character.
         const { data: hpData, error: hpError } = await supabase.from('characters')
           .select('current_hp').eq('id', data.id).maybeSingle();
         if (!active) return;
-        if (hpError) console.warn('[Player] HP:', hpError.message);
+        if (hpError) { recordDiagnostic('Load HP', hpError.message); console.warn('[Player] HP:', hpError.message); }
         setCharacter({ ...data, current_hp: hpData?.current_hp == null ? null : Number(hpData.current_hp) });
 
         // Use separate definition and value queries, as in the GM monitor.
         const { data: campaignRow, error: campaignError } = await supabase
           .from('characters').select('campaign_id').eq('id', data.id).maybeSingle();
         if (!active) return;
-        if (campaignError) console.warn('[Player] Campaign:', campaignError.message);
+        if (campaignError) { recordDiagnostic('Load campaign', campaignError.message); console.warn('[Player] Campaign:', campaignError.message); }
         const campaignId = campaignRow?.campaign_id;
         setFeedCampaignId(campaignId ?? null);
         if (campaignId) {
           const { data: definitions, error: definitionError } = await supabase
             .from('stat_definitions').select('id, name').eq('campaign_id', campaignId);
           if (!active) return;
-          if (definitionError) console.warn('[Player] Stat definitions:', definitionError.message);
+          if (definitionError) { recordDiagnostic('Load stat definitions', definitionError.message); console.warn('[Player] Stat definitions:', definitionError.message); }
           const bodyId = (definitions ?? []).find(d => d.name.trim().toLowerCase() === 'body')?.id;
           if (bodyId) {
             const { data: bodyRow, error: bodyError } = await supabase
               .from('character_stats').select('value')
               .eq('character_id', data.id).eq('stat_id', bodyId).maybeSingle();
             if (!active) return;
-            if (bodyError) console.warn('[Player] BODY:', bodyError.message);
+            if (bodyError) { recordDiagnostic('Load BODY', bodyError.message); console.warn('[Player] BODY:', bodyError.message); }
             setBody(bodyRow ? Number(bodyRow.value) : null);
           } else setBody(null);
         } else setBody(null);
@@ -532,6 +568,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
                 ...(error ? { error: error.message } : {}),
               });
               if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                recordDiagnostic('Character Realtime', error?.message ?? status);
                 console.warn('[Player Realtime] Subscription problem; polling remains active', error);
               }
             });
@@ -549,7 +586,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       if (active && characterLoaded.current) {
         loadCharacter();
       }
-    }, 30000);
+    }, 5000);
 
     return () => {
       active = false;
@@ -557,7 +594,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       if (characterChannel) void supabase.removeChannel(characterChannel);
       window.removeEventListener('offline', onOffline);
     };
-  }, [token]);
+  }, [token, recordDiagnostic]);
 
   const maximum = body === null ? null : 10 + 5 * body;
   const hp = character?.current_hp ?? null;
@@ -569,12 +606,12 @@ export default function PlayerView({ token }: PlayerViewProps) {
       {hudMessage && <div className="player-hud-feed" role="status" key={hudMessage.id} style={{ animationDuration: `${hudMessage.duration}ms` }}>{hudMessage.text}</div>}
       <div className="player-shell">
         <header className="player-card player-header">
-          <div className="player-header-top"><span>NIGHT CITY // 2077</span><div className="player-header-actions"><RadioTower size={16} aria-hidden="true" />{character && feedCampaignId && <button type="button" className="player-logs-trigger" aria-label="Open personal logs" title="Personal logs" onClick={() => navigate({ ...navRef.current, logs: true })}><History size={19} aria-hidden="true" /></button>}</div></div>
+          <div className="player-header-top"><span>NIGHT CITY // 2077</span><div className="player-header-actions"><RadioTower size={16} aria-hidden="true" />{character && feedCampaignId && <button type="button" className="player-logs-trigger" aria-label="Open personal logs" title="Personal logs" onClick={() => navigate({ ...navRef.current, logs: true, diagnostics: false })}><History size={19} aria-hidden="true" /></button>}<button type="button" className="player-logs-trigger" aria-label="Open diagnostics" title="Diagnostics" onClick={() => navigate({ inventory: false, selected: null, logs: false, diagnostics: true })}><Bug size={19} aria-hidden="true" /></button></div></div>
           <h1>{character?.name ?? 'PLAYER TERMINAL'}</h1>
           <p>CHARACTER DASHBOARD</p>
         </header>
-        {character && inventoryVisited && <div style={{ display: inventoryOpen ? undefined : 'none' }}><PlayerInventory inventory={inventoryData} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
-        {character ? (
+        {!diagnosticsOpen && character && inventoryVisited && <div style={{ display: inventoryOpen ? undefined : 'none' }}><PlayerInventory inventory={inventoryData} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
+        {!diagnosticsOpen && character ? (
           <div style={{ display: inventoryOpen ? 'none' : 'flex', flexDirection: 'column', gap: 12 }}>
             <section className="player-card player-health" aria-label="Character health">
               <div className="player-section-heading"><span><HeartPulse size={19} aria-hidden="true" /> HEALTH</span><strong>{hp !== null && maximum !== null ? `${hp} / ${maximum} HP` : 'HP unavailable'}</strong></div>
@@ -608,10 +645,11 @@ export default function PlayerView({ token }: PlayerViewProps) {
             </section>
             <footer className="player-footer"><span className={connected ? "player-online" : "player-offline"}>{connected ? <Wifi size={14} aria-hidden="true" /> : <WifiOff size={14} aria-hidden="true" />}{connected ? "CONNECTED" : "DISCONNECTED"}</span><span>PLAYER TERMINAL</span></footer>
           </div>
-        ) : <section className="player-card player-message" role="status">{message}</section>}
+        ) : !diagnosticsOpen ? <section className="player-card player-message" role="status">{message}</section> : null}
+        {diagnosticsOpen && <section className="player-card" aria-label="Diagnostics" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}><button type="button" className="player-logs-trigger" onClick={goBack}><ArrowLeft size={18} aria-hidden="true" /> Back</button><strong>DIAGNOSTICS</strong><button type="button" className="player-logs-trigger" onClick={() => void navigator.clipboard.writeText(diagnostics.map(entry => `[${entry.time}] ${entry.source}: ${entry.message}`).join('\n'))}><Copy size={17} aria-hidden="true" /> Copy</button></div><p style={{ opacity: 0.7, margin: 0 }}>Recent technical errors (last 50), stored on this device.</p>{diagnostics.length === 0 ? <p>No errors recorded yet.</p> : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{[...diagnostics].reverse().map((entry, index) => <div key={`${entry.time}-${index}`} style={{ padding: 10, background: '#0b111b', borderRadius: 6, overflowWrap: 'anywhere' }}><small>{new Date(entry.time).toLocaleString()} · {entry.source}</small><div>{entry.message}</div></div>)}</div>}</section>}
       </div>
-      {character && feedCampaignId && <PlayerSpotlights campaignId={feedCampaignId} characterId={character.id} />}
-      {logsVisited && character && feedCampaignId && <div style={{ display: logsOpen ? undefined : 'none' }}><PlayerLogs campaignId={feedCampaignId} characterId={character.id} onClose={goBack} /></div>}
+      {!diagnosticsOpen && character && feedCampaignId && <PlayerSpotlights campaignId={feedCampaignId} characterId={character.id} />}
+      {!diagnosticsOpen && logsVisited && character && feedCampaignId && <div style={{ display: logsOpen ? undefined : 'none' }}><PlayerLogs campaignId={feedCampaignId} characterId={character.id} onClose={goBack} /></div>}
     </main>
   );
 }
