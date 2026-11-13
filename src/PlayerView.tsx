@@ -411,13 +411,43 @@ export default function PlayerView({ token }: PlayerViewProps) {
     let active = true;
     let subscribedCharacterId: string | null = null;
     let loadingCharacter = false;
+    const idleTimeoutMs = 5 * 60 * 1000;
+    let lastInteraction = Date.now();
+    let idle = false;
+    let refreshAfterLoad = false;
     let characterChannel: ReturnType<typeof supabase.channel> | null = null;
     const onOffline = () => { if (active) { setConnected(false); recordDiagnostic('Network', 'Browser went offline'); } };
     window.addEventListener('offline', onOffline);
-    const onOnline = () => { if (active) void loadCharacter(); };
-    const onVisible = () => { if (active && document.visibilityState === 'visible') void loadCharacter(); };
+    const suspend = () => {
+      if (idle) return;
+      idle = true;
+      if (characterChannel) {
+        void supabase.removeChannel(characterChannel);
+        characterChannel = null;
+        subscribedCharacterId = null;
+      }
+    };
+    const wake = () => {
+      if (!active) return;
+      lastInteraction = Date.now();
+      if (!idle) return;
+      idle = false;
+      if (loadingCharacter) refreshAfterLoad = true;
+      else if (characterLoaded.current) void loadCharacter();
+    };
+    const onOnline = () => { if (active && !idle) void loadCharacter(); };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        wake();
+        if (!idle && characterLoaded.current) void loadCharacter();
+      }
+    };
+    const onInput = () => wake();
     window.addEventListener('online', onOnline);
     document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pointerdown', onInput, { passive: true });
+    window.addEventListener('keydown', onInput);
+    window.addEventListener('touchstart', onInput, { passive: true });
 
     async function connectPlayer() {
       // Reuse the existing anonymous account if possible.
@@ -487,7 +517,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
     }
 
     async function loadCharacter() {
-      if (loadingCharacter || !navigator.onLine) return;
+      if (loadingCharacter || idle || !navigator.onLine) return;
       loadingCharacter = true;
       try {
       const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -555,7 +585,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
         } else setBody(null);
         // Subscribe once per assigned character. Realtime updates arrive after the
         // GM's debounced database write, rather than waiting for the next poll.
-        if (subscribedCharacterId !== data.id) {
+        if (!idle && subscribedCharacterId !== data.id) {
           if (characterChannel) void supabase.removeChannel(characterChannel);
           subscribedCharacterId = data.id;
           characterChannel = supabase.channel('player-character-' + data.id)
@@ -604,16 +634,21 @@ export default function PlayerView({ token }: PlayerViewProps) {
         }
       } finally {
         loadingCharacter = false;
+        if (active && !idle && refreshAfterLoad) {
+          refreshAfterLoad = false;
+          void loadCharacter();
+        }
       }
     }
 
     connectPlayer();
 
-    // Simple balance synchronization for our prototype.
+    // Keep the existing 5-second fallback while active; intentionally
+    // suspend character traffic after five minutes without user interaction.
     const interval = setInterval(() => {
-      if (active && characterLoaded.current) {
-        loadCharacter();
-      }
+      if (!active) return;
+      if (!idle && Date.now() - lastInteraction >= idleTimeoutMs) suspend();
+      if (!idle && characterLoaded.current) void loadCharacter();
     }, 5000);
 
     return () => {
@@ -623,6 +658,9 @@ export default function PlayerView({ token }: PlayerViewProps) {
       window.removeEventListener('offline', onOffline);
       window.removeEventListener('online', onOnline);
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pointerdown', onInput);
+      window.removeEventListener('keydown', onInput);
+      window.removeEventListener('touchstart', onInput);
     };
   }, [token, recordDiagnostic]);
 
