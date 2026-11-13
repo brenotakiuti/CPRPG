@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
-import { HeartPulse, Wallet, Dices, Crosshair, Swords, ArrowLeft, Utensils, BriefcaseMedical, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History, Bug, Copy } from 'lucide-react';
+import { HeartPulse, Wallet, Dices, Crosshair, Swords, ArrowLeft, Utensils, BriefcaseMedical, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History, Bug, Copy, Info, AlertTriangle } from 'lucide-react';
 import './PlayerView.css';
 import { ArtworkZoomButton } from './ArtworkViewer';
 import PlayerLogs from './PlayerLogs';
@@ -317,7 +317,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
     if (id) navigate({ inventory: true, selected: id, logs: false });
     else goBack();
   }
-  type DiagnosticEntry = { time: string; source: string; message: string };
+  type DiagnosticEntry = { time: string; source: string; message: string; severity?: 'info' | 'warning' | 'error'; hint?: string };
   const diagnosticKey = 'player-diagnostics';
   const [diagnostics, setDiagnostics] = useState<DiagnosticEntry[]>(() => {
     try {
@@ -325,9 +325,9 @@ export default function PlayerView({ token }: PlayerViewProps) {
       return Array.isArray(stored) ? stored.slice(-50) : [];
     } catch { return []; }
   });
-  const recordDiagnostic = useCallback((source: string, detail: unknown) => {
+  const recordDiagnostic = useCallback((source: string, detail: unknown, severity: DiagnosticEntry['severity'] = 'error', hint?: string) => {
     const message = detail instanceof Error ? detail.message : String(detail ?? 'Unknown error');
-    const entry = { time: new Date().toISOString(), source, message };
+    const entry: DiagnosticEntry = { time: new Date().toISOString(), source, message, severity, hint };
     setDiagnostics(previous => {
       const next = [...previous, entry].slice(-50);
       try { localStorage.setItem(diagnosticKey, JSON.stringify(next)); } catch { /* Storage unavailable */ }
@@ -411,9 +411,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
     let active = true;
     let subscribedCharacterId: string | null = null;
     let loadingCharacter = false;
-    const idleTimeoutMs = 5 * 60 * 1000;
-    let lastInteraction = Date.now();
-    let idle = false;
+    let idle = document.visibilityState === 'hidden';
     let refreshAfterLoad = false;
     let characterChannel: ReturnType<typeof supabase.channel> | null = null;
     const onOffline = () => { if (active) { setConnected(false); recordDiagnostic('Network', 'Browser went offline'); } };
@@ -421,33 +419,28 @@ export default function PlayerView({ token }: PlayerViewProps) {
     const suspend = () => {
       if (idle) return;
       idle = true;
+      recordDiagnostic('App lifecycle / visibilitychange', 'Browser hidden; character synchronization suspended.', 'info', 'Expected when switching apps or turning the screen off.');
       if (characterChannel) {
-        void supabase.removeChannel(characterChannel);
+        const previous = characterChannel;
         characterChannel = null;
         subscribedCharacterId = null;
+        void supabase.removeChannel(previous);
       }
-    };
-    const wake = () => {
-      if (!active) return;
-      lastInteraction = Date.now();
-      if (!idle) return;
-      idle = false;
-      if (loadingCharacter) refreshAfterLoad = true;
-      else if (characterLoaded.current) void loadCharacter();
     };
     const onOnline = () => { if (active && !idle) void loadCharacter(); };
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') {
-        wake();
-        if (!idle && characterLoaded.current) void loadCharacter();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        suspend();
+      } else if (document.visibilityState === 'visible') {
+        const wasIdle = idle;
+        idle = false;
+        if (wasIdle) recordDiagnostic('App lifecycle / visibilitychange', 'Browser visible; character synchronization resuming.', 'info', 'Expected after returning to the browser.');
+        if (loadingCharacter) refreshAfterLoad = true;
+        else if (characterLoaded.current) void loadCharacter();
       }
     };
-    const onInput = () => wake();
     window.addEventListener('online', onOnline);
-    document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('pointerdown', onInput, { passive: true });
-    window.addEventListener('keydown', onInput);
-    window.addEventListener('touchstart', onInput, { passive: true });
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     async function connectPlayer() {
       // Reuse the existing anonymous account if possible.
@@ -523,7 +516,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (!active) return;
       if (userError || !userData.user) {
-        recordDiagnostic('Load character auth', userError?.message ?? 'No authenticated user');
+        recordDiagnostic('Character loader / supabase.auth.getUser()', userError?.message ?? 'No authenticated user', 'warning', 'May occur while connectivity recovers after returning to the browser. Check whether subsequent synchronization succeeds.');
         setConnected(false);
         return;
       }
@@ -536,7 +529,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       if (!active) return;
 
       if (error) {
-        recordDiagnostic('Load character', error.message);
+        recordDiagnostic('Character loader / characters.select()', error.message, 'warning', 'A temporary network failure can cause this. Cached character data remains visible while the app retries.');
         setConnected(false);
         // A network failure is not evidence that character access was revoked.
         // Keep the last successfully loaded dashboard visible while retrying.
@@ -618,7 +611,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
                 ...(error ? { error: error.message } : {}),
               });
               if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                recordDiagnostic('Character Realtime', error?.message ?? status);
+                if (!idle && document.visibilityState === 'visible') recordDiagnostic('Character Realtime / subscribe()', error?.message ?? status, 'warning', 'WebSocket interruptions can occur during network changes. If they persist while the app is visible, investigate connectivity.');
                 console.warn('[Player Realtime] Subscription problem; polling remains active', error);
               }
             });
@@ -641,14 +634,11 @@ export default function PlayerView({ token }: PlayerViewProps) {
       }
     }
 
-    connectPlayer();
+    void connectPlayer();
 
-    // Keep the existing 5-second fallback while active; intentionally
-    // suspend character traffic after five minutes without user interaction.
+    // Poll only while visible. Background suspension is handled by visibilitychange.
     const interval = setInterval(() => {
-      if (!active) return;
-      if (!idle && Date.now() - lastInteraction >= idleTimeoutMs) suspend();
-      if (!idle && characterLoaded.current) void loadCharacter();
+      if (active && !idle && characterLoaded.current) void loadCharacter();
     }, 5000);
 
     return () => {
@@ -657,10 +647,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       if (characterChannel) void supabase.removeChannel(characterChannel);
       window.removeEventListener('offline', onOffline);
       window.removeEventListener('online', onOnline);
-      document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('pointerdown', onInput);
-      window.removeEventListener('keydown', onInput);
-      window.removeEventListener('touchstart', onInput);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [token, recordDiagnostic]);
 
@@ -714,8 +701,34 @@ export default function PlayerView({ token }: PlayerViewProps) {
             <footer className="player-footer"><span className={connected ? "player-online" : "player-offline"}>{connected ? <Wifi size={14} aria-hidden="true" /> : <WifiOff size={14} aria-hidden="true" />}{connected ? "CONNECTED" : "DISCONNECTED"}</span><span>PLAYER TERMINAL</span></footer>
           </div>
         ) : !diagnosticsOpen ? <section className="player-card player-message" role="status">{message}</section> : null}
-        {diagnosticsOpen && <section className="player-card" aria-label="Diagnostics" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}><button type="button" className="player-logs-trigger" onClick={goBack}><ArrowLeft size={18} aria-hidden="true" /> Back</button><strong>DIAGNOSTICS</strong><div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><button type="button" className="player-logs-trigger" onClick={() => void navigator.clipboard.writeText(diagnostics.map(entry => `[${entry.time}] ${entry.source}: ${entry.message}`).join('\n'))}><Copy size={17} aria-hidden="true" /> Copy</button><button type="button" className="player-logs-trigger" onClick={() => { if (!window.confirm('Clear all diagnostic error logs from this device?')) return; setDiagnostics([]); try { localStorage.removeItem(diagnosticKey); } catch { /* Storage unavailable */ } }}>Clear Logs</button></div></div><p style={{ opacity: 0.7, margin: 0 }}>Recent technical errors (last 50), stored on this device.</p>{diagnostics.length === 0 ? <p>No errors recorded yet.</p> : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{[...diagnostics].reverse().map((entry, index) => <div key={`${entry.time}-${index}`} style={{ padding: 10, background: '#0b111b', borderRadius: 6, overflowWrap: 'anywhere' }}><small>{new Date(entry.time).toLocaleString()} · {entry.source}</small><div>{entry.message}</div></div>)}</div>}</section>}
+
       </div>
+      {diagnosticsOpen && <div className="player-logs-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) goBack(); }}>
+        <section className="player-logs-dialog" role="dialog" aria-modal="true" aria-label="Diagnostics">
+          <header className="player-logs-heading">
+            <div><h2><Bug size={20} aria-hidden="true" /> DIAGNOSTICS</h2><p>Connection and application history · last 50 entries</p></div>
+          </header>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+            <button type="button" className="player-logs-more" style={{ margin: 0 }} onClick={goBack}><ArrowLeft size={15} aria-hidden="true" /> Back</button>
+            <button type="button" className="player-logs-more" style={{ margin: 0 }} onClick={() => void navigator.clipboard.writeText(diagnostics.map(entry => `[${entry.time}] [${entry.severity ?? 'error'}] ${entry.source}: ${entry.message}${entry.hint ? ' — ' + entry.hint : ''}`).join('\\n'))}><Copy size={15} aria-hidden="true" /> Copy</button>
+            <button type="button" className="player-logs-more" style={{ margin: 0 }} onClick={() => { if (!window.confirm('Clear all diagnostic logs from this device?')) return; setDiagnostics([]); try { localStorage.removeItem(diagnosticKey); } catch { /* Storage unavailable */ } }}>Clear Logs</button>
+          </div>
+          <div className="player-logs-list">
+            {diagnostics.length === 0 ? <p className="player-logs-empty">No diagnostic events recorded yet.</p> : [...diagnostics].reverse().map((entry, index) => <article className="player-logs-entry" key={`${entry.time}-${index}`}>
+              <span className="player-logs-icon" style={{ color: entry.severity === 'info' ? '#7fd2dc' : entry.severity === 'warning' ? '#e9c04c' : '#ff9b9b' }}>
+                {entry.severity === 'info' ? <Info size={18} /> : entry.severity === 'warning' ? <AlertTriangle size={18} /> : <Bug size={18} />}
+              </span>
+              <div className="player-logs-entry-body">
+                <p>{entry.message}</p>
+                <span style={{ display: 'block', overflowWrap: 'anywhere' }}>{entry.source} · {entry.severity ?? 'error'}</span>
+                {entry.hint && <p style={{ color: '#9bb0c0', marginTop: 7 }}>{entry.hint}</p>}
+              </div>
+              <time dateTime={entry.time} title={new Date(entry.time).toLocaleString()}>{new Date(entry.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
+            </article>)}
+          </div>
+          <footer className="player-logs-footer"><span>{diagnostics.length} entries stored on this device</span><button type="button" onClick={goBack}>Close</button></footer>
+        </section>
+      </div>}
       {!diagnosticsOpen && character && feedCampaignId && <PlayerSpotlights campaignId={feedCampaignId} characterId={character.id} />}
       {!diagnosticsOpen && logsVisited && character && feedCampaignId && <div style={{ display: logsOpen ? undefined : 'none' }}><PlayerLogs campaignId={feedCampaignId} characterId={character.id} onClose={goBack} /></div>}
     </main>
