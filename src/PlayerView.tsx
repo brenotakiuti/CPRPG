@@ -414,12 +414,45 @@ export default function PlayerView({ token }: PlayerViewProps) {
     let idle = document.visibilityState === 'hidden';
     let refreshAfterLoad = false;
     let characterChannel: ReturnType<typeof supabase.channel> | null = null;
+    let statsChannel: ReturnType<typeof supabase.channel> | null = null;
+    let cachedCampaignId: string | null = null;
+    let cachedBodyId: string | null = null;
+    let definitionsLoaded = false;
+    let assignedId: string | null = null;
+    let pendingHP: number | null = null;
+    let hpTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastHPUpdate = 0;
+    const flushHP = () => {
+      if (hpTimer) clearTimeout(hpTimer);
+      hpTimer = null;
+      if (pendingHP === null) return;
+      const value = pendingHP;
+      pendingHP = null;
+      lastHPUpdate = Date.now();
+      setCharacter(previous => previous?.id === assignedId ? { ...previous, current_hp: value } : previous);
+    };
+    const queueHP = (value: number | null) => {
+      if (value === null) {
+        if (hpTimer) clearTimeout(hpTimer);
+        hpTimer = null;
+        pendingHP = null;
+        setCharacter(previous => previous?.id === assignedId ? { ...previous, current_hp: null } : previous);
+        return;
+      }
+      pendingHP = value;
+      if (hpTimer) return;
+      const wait = Math.max(0, 400 - (Date.now() - lastHPUpdate));
+      if (wait === 0) flushHP();
+      else hpTimer = setTimeout(flushHP, wait);
+    };
     const onOffline = () => { if (active) { setConnected(false); recordDiagnostic('Network', 'Browser went offline'); } };
     window.addEventListener('offline', onOffline);
     const suspend = () => {
       if (idle) return;
       idle = true;
       recordDiagnostic('App lifecycle / visibilitychange', 'Browser hidden; character synchronization suspended.', 'info', 'Expected when switching apps or turning the screen off.');
+      flushHP();
+      if (statsChannel) { const previous = statsChannel; statsChannel = null; void supabase.removeChannel(previous); }
       if (characterChannel) {
         const previous = characterChannel;
         characterChannel = null;
@@ -547,35 +580,49 @@ export default function PlayerView({ token }: PlayerViewProps) {
           .select('current_hp').eq('id', data.id).maybeSingle();
         if (!active) return;
         if (hpError) { recordDiagnostic('Load HP', hpError.message); console.warn('[Player] HP:', hpError.message); }
+        if (assignedId !== data.id) {
+          assignedId = data.id;
+          if (hpTimer) clearTimeout(hpTimer);
+          hpTimer = null;
+          pendingHP = null;
+          lastHPUpdate = 0;
+          cachedCampaignId = null;
+          cachedBodyId = null;
+          definitionsLoaded = false;
+          setBody(null);
+        }
         setCharacter(previous => ({
           ...data,
-          current_hp: hpError
-            ? (previous && previous.id === data.id ? previous.current_hp : null)
-            : (hpData?.current_hp == null ? null : Number(hpData.current_hp)),
+          current_hp: previous?.id === data.id ? previous.current_hp
+            : (hpError || hpData?.current_hp == null ? null : Number(hpData.current_hp)),
         }));
+        if (!hpError) queueHP(hpData?.current_hp == null ? null : Number(hpData.current_hp));
 
-        // Use separate definition and value queries, as in the GM monitor.
-        const { data: campaignRow, error: campaignError } = await supabase
-          .from('characters').select('campaign_id').eq('id', data.id).maybeSingle();
-        if (!active) return;
-        if (campaignError) { recordDiagnostic('Load campaign', campaignError.message); console.warn('[Player] Campaign:', campaignError.message); }
-        const campaignId = campaignRow?.campaign_id;
-        if (!campaignError) setFeedCampaignId(campaignId ?? null);
-        if (campaignId) {
-          const { data: definitions, error: definitionError } = await supabase
-            .from('stat_definitions').select('id, name').eq('campaign_id', campaignId);
+        // Cache campaign and stat definitions for the character session.
+        if (!cachedCampaignId) {
+          const { data: campaignRow, error: campaignError } = await supabase
+            .from('characters').select('campaign_id').eq('id', data.id).maybeSingle();
           if (!active) return;
-          if (definitionError) { recordDiagnostic('Load stat definitions', definitionError.message); console.warn('[Player] Stat definitions:', definitionError.message); }
-          const bodyId = (definitions ?? []).find(d => d.name.trim().toLowerCase() === 'body')?.id;
-          if (bodyId) {
-            const { data: bodyRow, error: bodyError } = await supabase
-              .from('character_stats').select('value')
-              .eq('character_id', data.id).eq('stat_id', bodyId).maybeSingle();
-            if (!active) return;
-            if (bodyError) { recordDiagnostic('Load BODY', bodyError.message); console.warn('[Player] BODY:', bodyError.message); }
-            setBody(bodyRow ? Number(bodyRow.value) : null);
-          } else setBody(null);
-        } else setBody(null);
+          if (campaignError) recordDiagnostic('Load campaign', campaignError.message);
+          else { cachedCampaignId = campaignRow?.campaign_id ?? null; setFeedCampaignId(cachedCampaignId); }
+        }
+        if (cachedCampaignId && !definitionsLoaded) {
+          const { data: definitions, error: definitionError } = await supabase
+            .from('stat_definitions').select('id, name').eq('campaign_id', cachedCampaignId);
+          if (!active) return;
+          if (definitionError) recordDiagnostic('Load stat definitions', definitionError.message);
+          else {
+            cachedBodyId = (definitions ?? []).find(d => d.name.trim().toLowerCase() === 'body')?.id ?? null;
+            definitionsLoaded = true;
+          }
+        }
+        if (cachedBodyId) {
+          const { data: bodyRow, error: bodyError } = await supabase.from('character_stats')
+            .select('value').eq('character_id', data.id).eq('stat_id', cachedBodyId).maybeSingle();
+          if (!active) return;
+          if (bodyError) recordDiagnostic('Load BODY', bodyError.message);
+          else setBody(bodyRow ? Number(bodyRow.value) : null);
+        }
         // Subscribe once per assigned character. Realtime updates arrive after the
         // GM's debounced database write, rather than waiting for the next poll.
         if (!idle && subscribedCharacterId !== data.id) {
@@ -594,13 +641,13 @@ export default function PlayerView({ token }: PlayerViewProps) {
                 balance: payload.new?.balance,
               });
               const row = payload.new as Partial<PlayerCharacter>;
+              if (row.current_hp !== undefined) queueHP(row.current_hp == null ? null : Number(row.current_hp));
               setCharacter(previous => {
                 if (!previous || previous.id !== data.id) return previous;
                 return {
                   ...previous,
                   ...(typeof row.name === 'string' ? { name: row.name } : {}),
                   ...(typeof row.balance === 'number' ? { balance: row.balance } : {}),
-                  ...(row.current_hp !== undefined ? { current_hp: row.current_hp } : {}),
                 };
               });
             })
@@ -612,8 +659,19 @@ export default function PlayerView({ token }: PlayerViewProps) {
               });
               if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
                 if (!idle && document.visibilityState === 'visible') recordDiagnostic('Character Realtime / subscribe()', error?.message ?? status, 'warning', 'WebSocket interruptions can occur during network changes. If they persist while the app is visible, investigate connectivity.');
-                console.warn('[Player Realtime] Subscription problem; polling remains active', error);
+                console.warn('[Player Realtime] Subscription problem; reconnect refresh available', error);
               }
+            });
+        }
+        if (!idle && cachedBodyId && !statsChannel) {
+          statsChannel = supabase.channel('player-body-' + data.id)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'character_stats', filter: 'character_id=eq.' + data.id }, payload => {
+              if (!active || idle || payload.eventType === 'DELETE') return;
+              const row = payload.new as { stat_id?: string; value?: number | null };
+              if (row.stat_id === cachedBodyId) setBody(row.value == null ? null : Number(row.value));
+            }).subscribe((status, error) => {
+              if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && !idle)
+                recordDiagnostic('BODY Realtime / subscribe()', error?.message ?? status, 'warning');
             });
         }
         setConnected(navigator.onLine);
@@ -636,14 +694,11 @@ export default function PlayerView({ token }: PlayerViewProps) {
 
     void connectPlayer();
 
-    // Poll only while visible. Background suspension is handled by visibilitychange.
-    const interval = setInterval(() => {
-      if (active && !idle && characterLoaded.current) void loadCharacter();
-    }, 5000);
-
+    // Realtime updates live data; visibility and online events recover missed updates.
     return () => {
       active = false;
-      clearInterval(interval);
+      if (hpTimer) clearTimeout(hpTimer);
+      if (statsChannel) void supabase.removeChannel(statsChannel);
       if (characterChannel) void supabase.removeChannel(characterChannel);
       window.removeEventListener('offline', onOffline);
       window.removeEventListener('online', onOnline);
