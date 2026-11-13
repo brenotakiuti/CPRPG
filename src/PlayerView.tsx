@@ -55,6 +55,7 @@ function usePlayerInventory(characterId: string | null): PlayerInventoryData {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const versionRef = useRef(0);
+  const catalogRef = useRef<Record<string, CatalogEntry>>({});
   const refresh = useCallback(async () => {
     if (!characterId) return;
     const version = ++versionRef.current;
@@ -63,20 +64,25 @@ function usePlayerInventory(characterId: string | null): PlayerInventoryData {
     if (version !== versionRef.current) return;
     if (readError) { setError(readError.message); setLoading(false); return; }
     const rows = (data ?? []) as InventoryEntry[];
-    const ids = [...new Set(rows.map(row => row.item_id))];
-    let nextCatalog: Record<string, CatalogEntry> = {};
-    if (ids.length) {
+    const missingIds = [...new Set(rows.map(row => row.item_id))].filter(id => !catalogRef.current[id]);
+    if (missingIds.length) {
       const { data: itemRows, error: itemError } = await supabase.from('items')
-        .select('id, name, category, rarity, description, properties').in('id', ids);
+        .select('id, name, category, rarity, description, properties').in('id', missingIds);
       if (version !== versionRef.current) return;
-      if (itemError) { setError(itemError.message); setLoading(false); return; }
-      nextCatalog = Object.fromEntries(((itemRows ?? []) as CatalogEntry[]).map(item => [item.id, item]));
+      if (itemError) {
+        // Keep previously loaded entries and catalog visible on a transient failure.
+        setEntries(rows); setError(itemError.message); setLoading(false); return;
+      }
+      catalogRef.current = {
+        ...catalogRef.current,
+        ...Object.fromEntries(((itemRows ?? []) as CatalogEntry[]).map(item => [item.id, item])),
+      };
     }
     if (version !== versionRef.current) return;
-    setEntries(rows); setCatalog(nextCatalog); setError(''); setLoading(false);
+    setEntries(rows); setCatalog(catalogRef.current); setError(''); setLoading(false);
   }, [characterId]);
   useEffect(() => {
-    ++versionRef.current; setEntries([]); setCatalog({}); setError(''); setLoading(true);
+    ++versionRef.current; catalogRef.current = {}; setEntries([]); setCatalog({}); setError(''); setLoading(true);
     if (!characterId) return;
     void refresh();
     const channel = supabase.channel('player-shared-inventory-' + characterId)
