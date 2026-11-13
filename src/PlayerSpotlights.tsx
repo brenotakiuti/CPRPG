@@ -13,6 +13,54 @@ type Spotlight = {
   closed_at: string | null;
 };
 
+function TarotTransmission({ index, children }: { index: number; children: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [elapsed, setElapsed] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setReady(false);
+    setFailed(false);
+    setElapsed(false);
+    const minimum = setTimeout(() => { if (active) setElapsed(true); }, 1500);
+    const paths = ['/tarot/back.webp', '/tarot/tarot' + index + '.webp'];
+    let remaining = paths.length;
+    const images = paths.map(src => {
+      const img = new Image();
+      img.onload = () => {
+        if (!active) return;
+        remaining--;
+        if (remaining === 0) setReady(true);
+      };
+      img.onerror = () => { if (active) setFailed(true); };
+      img.src = src;
+      return img;
+    });
+    return () => {
+      active = false;
+      clearTimeout(minimum);
+      images.forEach(img => { img.onload = null; img.onerror = null; });
+    };
+  }, [index, attempt]);
+
+  if (ready && elapsed) return <>{children}</>;
+  return <div className="tarot-overlay" role="status" aria-live="polite">
+    <div style={{ width: 'min(88vw, 380px)', padding: 24, border: '1px solid #b99747', borderRadius: 10, background: '#0b1018', color: '#e8bd4a', boxShadow: '0 0 35px #d2a94422', fontFamily: 'monospace' }}>
+      <div style={{ fontSize: 11, letterSpacing: 3, opacity: .8, marginBottom: 26 }}>NIGHT CITY // SECURE CHANNEL</div>
+      <div style={{ fontSize: 21, fontWeight: 700, letterSpacing: 1, marginBottom: 12 }}>INCOMING TRANSMISSION</div>
+      <div style={{ color: '#9da9b8', fontSize: 12, marginBottom: 20 }}>{failed ? 'DATA PACKET INTERRUPTED' : ready ? 'DECRYPTION COMPLETE' : 'DECRYPTING ENCRYPTED PAYLOAD...'}</div>
+      <div style={{ height: 7, background: '#283241', overflow: 'hidden', borderRadius: 3 }}>
+        <div style={{ width: failed ? '100%' : ready ? '100%' : '85%', height: '100%', background: failed ? '#cf6262' : '#e8bd4a', transition: 'width .4s ease', animation: ready || failed ? undefined : 'tarot-transmission-pulse 1.3s ease-in-out infinite alternate' }} />
+      </div>
+      <div style={{ marginTop: 12, fontSize: 11, color: '#9da9b8' }}>{failed ? 'CONNECTION ERROR' : ready ? '100% // VERIFIED' : 'RECEIVING DATA...'}</div>
+      {failed && <button type="button" onClick={() => setAttempt(n => n + 1)} style={{ marginTop: 20, padding: '10px 16px', background: '#e8bd4a', border: 0, borderRadius: 5, color: '#10151d', fontWeight: 700, cursor: 'pointer' }}>RETRY TRANSMISSION</button>}
+    </div>
+    <style>{'@keyframes tarot-transmission-pulse { from { opacity: .25; transform: scaleX(.5); transform-origin: left; } to { opacity: 1; transform: scaleX(1); transform-origin: left; } }'}</style>
+  </div>;
+}
+
 export default function PlayerSpotlights({ campaignId, characterId }: { campaignId: string; characterId: string }) {
   const [pending, setPending] = useState<Spotlight[]>([]);
   const [error, setError] = useState('');
@@ -71,8 +119,10 @@ export default function PlayerSpotlights({ campaignId, characterId }: { campaign
   if (!current) return error ? <div role="alert" className="player-spotlight-error">{error}</div> : null;
   return <>
     {current.kind === 'tarot' && typeof current.outcome.index === 'number' && (
-      <TarotSpotlight key={current.id} forced={{ index: current.outcome.index, reversed: !!current.outcome.reversed }}
-        playerMode initiallyRevealed={!!current.revealed_at} onReveal={reveal} onClose={() => void close()} />
+      <TarotTransmission key={current.id} index={current.outcome.index}>
+        <TarotSpotlight forced={{ index: current.outcome.index, reversed: !!current.outcome.reversed }}
+          playerMode initiallyRevealed={!!current.revealed_at} onReveal={reveal} onClose={() => void close()} />
+      </TarotTransmission>
     )}
     {current.kind === 'fortune' && typeof current.outcome.message === 'string' && Array.isArray(current.outcome.numbers) && (
       <FortuneCookieSpotlight key={current.id} fixedFortune={{ message: current.outcome.message, numbers: current.outcome.numbers }}
