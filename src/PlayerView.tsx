@@ -410,9 +410,14 @@ export default function PlayerView({ token }: PlayerViewProps) {
   useEffect(() => {
     let active = true;
     let subscribedCharacterId: string | null = null;
+    let loadingCharacter = false;
     let characterChannel: ReturnType<typeof supabase.channel> | null = null;
     const onOffline = () => { if (active) { setConnected(false); recordDiagnostic('Network', 'Browser went offline'); } };
     window.addEventListener('offline', onOffline);
+    const onOnline = () => { if (active) void loadCharacter(); };
+    const onVisible = () => { if (active && document.visibilityState === 'visible') void loadCharacter(); };
+    window.addEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisible);
 
     async function connectPlayer() {
       // Reuse the existing anonymous account if possible.
@@ -482,10 +487,20 @@ export default function PlayerView({ token }: PlayerViewProps) {
     }
 
     async function loadCharacter() {
+      if (loadingCharacter || !navigator.onLine) return;
+      loadingCharacter = true;
+      try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (!active) return;
+      if (userError || !userData.user) {
+        recordDiagnostic('Load character auth', userError?.message ?? 'No authenticated user');
+        setConnected(false);
+        return;
+      }
       const { data, error } = await supabase
         .from('characters')
         .select('id, name, balance')
-        .eq('player_id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('player_id', userData.user.id)
         .maybeSingle();
 
       if (!active) return;
@@ -493,8 +508,8 @@ export default function PlayerView({ token }: PlayerViewProps) {
       if (error) {
         recordDiagnostic('Load character', error.message);
         setConnected(false);
-        setCharacter(null);
-        setFeedCampaignId(null);
+        // A network failure is not evidence that character access was revoked.
+        // Keep the last successfully loaded dashboard visible while retrying.
         setMessage(error.message);
       } else if (!data) {
         setConnected(false);
@@ -509,7 +524,12 @@ export default function PlayerView({ token }: PlayerViewProps) {
           .select('current_hp').eq('id', data.id).maybeSingle();
         if (!active) return;
         if (hpError) { recordDiagnostic('Load HP', hpError.message); console.warn('[Player] HP:', hpError.message); }
-        setCharacter({ ...data, current_hp: hpData?.current_hp == null ? null : Number(hpData.current_hp) });
+        setCharacter(previous => ({
+          ...data,
+          current_hp: hpError
+            ? (previous?.id === data.id ? previous.current_hp : null)
+            : (hpData?.current_hp == null ? null : Number(hpData.current_hp)),
+        }));
 
         // Use separate definition and value queries, as in the GM monitor.
         const { data: campaignRow, error: campaignError } = await supabase
@@ -517,7 +537,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
         if (!active) return;
         if (campaignError) { recordDiagnostic('Load campaign', campaignError.message); console.warn('[Player] Campaign:', campaignError.message); }
         const campaignId = campaignRow?.campaign_id;
-        setFeedCampaignId(campaignId ?? null);
+        if (!campaignError) setFeedCampaignId(campaignId ?? null);
         if (campaignId) {
           const { data: definitions, error: definitionError } = await supabase
             .from('stat_definitions').select('id, name').eq('campaign_id', campaignId);
@@ -577,6 +597,14 @@ export default function PlayerView({ token }: PlayerViewProps) {
         setMessage('');
       }
       characterLoaded.current = true;
+      } catch (failure) {
+        if (active) {
+          recordDiagnostic('Load character exception', failure);
+          setConnected(false);
+        }
+      } finally {
+        loadingCharacter = false;
+      }
     }
 
     connectPlayer();
@@ -593,6 +621,8 @@ export default function PlayerView({ token }: PlayerViewProps) {
       clearInterval(interval);
       if (characterChannel) void supabase.removeChannel(characterChannel);
       window.removeEventListener('offline', onOffline);
+      window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [token, recordDiagnostic]);
 
