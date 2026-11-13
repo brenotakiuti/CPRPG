@@ -593,7 +593,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
         }
         setCharacter(previous => ({
           ...data,
-          current_hp: previous?.id === data.id ? previous.current_hp
+          current_hp: previous && previous.id === data.id ? previous.current_hp
             : (hpError || hpData?.current_hp == null ? null : Number(hpData.current_hp)),
         }));
         if (!hpError) queueHP(hpData?.current_hp == null ? null : Number(hpData.current_hp));
