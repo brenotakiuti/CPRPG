@@ -40,7 +40,7 @@ export default function TarotSpotlight({ onClose, forced, onReveal, playerMode =
     <div className="tarot-scene">
       <div className="live-spotlight-title">TAROT READING</div>
       <strong className="tarot-intro">{intro}</strong>
-      <div className="tarot-card-stage" role="button" tabIndex={revealed || flipping ? -1 : 0} aria-label="Flip tarot card" onClick={reveal} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); reveal(); } }}>
+      <div className={'tarot-card-stage' + (!revealed && !flipping ? ' tarot-card-interactive' : '')} role={!revealed && !flipping ? 'button' : undefined} tabIndex={!revealed && !flipping ? 0 : undefined} aria-label={!revealed && !flipping ? 'Flip tarot card' : undefined} onClick={!revealed && !flipping ? reveal : undefined} onKeyDown={!revealed && !flipping ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); void reveal(); } } : undefined}>
         <div className={'tarot-card-surface' + (flipping || revealed ? ' tarot-flipped' : '')}>
           <div className="tarot-card-face tarot-card-back">
             <img src="/tarot/back.webp" alt="Tarot card back" draggable={false} />
