@@ -38,3 +38,17 @@
 .dice-sponsor-label{font-size:9px;line-height:1.2;letter-spacing:1.8px;text-align:center;color:#8192a4;font-weight:700}
 .dice-sponsor img{display:block;width:100%;height:auto;aspect-ratio:2/1;object-fit:contain;border:0;border-radius:0;background:transparent}
 @media(max-height:540px){.dice-sponsor{gap:2px}.dice-sponsor-label{font-size:8px}}
+
+/* Larger selector after removing the character-name row. */
+.dice-scene .dice-types button{padding:clamp(10px,2.4dvh,16px) 2px;font-size:clamp(12px,3.3vw,16px)}
+/* D2 coin uses the same exact footprint as the regular die. */
+.dice-scene .dice-coin{width:clamp(64px,16dvh,108px);height:clamp(64px,16dvh,108px);flex:none;box-sizing:border-box;position:relative;display:flex;align-items:center;justify-content:center;appearance:none;border:3px solid #e8bd4b;border-radius:50%;background:radial-gradient(circle at 35% 25%,#f5d780,#b68b32 70%,#5d441c);color:#141d29;box-shadow:0 0 14px #e6b33b55,inset 0 0 0 4px #1b2939;transform-style:preserve-3d;backface-visibility:visible;cursor:pointer}
+.dice-scene .dice-coin:disabled{cursor:default}
+.dice-scene .dice-coin .live-die-face{font-size:clamp(24px,7vw,40px);color:#141d29;min-width:0;backface-visibility:hidden}
+.dice-coin-rim{position:absolute;inset:6px;border:1px solid #6c511e;border-radius:50%;pointer-events:none}
+.dice-scene .dice-coin.coin-flipping{animation:dice-coin-flip 1.7s cubic-bezier(.2,.6,.3,1) both}
+.dice-scene .dice-coin.coin-final{animation:dice-coin-settle .25s ease-out}
+@keyframes dice-coin-flip{0%{transform:perspective(550px) rotateY(0deg)}15%{transform:perspective(550px) rotateY(400deg)}40%{transform:perspective(550px) rotateY(1050deg)}70%{transform:perspective(550px) rotateY(1560deg)}100%{transform:perspective(550px) rotateY(2160deg)}}
+@keyframes dice-coin-settle{from{transform:scale(1.08)}to{transform:scale(1)}}
+@media(max-height:540px){.dice-scene .dice-coin{width:70px;height:70px}.dice-scene .dice-types button{padding:8px 2px}}
+@media(prefers-reduced-motion:reduce){.dice-scene .dice-coin.coin-flipping{animation:none}}
