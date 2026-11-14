@@ -140,13 +140,13 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
   return <div className="dice-overlay" role="dialog" aria-modal="true" aria-label="Dice rolling spotlight">
     <section className="dice-scene">
       <header className="dice-heading">
-        <div><span className="dice-eyebrow">NIGHT CITY // RANDOMIZER</span><h2><Dices size={22}/> DICE ROLL</h2></div>
+        <div><h2><Dices size={22}/> DICE ROLL</h2></div>
       </header>
       <div className="dice-selector">
         <span>DICE TYPE</span>
         <div className="dice-types">{SIDES.map(n => <button key={n} type="button" className={sides === n ? 'selected' : ''} disabled={busy.current} onClick={() => { setSides(n); reset(); }}>d{n}</button>)}</div>
       </div>
-      <div className={'dice-arena live-dice-scene ' + sceneStyle}>
+      <div className="dice-arena live-dice-scene">
         <div className="dice-spec">D{sides}</div>
         <div className="dice-tray">{dice.map((die, index) => <button key={index} type="button" className={sides === 2 ? 'dice-coin ' + (phase === 'rolling' ? 'coin-flipping' : die.style) : 'live-die ' + die.style} disabled={busy.current} onClick={() => void roll()} aria-label={'Roll die ' + (index + 1)}>
           {sides === 2 ? <span className="dice-coin-rim" aria-hidden="true" /> : <svg viewBox="0 0 200 200" aria-hidden="true"><polygon className="live-die-outline" points="100,8 178,66 148,170 52,170 22,66"/></svg>}
@@ -160,5 +160,6 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
       <p className="dice-note">Rolls appear in your history and the GM campaign log. Approval and sharing come later.</p>
       <div className="dice-sponsor"><span className="dice-sponsor-label">SPONSORED BY</span><img src="/ads/kiroshi-optics.webp" alt="Kiroshi Optics — See more than reality" /></div>
     </section>
+    {(sceneStyle === 'blackout' || sceneStyle === 'reboot') && <div className={'dice-screen-blackout ' + sceneStyle} aria-hidden="true" />}
   </div>;
 }
