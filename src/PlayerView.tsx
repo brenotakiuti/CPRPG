@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
-import { HeartPulse, Wallet, Dices, Crosshair, Swords, ArrowLeft, Utensils, BriefcaseMedical, UserRound, Backpack, Smartphone, Wifi, WifiOff, RadioTower, History, Bug, Copy, Info, AlertTriangle } from 'lucide-react';
+import { HeartPulse, Wallet, Dices, Crosshair, Swords, ArrowLeft, Utensils, BriefcaseMedical, UserRound, Backpack, Smartphone, Wifi, WifiOff, RadioTower, History, Bug, Copy, Trash2, Info, AlertTriangle } from 'lucide-react';
 import './PlayerView.css';
 import { ArtworkZoomButton } from './ArtworkViewer';
 import PlayerLogs from './PlayerLogs';
@@ -770,10 +770,9 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <header className="player-logs-heading">
             <div><h2><Bug size={20} aria-hidden="true" /> DIAGNOSTICS</h2><p>Connection and application history · last 50 entries</p></div>
           </header>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-            <button type="button" className="player-logs-more" style={{ margin: 0 }} onClick={goBack}><ArrowLeft size={15} aria-hidden="true" /> Back</button>
-            <button type="button" className="player-logs-more" style={{ margin: 0 }} onClick={() => void navigator.clipboard.writeText(diagnostics.map(entry => `[${entry.time}] [${entry.severity ?? 'error'}] ${entry.source}: ${entry.message}${entry.hint ? ' — ' + entry.hint : ''}`).join('\\n'))}><Copy size={15} aria-hidden="true" /> Copy</button>
-            <button type="button" className="player-logs-more" style={{ margin: 0 }} onClick={() => { if (!window.confirm('Clear all diagnostic logs from this device?')) return; setDiagnostics([]); try { localStorage.removeItem(diagnosticKey); } catch { /* Storage unavailable */ } }}>Clear Logs</button>
+          <div className="player-diagnostics-actions">
+            <button type="button" className="player-diagnostics-icon" aria-label="Copy diagnostic logs" title="Copy diagnostic logs" onClick={() => void navigator.clipboard.writeText(diagnostics.map(entry => `[${entry.time}] [${entry.severity ?? 'error'}] ${entry.source}: ${entry.message}${entry.hint ? ' — ' + entry.hint : ''}`).join('\\n'))}><Copy size={18} aria-hidden="true" /></button>
+            <button type="button" className="player-diagnostics-icon player-diagnostics-clear" aria-label="Clear diagnostic logs" title="Clear diagnostic logs" onClick={() => { if (!window.confirm('Clear all diagnostic logs from this device?')) return; setDiagnostics([]); try { localStorage.removeItem(diagnosticKey); } catch { /* Storage unavailable */ } }}><Trash2 size={18} aria-hidden="true" /></button>
           </div>
           <div className="player-logs-list">
             {diagnostics.length === 0 ? <p className="player-logs-empty">No diagnostic events recorded yet.</p> : [...diagnostics].reverse().map((entry, index) => <article className="player-logs-entry" key={`${entry.time}-${index}`}>
