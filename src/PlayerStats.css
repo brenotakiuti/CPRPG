@@ -20,3 +20,7 @@
 .ps-inline-detail small{font-size:9px;color:#8996a5}
 @keyframes ps-detail-enter{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.ps-scan-layer{transition:none}.ps-inline-detail{animation:none}}
+
+/* Keep hotspot circles small and constant-size as the scan zooms. */
+.ps-scan-layer .ps-marker{width:12px;height:12px;transition:transform 650ms cubic-bezier(.22,1,.36,1);}
+@media(prefers-reduced-motion:reduce){.ps-scan-layer .ps-marker{transition:none}}
