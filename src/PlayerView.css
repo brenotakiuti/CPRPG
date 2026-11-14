@@ -42,3 +42,9 @@
 
 /* Delivery failures remain visible above the interactive spotlight. */
 .player-spotlight-error{position:fixed;z-index:1100;left:50%;top:14px;transform:translateX(-50%);max-width:calc(100vw - 24px);background:#401e24;border:1px solid #d84d59;border-radius:7px;padding:10px 14px;color:#ffe4e4;font-size:12px;text-align:center;box-shadow:0 8px 30px #0009}
+
+/* Compact icon actions for the mobile diagnostics spotlight. */
+.player-diagnostics-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:12px}
+.player-diagnostics-icon{width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;background:#26343d;color:#e9c04c;border:1px solid #42505b;border-radius:7px;cursor:pointer}
+.player-diagnostics-icon:hover,.player-diagnostics-icon:focus-visible{background:#344756;border-color:#e9c04c}
+.player-diagnostics-clear{color:#ff9b9b}
