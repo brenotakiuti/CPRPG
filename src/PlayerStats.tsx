@@ -3,11 +3,11 @@ import { ArrowLeft, ScanLine } from 'lucide-react';
 import './PlayerStats.css';
 
 const slots = [
- {id:'arms',label:'ARMS',name:'Arm Augmentation',description:'Cybernetic upper-limb enhancements for strength, dexterity, or integrated tools.',points:[[27,39],[73,39]]},
- {id:'legs',label:'LEGS',name:'Leg Augmentation',description:'Lower-limb reinforcements designed to improve mobility, stability, and jumping.',points:[[43,76],[57,76]]},
- {id:'spine',label:'SPINE',name:'Spinal Augmentation',description:'Implants along the spinal column for structural support and neural communication.',points:[[50,42]]},
- {id:'operating',label:'OPERATING SYSTEM',name:'Cybernetic Operating System',description:'A central neural processor that coordinates installed cyberware and advanced functions.',points:[[50,16]]},
- {id:'crotch',label:'CROTCH',name:'Pelvic Augmentation',description:'Specialized implants in the pelvic region; capabilities depend on the installed model.',points:[[50,58]]},
+ {id:'arms',label:'ARMS',name:'Arm Augmentation',description:'Cybernetic upper-limb enhancements for strength, dexterity, or integrated tools.',points:[[68,31]]},
+ {id:'legs',label:'LEGS',name:'Leg Augmentation',description:'Lower-limb reinforcements designed to improve mobility, stability, and jumping.',points:[[61,65]]},
+ {id:'spine',label:'SPINE',name:'Spinal Augmentation',description:'Implants along the spinal column for structural support and neural communication.',points:[[50,14]]},
+ {id:'operating',label:'OPERATING SYSTEM',name:'Cybernetic Operating System',description:'A central neural processor that coordinates installed cyberware and advanced functions.',points:[[50,6]]},
+ {id:'crotch',label:'CROTCH',name:'Pelvic Augmentation',description:'Specialized implants in the pelvic region; capabilities depend on the installed model.',points:[[50,46]]},
 ] as const;
 const attributes = [
  {name:'BODY',value:6,description:'Strength and endurance.'},
