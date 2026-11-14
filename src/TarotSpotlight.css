@@ -17,8 +17,8 @@
 .tarot-actions button:disabled{opacity:.45;cursor:default}
 @media(prefers-reduced-motion:reduce){.tarot-card-surface{transition-duration:.01ms}}
 
-.tarot-card-stage{cursor:pointer}
-.tarot-card-stage:focus-visible{outline:2px solid #e8bd4a;outline-offset:5px}
+.tarot-card-interactive{cursor:pointer}
+.tarot-card-interactive:focus-visible{outline:2px solid #e8bd4a;outline-offset:5px}
 
 .tarot-intro{font-size:20px;line-height:1.4;text-align:center;color:#f0e5cc}.tarot-tap{font-size:12px;letter-spacing:1.5px;color:#d6b36e;font-weight:700}
 
