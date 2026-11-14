@@ -4,6 +4,7 @@ import { supabase } from './supabase';
 import './LiveSession.css';
 import './DiceSpotlight.css';
 
+declare const __AD_BANNERS__: string[];
 const SIDES = [2, 6, 8, 10, 12, 20, 100] as const;
 const symbols = Array.from('アイウエオカキクケコサシスセソタナヌネノハヒフヘホマミムヤユヨラリルレロワヲン01');
 const random = (max: number) => Math.floor(Math.random() * max) + 1;
@@ -23,6 +24,7 @@ function generate(count: number, sides: number): Roll {
 export default function DiceSpotlight({ characterId, campaignId, onClose }: {
   characterId: string; campaignId: string | null; onClose: () => void;
 }) {
+  const [sponsor] = useState(() => __AD_BANNERS__.length ? __AD_BANNERS__[Math.floor(Math.random() * __AD_BANNERS__.length)] : null);
   const [sides, setSides] = useState(6);
   const [dice, setDice] = useState<DieState[]>([{ face: '?', style: 'idle' }]);
   const [sceneStyle, setSceneStyle] = useState('');
@@ -140,7 +142,7 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
   return <div className="dice-overlay" role="dialog" aria-modal="true" aria-label="Dice rolling spotlight">
     <section className="dice-scene">
       <header className="dice-heading">
-        <div><h2><Dices size={22}/> DICE ROLL</h2></div>
+        <div><span className="dice-eyebrow">NIGHT CITY // RANDOMIZER</span><h2><Dices size={22}/> DICE ROLL</h2></div>
       </header>
       <div className="dice-selector">
         <span>DICE TYPE</span>
@@ -157,8 +159,7 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
       {error && <p className="dice-error" role="alert">{error}</p>}
       <div className="dice-actions"><button className="dice-roll-action" type="button" onClick={() => void roll()} disabled={busy.current || !campaignId}>{phase === 'rolling' ? 'ROLLING...' : result ? 'ROLL AGAIN' : 'ROLL'}</button><button className="dice-close-action" type="button" onClick={onClose} disabled={busy.current}>Close</button></div>
       {!campaignId && <p className="dice-error">Waiting for campaign connection.</p>}
-      <p className="dice-note">Rolls appear in your history and the GM campaign log. Approval and sharing come later.</p>
-      <div className="dice-sponsor"><span className="dice-sponsor-label">SPONSORED BY</span><img src="/ads/kiroshi-optics.webp" alt="Kiroshi Optics — See more than reality" /></div>
+      {sponsor && <div className="dice-sponsor"><span className="dice-sponsor-label">SPONSORED BY</span><img src={sponsor} alt="Night City sponsor advertisement" /></div>}
     </section>
     {(sceneStyle === 'blackout' || sceneStyle === 'reboot') && <div className={'dice-screen-blackout ' + sceneStyle} aria-hidden="true" />}
   </div>;
