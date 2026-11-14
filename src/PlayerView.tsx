@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
-import { HeartPulse, Wallet, Dices, Crosshair, Swords, ArrowLeft, Utensils, BriefcaseMedical, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History, Bug, Copy, Info, AlertTriangle } from 'lucide-react';
+import { HeartPulse, Wallet, Dices, Crosshair, Swords, ArrowLeft, Utensils, BriefcaseMedical, UserRound, Backpack, Smartphone, Wifi, WifiOff, RadioTower, History, Bug, Copy, Info, AlertTriangle } from 'lucide-react';
 import './PlayerView.css';
 import { ArtworkZoomButton } from './ArtworkViewer';
 import PlayerLogs from './PlayerLogs';
 import PlayerSpotlights from './PlayerSpotlights';
+import DiceSpotlight from './DiceSpotlight';
 
 type PlayerCharacter = {
   id: string;
@@ -266,6 +267,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const [character, setCharacter] = useState<PlayerCharacter | null>(null);
   const inventoryData = usePlayerInventory(character?.id ?? null);
   const [body, setBody] = useState<number | null>(null);
+  const [diceOpen, setDiceOpen] = useState(false);
   type PlayerScreen = { inventory: boolean; selected: string | null; logs: boolean; diagnostics?: boolean };
   const screenKey = 'player-screen:' + (token ?? 'current');
   function restoreScreen(): PlayerScreen {
@@ -743,7 +745,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
               </section>
               <section className="player-card player-quick-card">
                 <div className="player-quick-label"><Dices size={18} aria-hidden="true" /> DICE</div>
-                <div className="player-dice-placeholder" aria-label="Dice rolling coming soon"><Dices size={17} aria-hidden="true" /> ROLL</div>
+                <button type="button" className="player-dice-placeholder" onClick={() => setDiceOpen(true)}><Dices size={17} aria-hidden="true" /> ROLL</button>
               </section>
             </div>
             <PlayerLoadout inventory={inventoryData} onInspect={id => openInventory(id)} onInventory={() => openInventory()} />
@@ -754,10 +756,6 @@ export default function PlayerView({ token }: PlayerViewProps) {
                 <button type="button" className="player-nav-tile" onClick={() => openInventory()} style={{ cursor: "pointer", font: "inherit" }}><Backpack size={24} aria-hidden="true" /><span>INVENTORY</span></button>
                 <div className="player-nav-tile"><Smartphone size={24} aria-hidden="true" /><span>PHONE</span></div>
               </div>
-            </section>
-            <section className="player-card player-events">
-              <h2><Bell size={18} aria-hidden="true" /> INCOMING EVENTS</h2>
-              <p>No new notifications</p>
             </section>
             <footer className="player-footer"><span className={connected ? "player-online" : "player-offline"}>{connected ? <Wifi size={14} aria-hidden="true" /> : <WifiOff size={14} aria-hidden="true" />}{connected ? "CONNECTED" : "DISCONNECTED"}</span><span>PLAYER TERMINAL</span></footer>
           </div>
