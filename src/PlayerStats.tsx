@@ -18,18 +18,16 @@ const attributes = [
 ];
 export default function PlayerStats({onBack}:{onBack:()=>void}) {
  const [selected,setSelected]=useState<string|null>(null);
- const [attribute,setAttribute]=useState<string|null>(null);
- const [view,setView]=useState<'map'|'list'>('map');
+  const [view,setView]=useState<'map'|'list'>('map');
  const active=slots.find(s=>s.id===selected);
  const zoom = active ? (active.id === 'legs' ? 2.65 : active.id === 'arms' ? 2.7 : active.id === 'crotch' ? 2.8 : 3.2) : 1;
  const [focusX,focusY] = active?.points[0] ?? [50,50];
  const zoomStyle = {transform: `translate(${(50-focusX)*zoom}%, ${(50-focusY)*zoom}%) scale(${zoom})`};
- const selectSlot = (id:string) => { setSelected(id); setView('map'); };
+ const selectSlot = (id:string) => { setSelected(id); };
  return <section className="ps-page" aria-label="Character stats">
   <header className="ps-header"><button type="button" onClick={onBack}><ArrowLeft size={17}/> Back</button><div><small>PERSONAL PROFILE // NIGHT CITY</small><h2>CHARACTER STATS</h2></div><ScanLine size={22}/></header>
   <section className="ps-panel"><div className="ps-heading"><strong>ATTRIBUTES</strong><small>DEMO VALUES</small></div>
-   <div className="ps-attributes">{attributes.map(a=><button type="button" key={a.name} aria-pressed={attribute===a.name} className={attribute===a.name?'selected':''} onClick={()=>setAttribute(attribute===a.name?null:a.name)}><span>{a.name}</span><strong>{a.value}</strong></button>)}</div>
-   {attribute&&<p className="ps-attribute-detail">{attribute}: {attributes.find(a=>a.name===attribute)?.description}</p>}
+   <div className="ps-attributes">{attributes.map(a=><div className="ps-attribute-tile" key={a.name}><span>{a.name}</span><strong>{a.value}</strong></div>)}</div>
   </section>
   <section className="ps-panel"><div className="ps-heading"><strong>CYBERWARE // INSTALLED</strong><small>DEMO SLOTS</small></div>
    <div className="ps-tabs"><button type="button" className={view==='map'?'active':''} aria-pressed={view==='map'} onClick={()=>setView('map')}>BODY MAP</button><button type="button" className={view==='list'?'active':''} aria-pressed={view==='list'} onClick={()=>setView('list')}>LIST</button></div>
