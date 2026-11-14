@@ -6,6 +6,7 @@ import { ArtworkZoomButton } from './ArtworkViewer';
 import PlayerLogs from './PlayerLogs';
 import PlayerSpotlights from './PlayerSpotlights';
 import DiceSpotlight from './DiceSpotlight';
+import PlayerStats from './PlayerStats';
 
 type PlayerCharacter = {
   id: string;
@@ -268,16 +269,17 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const inventoryData = usePlayerInventory(character?.id ?? null);
   const [body, setBody] = useState<number | null>(null);
   const [diceOpen, setDiceOpen] = useState(false);
-  type PlayerScreen = { inventory: boolean; selected: string | null; logs: boolean; diagnostics?: boolean };
+  type PlayerScreen = { inventory: boolean; selected: string | null; logs: boolean; stats?: boolean; diagnostics?: boolean };
   const screenKey = 'player-screen:' + (token ?? 'current');
   function restoreScreen(): PlayerScreen {
     try {
       const value = JSON.parse(sessionStorage.getItem(screenKey) || 'null');
-      return { inventory: value?.inventory === true, selected: typeof value?.selected === 'string' ? value.selected : null, logs: value?.logs === true, diagnostics: value?.diagnostics === true };
+      return { inventory: value?.inventory === true, selected: typeof value?.selected === 'string' ? value.selected : null, logs: value?.logs === true, stats: value?.stats === true, diagnostics: value?.diagnostics === true };
     } catch { return { inventory: false, selected: null, logs: false, diagnostics: false }; }
   }
   const [initialScreen] = useState(restoreScreen);
   const [logsOpen, setLogsOpen] = useState(initialScreen.logs);
+  const [statsOpen, setStatsOpen] = useState(initialScreen.stats === true);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(initialScreen.diagnostics === true);
   const [inventoryOpen, setInventoryOpen] = useState(initialScreen.inventory);
   const [inventorySelection, setInventorySelection] = useState<string | null>(initialScreen.selected);
@@ -292,12 +294,13 @@ export default function PlayerView({ token }: PlayerViewProps) {
     setInventoryOpen(next.inventory);
     setInventorySelection(next.selected);
     setLogsOpen(next.logs);
+    setStatsOpen(next.stats === true);
     setDiagnosticsOpen(next.diagnostics === true);
     if (next.inventory) setInventoryVisited(true);
     if (next.logs) setLogsVisited(true);
   }
   function goBack() {
-    if (navRef.current.logs || navRef.current.diagnostics || navRef.current.selected || navRef.current.inventory) window.history.back();
+    if (navRef.current.logs || navRef.current.diagnostics || navRef.current.stats || navRef.current.selected || navRef.current.inventory) window.history.back();
   }
   useEffect(() => {
     window.history.replaceState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: navRef.current }, '');
@@ -310,6 +313,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       setInventoryOpen(next.inventory);
       setInventorySelection(next.selected);
       setLogsOpen(next.logs);
+      setStatsOpen(next.stats === true);
       setDiagnosticsOpen(next.diagnostics === true);
       if (next.inventory) setInventoryVisited(true);
       if (next.logs) setLogsVisited(true);
@@ -731,9 +735,10 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <h1>{character?.name ?? 'PLAYER TERMINAL'}</h1>
           <p>CHARACTER DASHBOARD</p>
         </header>
-        {!diagnosticsOpen && character && inventoryVisited && <div style={{ display: inventoryOpen ? undefined : 'none' }}><PlayerInventory inventory={inventoryData} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
+        {!diagnosticsOpen && character && statsOpen && <PlayerStats onBack={goBack} />}
+        {!diagnosticsOpen && character && inventoryVisited && <div style={{ display: inventoryOpen && !statsOpen ? undefined : 'none' }}><PlayerInventory inventory={inventoryData} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
         {!diagnosticsOpen && character ? (
-          <div style={{ display: inventoryOpen ? 'none' : 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: inventoryOpen || statsOpen ? 'none' : 'flex', flexDirection: 'column', gap: 12 }}>
             <section className="player-card player-health" aria-label="Character health">
               <div className="player-section-heading"><span><HeartPulse size={19} aria-hidden="true" /> HEALTH</span><strong>{hp !== null && maximum !== null ? `${hp} / ${maximum} HP` : 'HP unavailable'}</strong></div>
               <div className="player-hp-track" role="progressbar" aria-label="HP" aria-valuemin={0} aria-valuemax={maximum ?? 100} aria-valuenow={hp ?? 0}>
@@ -755,7 +760,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
             <section className="player-card player-navigation">
               <h2>CHARACTER <span>›</span></h2>
               <div className="player-nav-grid">
-                <div className="player-nav-tile"><UserRound size={24} aria-hidden="true" /><span>STATS</span></div>
+                <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, stats: true })} style={{ cursor: "pointer", font: "inherit" }}><UserRound size={24} aria-hidden="true" /><span>STATS</span></button>
                 <button type="button" className="player-nav-tile" onClick={() => openInventory()} style={{ cursor: "pointer", font: "inherit" }}><Backpack size={24} aria-hidden="true" /><span>INVENTORY</span></button>
                 <div className="player-nav-tile"><Smartphone size={24} aria-hidden="true" /><span>PHONE</span></div>
               </div>
