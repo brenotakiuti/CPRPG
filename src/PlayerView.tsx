@@ -391,7 +391,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
         if (/^(?:(?:TAROT REVEALED|TAROT CARD|FORTUNE REVEALED):|HEALTH [+-]\\d+ HP$)/i.test(event.message.trim())) return;
         // Dice results are history-only until the GM explicitly approves a broadcast.
         // Check the stable UNAPPROVED marker as well as the roll wording.
-        if (/\\[UNAPPROVED\\]/i.test(event.message) || /\\bROLLED\\s+\\d*D\\d+\\b/i.test(event.message)) return;
+        if (/\[UNAPPROVED\]/i.test(event.message) || /\bROLLED\s+\d*D\d+\b/i.test(event.message)) return;
         const text = event.message.trim().replace(/\s+/g, ' ');
         hudQueue.current.push({
           id: typeof event.id === 'string' ? event.id : crypto.randomUUID(),
