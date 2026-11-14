@@ -36,9 +36,9 @@ create policy dice_rolls_player_select on public.dice_rolls
   );
 -- No client UPDATE or DELETE policies: outcomes cannot be rewritten.
 
--- Atomic player roll recording. SECURITY DEFINER validates ownership explicitly,
--- writes the structured result and a GM-only campaign log in one transaction.
--- GM-audience events must have NULL character_id under recipient constraint.
+-- Player dice rolls use the existing campaign event log as their source of truth.
+-- Character audience makes the entry visible to the player and GM, but not
+-- to other players; the GM will approve/broadcast rolls in a future phase.
 create or replace function public.record_player_dice_roll(
   p_character_id uuid,
   p_campaign_id uuid,
@@ -50,7 +50,7 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_roll_id uuid;
+  v_event_id uuid;
   v_count integer;
   v_total integer;
   v_name text;
@@ -69,14 +69,12 @@ begin
     raise exception 'Invalid die result';
   end if;
   select sum(v) into v_total from unnest(p_results) v;
-  insert into public.dice_rolls(campaign_id,character_id,dice_count,dice_sides,results,total)
-  values(p_campaign_id,p_character_id,v_count,p_dice_sides,p_results,v_total)
-  returning id into v_roll_id;
   insert into public.campaign_events(campaign_id,character_id,audience,category,message)
-  values(p_campaign_id,null,'gm','system',
+  values(p_campaign_id,p_character_id,'character','system',
     v_name || ' ROLLED ' || v_count || 'D' || p_dice_sides || ' → ' ||
-    array_to_string(p_results, ' + ') || ' = ' || v_total || ' [UNAPPROVED]');
-  return v_roll_id;
+    array_to_string(p_results, ' + ') || ' = ' || v_total || ' [UNAPPROVED]')
+  returning id into v_event_id;
+  return v_event_id;
 end;
 $$;
 revoke all on function public.record_player_dice_roll(uuid,uuid,integer,integer[]) from public;
