@@ -165,7 +165,7 @@ export default function DiceSpotlight({ characterId, characterName, campaignId, 
       {error && <p className="dice-error" role="alert">{error}</p>}
       <button className="dice-roll-action" type="button" onClick={() => void roll()} disabled={busy.current || !campaignId}>{phase === 'rolling' ? 'ROLLING...' : result ? 'ROLL AGAIN' : 'ROLL'}</button>
       {!campaignId && <p className="dice-error">Waiting for campaign connection.</p>}
-      <p className="dice-note">Rolls are recorded in the GM campaign log. Shared animations and approval come later.</p>
+      <p className="dice-note">Rolls appear in your history and the GM campaign log. Approval and sharing come later.</p>
     </section>
   </div>;
 }
