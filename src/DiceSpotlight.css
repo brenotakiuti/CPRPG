@@ -16,3 +16,15 @@
 .dice-scene .live-dice-status{font-size:12px;text-align:center;overflow-wrap:anywhere}
 .dice-scene .live-dice-scene.blackout{visibility:hidden}
 .dice-scene .live-dice-scene.reboot{animation:ls-reboot .8s steps(1) both}
+
+/* Keep the one-die spotlight stable throughout every animation phase. */
+.dice-overlay{box-sizing:border-box;overflow:hidden;padding:clamp(6px,2dvh,12px)}
+.dice-scene{box-sizing:border-box;width:min(100%,500px);max-height:calc(100dvh - 12px);overflow:hidden;gap:clamp(6px,1.5dvh,15px);padding:clamp(10px,2dvh,20px)}
+.dice-scene .dice-arena.live-dice-scene{box-sizing:border-box;flex:1 1 auto;min-height:0;height:clamp(170px,34dvh,260px);overflow:hidden;gap:clamp(6px,1.5dvh,12px);padding:8px}
+.dice-scene .dice-tray{flex:1 1 auto;min-height:0;width:100%;overflow:hidden;flex-wrap:nowrap}
+.dice-scene .live-die{width:clamp(64px,16dvh,108px);height:clamp(64px,16dvh,108px)}
+.dice-scene .live-dice-status{height:2.5em;min-height:2.5em;display:flex;align-items:center;justify-content:center}
+.dice-scene .dice-types{flex-wrap:nowrap;gap:clamp(3px,1vw,7px)}
+.dice-scene .dice-types button{flex:1 1 0;min-width:0;padding:clamp(5px,1.5vw,10px) 2px;font-size:clamp(10px,2.8vw,14px)}
+.dice-scene .dice-note{font-size:10px}
+@media(max-height:540px){.dice-scene{gap:5px;padding:8px}.dice-heading h2{font-size:18px;margin-top:2px}.dice-scene .dice-arena.live-dice-scene{height:130px;min-height:110px}.dice-scene .live-die{width:70px;height:70px}.dice-roll-action{padding:9px}.dice-character,.dice-note{font-size:10px}}
