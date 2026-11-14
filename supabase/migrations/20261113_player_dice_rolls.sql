@@ -38,6 +38,7 @@ create policy dice_rolls_player_select on public.dice_rolls
 
 -- Atomic player roll recording. SECURITY DEFINER validates ownership explicitly,
 -- writes the structured result and a GM-only campaign log in one transaction.
+-- GM-audience events must have NULL character_id under recipient constraint.
 create or replace function public.record_player_dice_roll(
   p_character_id uuid,
   p_campaign_id uuid,
@@ -72,7 +73,7 @@ begin
   values(p_campaign_id,p_character_id,v_count,p_dice_sides,p_results,v_total)
   returning id into v_roll_id;
   insert into public.campaign_events(campaign_id,character_id,audience,category,message)
-  values(p_campaign_id,p_character_id,'gm','system',
+  values(p_campaign_id,null,'gm','system',
     v_name || ' ROLLED ' || v_count || 'D' || p_dice_sides || ' → ' ||
     array_to_string(p_results, ' + ') || ' = ' || v_total || ' [UNAPPROVED]');
   return v_roll_id;
