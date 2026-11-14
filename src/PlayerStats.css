@@ -7,3 +7,16 @@
 .ps-panel:first-of-type{padding:9px 12px}
 .ps-panel:first-of-type .ps-heading{margin-bottom:7px}
 @media(max-width:380px){.ps-attributes button{padding:6px}.ps-attributes span{font-size:8px}.ps-attributes strong{font-size:19px}}
+
+/* Animated cyberware scanner: image and hotspots share one transform. */
+.ps-scan-viewport{position:relative;overflow:hidden;width:100%}
+.ps-scan-layer{position:relative;width:100%;transform-origin:50% 50%;transition:transform 650ms cubic-bezier(.22,1,.36,1);will-change:transform}
+.ps-scan-layer img{width:100%;height:auto;display:block}
+.ps-zoom-back{position:absolute;top:7px;left:7px;z-index:3;display:flex;align-items:center;gap:4px;padding:6px 8px;background:#101a26e8;border:1px solid #e8bd4a;border-radius:4px;color:#e8bd4a;font-size:9px!important;font-weight:700!important}
+.ps-slot-entry{min-width:0}
+.ps-slot-entry>button{width:100%}
+.ps-inline-detail{overflow:hidden;background:#101a26;border:1px solid #405268;border-top:0;border-radius:0 0 5px 5px;padding:9px;animation:ps-detail-enter 400ms ease-out both}
+.ps-inline-detail p{font-size:11px;line-height:1.5;color:#bdcbd7;margin:0 0 8px}
+.ps-inline-detail small{font-size:9px;color:#8996a5}
+@keyframes ps-detail-enter{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.ps-scan-layer{transition:none}.ps-inline-detail{animation:none}}
