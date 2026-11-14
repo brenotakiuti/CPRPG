@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 import './LiveSession.css';
 import './DiceSpotlight.css';
 
-const SIDES = [4, 6, 8, 10, 12, 20, 100] as const;
+const SIDES = [2, 6, 8, 10, 12, 20, 100] as const;
 const symbols = Array.from('アイウエオカキクケコサシスセソタナヌネノハヒフヘホマミムヤユヨラリルレロワヲン01');
 const random = (max: number) => Math.floor(Math.random() * max) + 1;
 const symbol = () => symbols[Math.floor(Math.random() * symbols.length)];
@@ -16,12 +16,12 @@ function generate(count: number, sides: number): Roll {
     const buffer = new Uint32Array(1);
     const limit = Math.floor(4294967296 / sides) * sides;
     do { crypto.getRandomValues(buffer); } while (buffer[0] >= limit);
-    return buffer[0] % sides + 1;
+    return buffer[0] % sides + (sides === 2 ? 0 : 1);
   });
   return { values, total: values.reduce((a,b) => a+b, 0), count, sides };
 }
-export default function DiceSpotlight({ characterId, characterName, campaignId, onClose }: {
-  characterId: string; characterName: string; campaignId: string | null; onClose: () => void;
+export default function DiceSpotlight({ characterId, campaignId, onClose }: {
+  characterId: string; campaignId: string | null; onClose: () => void;
 }) {
   const [sides, setSides] = useState(6);
   const [dice, setDice] = useState<DieState[]>([{ face: '?', style: 'idle' }]);
@@ -114,9 +114,18 @@ export default function DiceSpotlight({ characterId, characterName, campaignId, 
     setPhase('rolling');
     setSceneStyle('');
     setDice(next.values.map(() => ({ face: '?', style: 'rolling' })));
-    const effect: Exclude<Effect, 'random'> = (['normal','normal','normal','jam','blackout','matrix'] as const)[Math.floor(Math.random() * 6)];
+    const effect: Effect = (['normal','normal','normal','jam','blackout','matrix'] as const)[Math.floor(Math.random() * 6)];
     let finished = 0;
     next.values.forEach((value, index) => {
+      if (sides === 2) {
+        later(() => {
+          updateDie(index, { face: String(value), style: 'coin-final' });
+          setResult(next);
+          setPhase('revealed');
+          busy.current = false;
+        }, 1700);
+        return;
+      }
       animateDie(index, value, effect, () => {
         finished++;
         if (finished === next.values.length) {
@@ -133,15 +142,14 @@ export default function DiceSpotlight({ characterId, characterName, campaignId, 
       <header className="dice-heading">
         <div><span className="dice-eyebrow">NIGHT CITY // RANDOMIZER</span><h2><Dices size={22}/> DICE ROLL</h2></div>
       </header>
-      <div className="dice-character">{characterName}</div>
       <div className="dice-selector">
         <span>DICE TYPE</span>
         <div className="dice-types">{SIDES.map(n => <button key={n} type="button" className={sides === n ? 'selected' : ''} disabled={busy.current} onClick={() => { setSides(n); reset(); }}>d{n}</button>)}</div>
       </div>
       <div className={'dice-arena live-dice-scene ' + sceneStyle}>
         <div className="dice-spec">D{sides}</div>
-        <div className="dice-tray">{dice.map((die, index) => <button key={index} type="button" className={'live-die ' + die.style} disabled={busy.current} onClick={() => void roll()} aria-label={'Roll die ' + (index + 1)}>
-          <svg viewBox="0 0 200 200" aria-hidden="true"><polygon className="live-die-outline" points="100,8 178,66 148,170 52,170 22,66"/></svg>
+        <div className="dice-tray">{dice.map((die, index) => <button key={index} type="button" className={sides === 2 ? 'dice-coin ' + (phase === 'rolling' ? 'coin-flipping' : die.style) : 'live-die ' + die.style} disabled={busy.current} onClick={() => void roll()} aria-label={'Roll die ' + (index + 1)}>
+          {sides === 2 ? <span className="dice-coin-rim" aria-hidden="true" /> : <svg viewBox="0 0 200 200" aria-hidden="true"><polygon className="live-die-outline" points="100,8 178,66 148,170 52,170 22,66"/></svg>}
           <span className="live-die-face" data-number={die.face}>{die.face}</span>
         </button>)}</div>
         <div className="live-dice-status">{phase === 'ready' ? 'TAP THE DIE TO ROLL' : phase === 'rolling' ? 'ROLLING…' : 'RESULT: ' + result?.values.join(' + ')}</div>
