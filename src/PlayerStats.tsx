@@ -17,10 +17,14 @@ const attributes = [
  {name:'COOL',value:5,description:'Composure under pressure.'},
 ];
 export default function PlayerStats({onBack}:{onBack:()=>void}) {
- const [selected,setSelected]=useState<string>('arms');
+ const [selected,setSelected]=useState<string|null>(null);
  const [attribute,setAttribute]=useState<string|null>(null);
  const [view,setView]=useState<'map'|'list'>('map');
- const active=slots.find(s=>s.id===selected) ?? slots[0];
+ const active=slots.find(s=>s.id===selected);
+ const zoom = active ? (active.id === 'legs' ? 2.65 : active.id === 'arms' ? 2.7 : active.id === 'crotch' ? 2.8 : 3.2) : 1;
+ const [focusX,focusY] = active?.points[0] ?? [50,50];
+ const zoomStyle = {transform: `translate(${(50-focusX)*zoom}%, ${(50-focusY)*zoom}%) scale(${zoom})`};
+ const selectSlot = (id:string) => { setSelected(id); setView('map'); };
  return <section className="ps-page" aria-label="Character stats">
   <header className="ps-header"><button type="button" onClick={onBack}><ArrowLeft size={17}/> Back</button><div><small>PERSONAL PROFILE // NIGHT CITY</small><h2>CHARACTER STATS</h2></div><ScanLine size={22}/></header>
   <section className="ps-panel"><div className="ps-heading"><strong>ATTRIBUTES</strong><small>DEMO VALUES</small></div>
@@ -30,10 +34,18 @@ export default function PlayerStats({onBack}:{onBack:()=>void}) {
   <section className="ps-panel"><div className="ps-heading"><strong>CYBERWARE // INSTALLED</strong><small>DEMO SLOTS</small></div>
    <div className="ps-tabs"><button type="button" className={view==='map'?'active':''} aria-pressed={view==='map'} onClick={()=>setView('map')}>BODY MAP</button><button type="button" className={view==='list'?'active':''} aria-pressed={view==='list'} onClick={()=>setView('list')}>LIST</button></div>
    <div className={'ps-layout '+(view==='list'?'ps-list-only':'')}>
-    {view==='map'&&<div className="ps-body"><img src="/cyberware/cyberware-anatomical-scan.webp" alt="Cybernetic anatomical illustration"/>{slots.flatMap(s=>s.points.map(([x,y],i)=><button type="button" key={s.id+i} className={'ps-marker '+(selected===s.id?'active':'')} style={{left:x+'%',top:y+'%'}} title={s.label} aria-label={'Select '+s.label} onClick={()=>setSelected(s.id)}/>))}<div className="ps-scan-label">ANATOMICAL SCAN</div></div>}
-    <div className="ps-slots">{slots.map(s=><button type="button" key={s.id} aria-pressed={selected===s.id} className={selected===s.id?'selected':''} onClick={()=>setSelected(s.id)}><span>{s.label}</span><strong>{s.name}</strong></button>)}</div>
+    {view==='map'&&<div className="ps-body">
+     <div className="ps-scan-viewport"><div className="ps-scan-layer" style={zoomStyle}>
+      <img src="/cyberware/cyberware-anatomical-scan.webp" alt="Cybernetic anatomical illustration"/>
+      {slots.flatMap(s=>s.points.map(([x,y],i)=><button type="button" key={s.id+i} className={'ps-marker '+(selected===s.id?'active':'')} style={{left:x+'%',top:y+'%'}} title={s.label} aria-label={'Select '+s.label} onClick={()=>selectSlot(s.id)}/>))}
+     </div>{active&&<button type="button" className="ps-zoom-back" onClick={()=>setSelected(null)}><ArrowLeft size={13}/> FULL BODY</button>}</div>
+     <div className="ps-scan-label">{active?'FOCUSED SCAN // '+active.label:'ANATOMICAL SCAN'}</div>
+    </div>}
+    <div className="ps-slots">{slots.map(s=><div key={s.id} className="ps-slot-entry">
+     <button type="button" aria-pressed={selected===s.id} className={selected===s.id?'selected':''} onClick={()=>selectSlot(s.id)}><span>{s.label}</span><strong>{s.name}</strong></button>
+     {selected===s.id&&<div className="ps-inline-detail" aria-live="polite"><p>{s.description}</p><small>PLACEHOLDER // No cyberware is installed or modified.</small></div>}
+    </div>)}</div>
    </div>
-   <div className="ps-detail" aria-live="polite"><div><strong>{active.name}</strong><small>PLACEHOLDER</small></div><p>{active.description}</p><small>Preview only — no cyberware is installed or modified.</small></div>
   </section>
   <button type="button" className="ps-close" onClick={onBack}>CLOSE</button>
  </section>;
