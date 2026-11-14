@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Dices, X } from 'lucide-react';
+import { Dices } from 'lucide-react';
 import { supabase } from './supabase';
 import './LiveSession.css';
 import './DiceSpotlight.css';
@@ -132,7 +132,6 @@ export default function DiceSpotlight({ characterId, characterName, campaignId, 
     <section className="dice-scene">
       <header className="dice-heading">
         <div><span className="dice-eyebrow">NIGHT CITY // RANDOMIZER</span><h2><Dices size={22}/> DICE ROLL</h2></div>
-        <button type="button" onClick={onClose} disabled={busy.current} aria-label="Close dice spotlight"><X size={22}/></button>
       </header>
       <div className="dice-character">{characterName}</div>
       <div className="dice-selector">
@@ -148,9 +147,10 @@ export default function DiceSpotlight({ characterId, characterName, campaignId, 
         <div className="live-dice-status">{phase === 'ready' ? 'TAP THE DIE TO ROLL' : phase === 'rolling' ? 'ROLLING…' : 'RESULT: ' + result?.values.join(' + ')}</div>
       </div>
       {error && <p className="dice-error" role="alert">{error}</p>}
-      <button className="dice-roll-action" type="button" onClick={() => void roll()} disabled={busy.current || !campaignId}>{phase === 'rolling' ? 'ROLLING...' : result ? 'ROLL AGAIN' : 'ROLL'}</button>
+      <div className="dice-actions"><button className="dice-roll-action" type="button" onClick={() => void roll()} disabled={busy.current || !campaignId}>{phase === 'rolling' ? 'ROLLING...' : result ? 'ROLL AGAIN' : 'ROLL'}</button><button className="dice-close-action" type="button" onClick={onClose} disabled={busy.current}>Close</button></div>
       {!campaignId && <p className="dice-error">Waiting for campaign connection.</p>}
       <p className="dice-note">Rolls appear in your history and the GM campaign log. Approval and sharing come later.</p>
+      <div className="dice-sponsor-placeholder" aria-label="Future sponsor banner" />
     </section>
   </div>;
 }
