@@ -14,8 +14,6 @@
 .dice-scene .live-die{width:clamp(64px,18vw,108px);height:clamp(64px,18vw,108px);flex:none}
 .dice-scene .live-die-face{font-size:clamp(24px,7vw,40px);min-width:0}
 .dice-scene .live-dice-status{font-size:12px;text-align:center;overflow-wrap:anywhere}
-.dice-scene .live-dice-scene.blackout{visibility:hidden}
-.dice-scene .live-dice-scene.reboot{animation:ls-reboot .8s steps(1) both}
 
 /* Keep the one-die spotlight stable throughout every animation phase. */
 .dice-overlay{box-sizing:border-box;overflow:hidden;padding:clamp(6px,2dvh,12px)}
@@ -52,3 +50,8 @@
 @keyframes dice-coin-settle{from{transform:scale(1.08)}to{transform:scale(1)}}
 @media(max-height:540px){.dice-scene .dice-coin{width:70px;height:70px}.dice-scene .dice-types button{padding:8px 2px}}
 @media(prefers-reduced-motion:reduce){.dice-scene .dice-coin.coin-flipping{animation:none}}
+
+/* Blackout and reboot now affect the full viewport, not just the die. */
+.dice-screen-blackout{position:fixed;inset:0;width:100vw;height:100dvh;z-index:20000;background:#000;pointer-events:none}
+.dice-screen-blackout.reboot{animation:dice-fullscreen-reboot .8s steps(1,end) both}
+@keyframes dice-fullscreen-reboot{0%,15%,28%,45%,62%{opacity:1}8%,22%,36%,53%,72%,100%{opacity:0}}
