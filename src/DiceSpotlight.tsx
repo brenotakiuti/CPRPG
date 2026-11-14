@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Dices, X, Minus, Plus } from 'lucide-react';
+import { Dices, X } from 'lucide-react';
 import { supabase } from './supabase';
 import './LiveSession.css';
 import './DiceSpotlight.css';
@@ -8,7 +8,7 @@ const SIDES = [4, 6, 8, 10, 12, 20, 100] as const;
 const symbols = Array.from('アイウエオカキクケコサシスセソタナヌネノハヒフヘホマミムヤユヨラリルレロワヲン01');
 const random = (max: number) => Math.floor(Math.random() * max) + 1;
 const symbol = () => symbols[Math.floor(Math.random() * symbols.length)];
-type Effect = 'random' | 'normal' | 'jam' | 'blackout' | 'matrix';
+type Effect = 'normal' | 'jam' | 'blackout' | 'matrix';
 type DieState = { face: string; style: string };
 type Roll = { values: number[]; total: number; count: number; sides: number };
 function generate(count: number, sides: number): Roll {
@@ -24,8 +24,6 @@ export default function DiceSpotlight({ characterId, characterName, campaignId, 
   characterId: string; characterName: string; campaignId: string | null; onClose: () => void;
 }) {
   const [sides, setSides] = useState(6);
-  const [count, setCount] = useState(1);
-  const [mode, setMode] = useState<Effect>('random');
   const [dice, setDice] = useState<DieState[]>([{ face: '?', style: 'idle' }]);
   const [sceneStyle, setSceneStyle] = useState('');
   const [phase, setPhase] = useState<'ready' | 'rolling' | 'revealed'>('ready');
@@ -37,9 +35,9 @@ export default function DiceSpotlight({ characterId, characterName, campaignId, 
   const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = []; };
   useEffect(() => () => clearTimers(), []);
 
-  function reset(nextCount: number) {
+  function reset() {
     clearTimers();
-    setDice(Array.from({ length: nextCount }, () => ({ face: '?', style: 'idle' })));
+    setDice([{ face: '?', style: 'idle' }]);
     setSceneStyle('');
     setResult(null);
     setPhase('ready');
@@ -47,7 +45,7 @@ export default function DiceSpotlight({ characterId, characterName, campaignId, 
   function updateDie(index: number, patch: Partial<DieState>) {
     setDice(previous => previous.map((die, i) => i === index ? { ...die, ...patch } : die));
   }
-  function animateDie(index: number, target: number, effect: Exclude<Effect, 'random'>, done: () => void) {
+  function animateDie(index: number, target: number, effect: Effect, done: () => void) {
     const frames = 6 + random(5);
     const jamStart = effect === 'jam' ? Math.floor(Math.random() * (frames + 1)) : -1;
     const matrixStart = effect === 'matrix' ? 2 + Math.floor(Math.random() * Math.max(1, frames - 3)) : -1;
@@ -100,7 +98,7 @@ export default function DiceSpotlight({ characterId, characterName, campaignId, 
     if (busy.current || !campaignId) return;
     busy.current = true;
     setError('');
-    const next = generate(count, sides);
+    const next = generate(1, sides);
     // One database transaction saves the structured roll and GM-visible history.
     const { error: saveError } = await supabase.rpc('record_player_dice_roll', {
       p_character_id: characterId, p_campaign_id: campaignId,
@@ -116,9 +114,7 @@ export default function DiceSpotlight({ characterId, characterName, campaignId, 
     setPhase('rolling');
     setSceneStyle('');
     setDice(next.values.map(() => ({ face: '?', style: 'rolling' })));
-    const effect: Exclude<Effect, 'random'> = mode === 'random'
-      ? (['normal','normal','normal','jam','blackout','matrix'] as const)[Math.floor(Math.random() * 6)]
-      : mode;
+    const effect: Exclude<Effect, 'random'> = (['normal','normal','normal','jam','blackout','matrix'] as const)[Math.floor(Math.random() * 6)];
     let finished = 0;
     next.values.forEach((value, index) => {
       animateDie(index, value, effect, () => {
@@ -141,26 +137,15 @@ export default function DiceSpotlight({ characterId, characterName, campaignId, 
       <div className="dice-character">{characterName}</div>
       <div className="dice-selector">
         <span>DICE TYPE</span>
-        <div className="dice-types">{SIDES.map(n => <button key={n} type="button" className={sides === n ? 'selected' : ''} disabled={busy.current} onClick={() => { setSides(n); reset(count); }}>d{n}</button>)}</div>
-        <span>QUANTITY</span>
-        <div className="dice-quantity">
-          <button type="button" aria-label="Remove one die" disabled={count <= 1 || busy.current} onClick={() => { setCount(n => n - 1); reset(count - 1); }}><Minus size={18}/></button>
-          <strong>{count}</strong>
-          <button type="button" aria-label="Add one die" disabled={count >= 20 || busy.current} onClick={() => { setCount(n => n + 1); reset(count + 1); }}><Plus size={18}/></button>
-        </div>
-        <span>ANIMATION</span>
-        <select className="dice-effect" aria-label="Dice animation" value={mode} disabled={busy.current} onChange={e => setMode(e.target.value as Effect)}>
-          <option value="random">Random effects</option><option value="normal">Normal Roll</option><option value="jam">Signal Jam</option><option value="blackout">System Blackout</option><option value="matrix">Matrix Decode</option>
-        </select>
+        <div className="dice-types">{SIDES.map(n => <button key={n} type="button" className={sides === n ? 'selected' : ''} disabled={busy.current} onClick={() => { setSides(n); reset(); }}>d{n}</button>)}</div>
       </div>
       <div className={'dice-arena live-dice-scene ' + sceneStyle}>
-        <div className="dice-spec">{count}d{sides}</div>
+        <div className="dice-spec">D{sides}</div>
         <div className="dice-tray">{dice.map((die, index) => <button key={index} type="button" className={'live-die ' + die.style} disabled={busy.current} onClick={() => void roll()} aria-label={'Roll die ' + (index + 1)}>
           <svg viewBox="0 0 200 200" aria-hidden="true"><polygon className="live-die-outline" points="100,8 178,66 148,170 52,170 22,66"/></svg>
           <span className="live-die-face" data-number={die.face}>{die.face}</span>
         </button>)}</div>
         <div className="live-dice-status">{phase === 'ready' ? 'TAP THE DIE TO ROLL' : phase === 'rolling' ? 'ROLLING…' : 'RESULT: ' + result?.values.join(' + ')}</div>
-        {result && <div className="dice-total">TOTAL <strong>{result.total}</strong></div>}
       </div>
       {error && <p className="dice-error" role="alert">{error}</p>}
       <button className="dice-roll-action" type="button" onClick={() => void roll()} disabled={busy.current || !campaignId}>{phase === 'rolling' ? 'ROLLING...' : result ? 'ROLL AGAIN' : 'ROLL'}</button>
