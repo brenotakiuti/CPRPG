@@ -788,6 +788,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <footer className="player-logs-footer"><span>{diagnostics.length} entries stored on this device</span><button type="button" onClick={goBack}>Close</button></footer>
         </section>
       </div>}
+      {diceOpen && character && !diagnosticsOpen && <DiceSpotlight characterId={character.id} characterName={character.name} campaignId={feedCampaignId} onClose={() => setDiceOpen(false)} />}
       {!diagnosticsOpen && character && feedCampaignId && <PlayerSpotlights campaignId={feedCampaignId} characterId={character.id} />}
       {!diagnosticsOpen && logsVisited && character && feedCampaignId && <div style={{ display: logsOpen ? undefined : 'none' }}><PlayerLogs campaignId={feedCampaignId} characterId={character.id} onClose={goBack} /></div>}
     </main>
