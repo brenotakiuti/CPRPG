@@ -1,0 +1,57 @@
+.dice-overlay{position:fixed;inset:0;z-index:1100;display:flex;align-items:center;justify-content:center;background:rgba(2,4,10,.95);color:#f0e5cc;padding:12px}
+.dice-scene{width:min(100%,500px);max-height:100dvh;overflow-y:auto;border:1px solid #aa843d;border-radius:12px;background:linear-gradient(160deg,#141d29,#080c13);box-shadow:0 0 55px #d2a94422;padding:20px;display:flex;flex-direction:column;gap:15px;font-family:inherit}
+.dice-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.dice-heading h2{display:flex;align-items:center;gap:9px;margin:7px 0 0;color:#e8bd4a;font-size:23px}.dice-eyebrow{color:#8e9bab;font-size:10px;letter-spacing:2px}.dice-heading>button{background:transparent;color:#e8bd4a;border:1px solid #536073;border-radius:6px;padding:8px;cursor:pointer}.dice-heading>button:disabled{opacity:.4}
+.dice-character{color:#aebbc8;font-size:13px}.dice-selector{display:flex;flex-direction:column;gap:9px}.dice-selector>span{font-size:11px;color:#9baebe;letter-spacing:1.5px}.dice-types{display:flex;gap:7px;flex-wrap:wrap}.dice-types button,.dice-quantity button{background:#182636;color:#e8bd4a;border:1px solid #455669;border-radius:6px;padding:10px 12px;font-weight:700;cursor:pointer}.dice-types button.selected{background:#e8bd4a;color:#10151d;border-color:#e8bd4a}.dice-types button:disabled,.dice-quantity button:disabled{opacity:.45;cursor:default}
+.dice-quantity{display:flex;align-items:center;gap:18px}.dice-quantity button{display:grid;place-items:center}.dice-quantity strong{font-size:24px;min-width:35px;text-align:center}
+.dice-arena{border:1px solid #354556;background:radial-gradient(ellipse at center,#1b2a3b,#0b111b);border-radius:10px;min-height:210px;padding:18px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}.dice-spec{font-size:13px;color:#e8bd4a;letter-spacing:3px}.dice-tray{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px;min-height:80px}.dice-face{width:52px;height:52px;display:grid;place-items:center;background:linear-gradient(135deg,#f5d680,#bb8c32);border:2px solid #fff0b5;border-radius:10px;color:#12161c;font-size:24px;font-weight:900;box-shadow:3px 6px 0 #0008,0 0 16px #e8bd4a30;transform-style:preserve-3d}.dice-tumbling{animation:dice-tumble .48s linear infinite}.dice-landed{animation:dice-land .55s cubic-bezier(.2,1.6,.3,1) both}.dice-idle{display:flex;align-items:center;flex-direction:column;gap:12px;color:#73869a;font-size:11px;letter-spacing:2px}.dice-total{color:#9baebe;font-size:12px;letter-spacing:2px}.dice-total strong{color:#e8bd4a;font-size:27px;margin-left:12px}.dice-roll-action{background:#e8bd4a;border:0;border-radius:7px;padding:16px;color:#11151b;font-size:17px;font-weight:900;letter-spacing:2px;cursor:pointer}.dice-roll-action:disabled{opacity:.5;cursor:default}.dice-error{color:#ff9b9b;font-size:12px;margin:0}.dice-note{font-size:11px;color:#8192a4;text-align:center;margin:0;line-height:1.5}
+@keyframes dice-tumble{0%{transform:rotateX(0deg) rotateY(0deg) translateY(0)}25%{transform:rotateX(110deg) rotateY(65deg) translateY(-15px)}50%{transform:rotateX(220deg) rotateY(150deg) translateY(0)}75%{transform:rotateX(320deg) rotateY(260deg) translateY(-12px)}100%{transform:rotateX(360deg) rotateY(360deg) translateY(0)}}@keyframes dice-land{0%{transform:translateY(-50px) rotate(-35deg) scale(.7);opacity:.2}65%{transform:translateY(7px) rotate(7deg) scale(1.13);opacity:1}100%{transform:translateY(0) rotate(0) scale(1);opacity:1}}
+@media(prefers-reduced-motion:reduce){.dice-tumbling{animation-duration:1.5s}.dice-landed{animation-duration:.01ms}}
+
+/* Use the exact pentagonal die and effect classes from the GM spotlight. */
+.dice-effect{background:#142130;color:#f0e5cc;border:1px solid #43586b;border-radius:5px;padding:10px;font-size:13px}
+.dice-scene .dice-arena.live-dice-scene{display:flex;flex-direction:column;gap:12px}
+.dice-scene .dice-tray{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:7px;min-height:100px}
+.dice-scene .live-die{width:clamp(64px,18vw,108px);height:clamp(64px,18vw,108px);flex:none}
+.dice-scene .live-die-face{font-size:clamp(24px,7vw,40px);min-width:0}
+.dice-scene .live-dice-status{font-size:12px;text-align:center;overflow-wrap:anywhere}
+
+/* Keep the one-die spotlight stable throughout every animation phase. */
+.dice-overlay{box-sizing:border-box;overflow:hidden;padding:clamp(6px,2dvh,12px)}
+.dice-scene{box-sizing:border-box;width:min(100%,500px);max-height:calc(100dvh - 12px);overflow:hidden;gap:clamp(6px,1.5dvh,15px);padding:clamp(10px,2dvh,20px)}
+.dice-scene .dice-arena.live-dice-scene{box-sizing:border-box;flex:1 1 auto;min-height:0;height:clamp(170px,34dvh,260px);overflow:hidden;gap:clamp(6px,1.5dvh,12px);padding:8px}
+.dice-scene .dice-tray{flex:1 1 auto;min-height:0;width:100%;overflow:hidden;flex-wrap:nowrap}
+.dice-scene .live-die{width:clamp(64px,16dvh,108px);height:clamp(64px,16dvh,108px)}
+.dice-scene .live-dice-status{height:2.5em;min-height:2.5em;display:flex;align-items:center;justify-content:center}
+.dice-scene .dice-types{flex-wrap:nowrap;gap:clamp(3px,1vw,7px)}
+.dice-scene .dice-types button{flex:1 1 0;min-width:0;padding:clamp(5px,1.5vw,10px) 2px;font-size:clamp(10px,2.8vw,14px)}
+.dice-scene .dice-note{font-size:10px}
+@media(max-height:540px){.dice-scene{gap:5px;padding:8px}.dice-heading h2{font-size:18px;margin-top:2px}.dice-scene .dice-arena.live-dice-scene{height:130px;min-height:110px}.dice-scene .live-die{width:70px;height:70px}.dice-roll-action{padding:9px}.dice-character,.dice-note{font-size:10px}}
+
+/* Footer actions and reserved sponsor slot. */
+.dice-actions{display:flex;align-items:stretch;gap:8px;flex-shrink:0}
+.dice-actions .dice-roll-action{flex:3 1 0;min-width:0}
+.dice-close-action{flex:1 1 0;min-width:0;background:#263343;border:1px solid #52606b;border-radius:7px;color:#f0e5cc;font-size:13px;font-weight:700;cursor:pointer;padding:10px 5px}
+.dice-close-action:disabled{opacity:.45;cursor:default}
+.dice-sponsor{width:100%;min-width:0;display:flex;flex-direction:column;align-items:stretch;gap:4px;flex:0 0 auto}
+.dice-sponsor-label{font-size:9px;line-height:1.2;letter-spacing:1.8px;text-align:center;color:#8192a4;font-weight:700}
+.dice-sponsor img{display:block;width:100%;height:auto;aspect-ratio:2/1;object-fit:contain;border:0;border-radius:0;background:transparent}
+@media(max-height:540px){.dice-sponsor{gap:2px}.dice-sponsor-label{font-size:8px}}
+
+/* Larger selector after removing the character-name row. */
+.dice-scene .dice-types button{padding:clamp(10px,2.4dvh,16px) 2px;font-size:clamp(12px,3.3vw,16px)}
+/* D2 coin uses the same exact footprint as the regular die. */
+.dice-scene .dice-coin{width:clamp(64px,16dvh,108px);height:clamp(64px,16dvh,108px);flex:none;box-sizing:border-box;position:relative;display:flex;align-items:center;justify-content:center;appearance:none;border:3px solid #e8bd4b;border-radius:50%;background:radial-gradient(circle at 35% 25%,#f5d780,#b68b32 70%,#5d441c);color:#141d29;box-shadow:0 0 14px #e6b33b55,inset 0 0 0 4px #1b2939;transform-style:preserve-3d;backface-visibility:visible;cursor:pointer}
+.dice-scene .dice-coin:disabled{cursor:default}
+.dice-scene .dice-coin .live-die-face{font-size:clamp(24px,7vw,40px);color:#141d29;min-width:0;backface-visibility:hidden}
+.dice-coin-rim{position:absolute;inset:6px;border:1px solid #6c511e;border-radius:50%;pointer-events:none}
+.dice-scene .dice-coin.coin-flipping{animation:dice-coin-flip 1.7s cubic-bezier(.2,.6,.3,1) both}
+.dice-scene .dice-coin.coin-final{animation:dice-coin-settle .25s ease-out}
+@keyframes dice-coin-flip{0%{transform:perspective(550px) rotateY(0deg)}15%{transform:perspective(550px) rotateY(400deg)}40%{transform:perspective(550px) rotateY(1050deg)}70%{transform:perspective(550px) rotateY(1560deg)}100%{transform:perspective(550px) rotateY(2160deg)}}
+@keyframes dice-coin-settle{from{transform:scale(1.08)}to{transform:scale(1)}}
+@media(max-height:540px){.dice-scene .dice-coin{width:70px;height:70px}.dice-scene .dice-types button{padding:8px 2px}}
+@media(prefers-reduced-motion:reduce){.dice-scene .dice-coin.coin-flipping{animation:none}}
+
+/* Blackout and reboot now affect the full viewport, not just the die. */
+.dice-screen-blackout{position:fixed;inset:0;width:100vw;height:100dvh;z-index:20000;background:#000;pointer-events:none}
+.dice-screen-blackout.reboot{animation:dice-fullscreen-reboot .8s steps(1,end) both}
+@keyframes dice-fullscreen-reboot{0%,15%,28%,45%,62%{opacity:1}8%,22%,36%,53%,72%,100%{opacity:0}}
