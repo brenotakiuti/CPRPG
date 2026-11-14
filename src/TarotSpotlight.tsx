@@ -53,7 +53,7 @@ export default function TarotSpotlight({ onClose, forced, onReveal, playerMode =
           </div>
         </div>
       </div>
-      {!revealed && <span className="tarot-tap">TAP TO REVEAL</span>}
+      <span className="tarot-tap" style={{ visibility: revealed ? 'hidden' : 'visible' }}>TAP TO REVEAL</span>
       <div className="tarot-result" aria-live="polite">
         {revealed && <><strong>{CARD_NAMES[draw.index]}</strong>
           <span className={draw.reversed ? 'tarot-negative' : 'tarot-positive'}>
@@ -61,7 +61,7 @@ export default function TarotSpotlight({ onClose, forced, onReveal, playerMode =
             {draw.reversed ? 'Reversed' : 'Upright'}
           </span></>}
       </div>
-      {error && <p role="alert" style={{ color: "#ff9999" }}>{error}</p>}
+      <p role="alert" style={{ color: '#ff9999', minHeight: error ? undefined : 0, margin: 0 }}>{error}</p>
       <div className="tarot-actions">
         <button type="button" className="tarot-secondary" onClick={onClose} disabled={flipping || (playerMode && !revealed)}>Close</button>
         {revealed && !playerMode && <button type="button" onClick={redraw}>Redraw</button>}
