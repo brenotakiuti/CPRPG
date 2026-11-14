@@ -18,12 +18,21 @@ function TarotTransmission({ index, children }: { index: number; children: React
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [elapsed, setElapsed] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     let active = true;
     setReady(false);
     setFailed(false);
     setElapsed(false);
+    setProgress(0);
+    // Smooth, one-way simulated progress. Completion still requires both images.
+    const started = Date.now();
+    const progressTimer = setInterval(() => {
+      if (!active) return;
+      const seconds = (Date.now() - started) / 1000;
+      setProgress(previous => Math.max(previous, Math.min(90, Math.round(90 * (1 - Math.exp(-seconds / 1.1))))));
+    }, 80);
     const minimum = setTimeout(() => { if (active) setElapsed(true); }, 1500);
     const paths = ['/tarot/back.webp', '/tarot/tarot' + index + '.webp'];
     let remaining = paths.length;
@@ -41,6 +50,7 @@ function TarotTransmission({ index, children }: { index: number; children: React
     return () => {
       active = false;
       clearTimeout(minimum);
+      clearInterval(progressTimer);
       images.forEach(img => { img.onload = null; img.onerror = null; });
     };
   }, [index, attempt]);
@@ -52,12 +62,11 @@ function TarotTransmission({ index, children }: { index: number; children: React
       <div style={{ fontSize: 21, fontWeight: 700, letterSpacing: 1, marginBottom: 12 }}>INCOMING TRANSMISSION</div>
       <div style={{ color: '#9da9b8', fontSize: 12, marginBottom: 20 }}>{failed ? 'DATA PACKET INTERRUPTED' : ready ? 'DECRYPTION COMPLETE' : 'DECRYPTING ENCRYPTED PAYLOAD...'}</div>
       <div style={{ height: 7, background: '#283241', overflow: 'hidden', borderRadius: 3 }}>
-        <div style={{ width: failed ? '100%' : ready ? '100%' : '85%', height: '100%', background: failed ? '#cf6262' : '#e8bd4a', transition: 'width .4s ease', animation: ready || failed ? undefined : 'tarot-transmission-pulse 1.3s ease-in-out infinite alternate' }} />
+        <div style={{ width: (ready ? 100 : progress) + '%', height: '100%', background: failed ? '#cf6262' : '#e8bd4a', transition: 'width .4s ease', animation: undefined }} />
       </div>
       <div style={{ marginTop: 12, fontSize: 11, color: '#9da9b8' }}>{failed ? 'CONNECTION ERROR' : ready ? '100% // VERIFIED' : 'RECEIVING DATA...'}</div>
       {failed && <button type="button" onClick={() => setAttempt(n => n + 1)} style={{ marginTop: 20, padding: '10px 16px', background: '#e8bd4a', border: 0, borderRadius: 5, color: '#10151d', fontWeight: 700, cursor: 'pointer' }}>RETRY TRANSMISSION</button>}
     </div>
-    <style>{'@keyframes tarot-transmission-pulse { from { opacity: .25; transform: scaleX(.5); transform-origin: left; } to { opacity: 1; transform: scaleX(1); transform-origin: left; } }'}</style>
   </div>;
 }
 
