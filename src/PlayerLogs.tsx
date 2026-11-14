@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowDownLeft, Clock3, Cookie, Dices, Heart, History, MessageSquare, Minus, Plus, SunMoon, Wallet, X } from 'lucide-react';
+import { ArrowDownLeft, Clock3, Cookie, Dices, Heart, History, MessageSquare, Minus, Plus, SunMoon, Wallet } from 'lucide-react';
 import { supabase } from './supabase';
 import './PlayerLogs.css';
 import { displayLogMessage, tarotFromLog } from './tarotData';
@@ -122,7 +122,6 @@ export default function PlayerLogs({ campaignId, characterId, onClose }: {
     <section className="player-logs-dialog" role="dialog" aria-modal="true" aria-label="Personal logs">
       <header className="player-logs-heading">
         <div><h2><History size={20} aria-hidden="true" /> PERSONAL LOGS</h2><p>Your recorded notifications</p></div>
-        <button type="button" className="player-logs-x" aria-label="Close logs" onClick={onClose}><X size={20} /></button>
       </header>
       <input className="player-logs-search" aria-label="Search personal logs" placeholder="Search your logs..." value={search} onChange={event => setSearch(event.target.value)} />
       <div className="player-logs-tabs" role="group" aria-label="Log audience">
