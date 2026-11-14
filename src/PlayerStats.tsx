@@ -37,7 +37,7 @@ export default function PlayerStats({onBack}:{onBack:()=>void}) {
     {view==='map'&&<div className="ps-body">
      <div className="ps-scan-viewport"><div className="ps-scan-layer" style={zoomStyle}>
       <img src="/cyberware/cyberware-anatomical-scan.webp" alt="Cybernetic anatomical illustration"/>
-      {slots.flatMap(s=>s.points.map(([x,y],i)=><button type="button" key={s.id+i} className={'ps-marker '+(selected===s.id?'active':'')} style={{left:x+'%',top:y+'%'}} title={s.label} aria-label={'Select '+s.label} onClick={()=>selectSlot(s.id)}/>))}
+      {slots.flatMap(s=>s.points.map(([x,y],i)=><button type="button" key={s.id+i} className={'ps-marker '+(selected===s.id?'active':'')} style={{left:x+'%',top:y+'%',transform:`translate(-50%, -50%) scale(${1 / zoom})`}} title={s.label} aria-label={'Select '+s.label} onClick={()=>selectSlot(s.id)}/>))}
      </div>{active&&<button type="button" className="ps-zoom-back" onClick={()=>setSelected(null)}><ArrowLeft size={13}/> FULL BODY</button>}</div>
      <div className="ps-scan-label">{active?'FOCUSED SCAN // '+active.label:'ANATOMICAL SCAN'}</div>
     </div>}
