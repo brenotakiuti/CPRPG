@@ -150,7 +150,7 @@ export default function DiceSpotlight({ characterId, characterName, campaignId, 
       <div className="dice-actions"><button className="dice-roll-action" type="button" onClick={() => void roll()} disabled={busy.current || !campaignId}>{phase === 'rolling' ? 'ROLLING...' : result ? 'ROLL AGAIN' : 'ROLL'}</button><button className="dice-close-action" type="button" onClick={onClose} disabled={busy.current}>Close</button></div>
       {!campaignId && <p className="dice-error">Waiting for campaign connection.</p>}
       <p className="dice-note">Rolls appear in your history and the GM campaign log. Approval and sharing come later.</p>
-      <div className="dice-sponsor-banner" aria-label="Sponsored by Kiroshi Optics"><img src="/ads/kiroshi-optics.webp" alt="Kiroshi Optics — See more than reality" /></div>
+      <div className="dice-sponsor"><span className="dice-sponsor-label">SPONSORED BY</span><img src="/ads/kiroshi-optics.webp" alt="Kiroshi Optics — See more than reality" /></div>
     </section>
   </div>;
 }
