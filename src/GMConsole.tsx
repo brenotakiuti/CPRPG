@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Shield, Users, Wrench, Zap, Stethoscope } from 'lucide-react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Shield, Users, Wrench, Zap, Slice } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
@@ -442,7 +442,7 @@ export default function GMConsole({
     { id: 'characters', label: 'Characters', icon: Users },
     { id: 'bank', label: 'Bank', icon: Landmark },
     { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'ripperdoc', label: 'Ripperdoc', icon: Stethoscope },
+    { id: 'ripperdoc', label: 'Ripperdoc', icon: Slice },
     { id: 'factions', label: 'Factions', icon: Shield },
     { id: 'logs', label: 'Logs', icon: ScrollText },
   ] as const;
