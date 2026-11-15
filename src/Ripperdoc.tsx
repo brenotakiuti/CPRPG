@@ -6,11 +6,13 @@ import './Ripperdoc.css';
 
 type Character = { id: string; name: string };
 type Implant = { id: string; name: string; rarity: string; price: number; description: string | null };
-type Procedure = { characterId: string; implantId: string; positionId: string };
+type Procedure = { characterId: string; implantName: string; implantDescription: string; positionId: string };
 export default function Ripperdoc({ characters }: { characters: Character[] }) {
   const [characterId, setCharacterId] = useState('');
   const [implantId, setImplantId] = useState('');
   const [positionId, setPositionId] = useState('');
+  const [customName, setCustomName] = useState('');
+  const [customDescription, setCustomDescription] = useState('');
   const [implants, setImplants] = useState<Implant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -32,12 +34,15 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
     if (!characters.some(c => c.id === characterId)) setCharacterId('');
   }, [characters, characterId]);
   const chosenImplant = implants.find(i => i.id === implantId);
+  const isCustom = implantId === 'custom';
+  const implantName = isCustom ? customName.trim() : chosenImplant?.name ?? '';
+  const implantDescription = isCustom ? customDescription.trim() : chosenImplant?.description ?? '';
   const chosenPosition = anatomicalPositions.find(p => p.id === positionId);
   const chosenCharacter = characters.find(c => c.id === characterId);
   const startProcedure = () => {
-    if (!chosenCharacter || !chosenImplant || !chosenPosition) return;
+    if (!chosenCharacter || !implantName || !chosenPosition || (isCustom && !implantDescription)) return;
     // UI-only phase: no installation, database write, or player communication yet.
-    setProcedure({ characterId, implantId, positionId });
+    setProcedure({ characterId, implantName, implantDescription, positionId });
   };
   return <section className="rd-page" aria-label="Ripperdoc">
     <div className="rd-heading"><Activity size={21}/><div><strong>RIPPERDOC // OPERATING ROOM</strong><p>Prepare a cyberware procedure. Installation is not connected yet.</p></div></div>
@@ -62,19 +67,33 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
       </div>
       <div className="rd-catalog-panel">
         <strong>CYBERWARE CATALOG</strong>
-        {loading ? <p>Loading cyberware…</p> : error ? <p role="alert">{error}</p> : implants.length === 0 ? <p>No cyberware found.</p> :
+        <div className="rd-items">
+          <button type="button" className={'rd-item rd-custom-choice' + (isCustom ? ' selected' : '')}
+            aria-pressed={isCustom} onClick={() => { setImplantId('custom'); setProcedure(null); }}>
+            <span><b>+ Custom Cyberware</b><small>Invent a new implant for this procedure</small></span>
+          </button>
+        </div>
+        {loading ? <p>Loading cyberware…</p> : error ? <p role="alert">{error}</p> : implants.length === 0 ? <p>No catalog cyberware found.</p> :
           <div className="rd-items">{implants.map(i => <button key={i.id} type="button" className={'rd-item' + (implantId === i.id ? ' selected' : '')}
             aria-pressed={implantId === i.id} onClick={() => { setImplantId(i.id); setProcedure(null); }}>
             <span><b>{i.name}</b><small>{i.rarity}</small></span><strong>€${Number(i.price).toLocaleString('en-US')}</strong>
           </button>)}</div>}
-        {chosenImplant?.description && <p className="rd-description">{chosenImplant.description}</p>}
+        {isCustom && <div className="rd-custom-fields">
+          <label className="rd-field">CYBERWARE NAME
+            <input type="text" maxLength={120} value={customName} placeholder="Enter implant name" onChange={e => { setCustomName(e.target.value); setProcedure(null); }}/>
+          </label>
+          <label className="rd-field">DESCRIPTION
+            <textarea rows={4} maxLength={2000} value={customDescription} placeholder="Describe the implant and its effects" onChange={e => { setCustomDescription(e.target.value); setProcedure(null); }}/>
+          </label>
+        </div>}
+        {!isCustom && chosenImplant?.description && <p className="rd-description">{chosenImplant.description}</p>}
         <div className="rd-procedure">
           <strong>PROCEDURE PREVIEW</strong>
           <p>Patient: {chosenCharacter?.name ?? 'Not selected'}</p>
-          <p>Cyberware: {chosenImplant?.name ?? 'Not selected'}</p>
+          <p>Cyberware: {implantName || 'Not selected'}</p>
           <p>Position: {chosenPosition ? chosenPosition.label + ' (' + chosenPosition.id + ')' : 'Not selected'}</p>
-          <button type="button" disabled={!chosenCharacter || !chosenImplant || !chosenPosition} onClick={startProcedure}>START PROCEDURE</button>
-          {procedure && <p className="rd-confirmation" role="status"><CheckCircle2 size={16}/> Procedure selected for {chosenCharacter?.name}. Preview only — installation and player synchronization will be added later.</p>}
+          <button type="button" disabled={!chosenCharacter || !implantName || !chosenPosition || (isCustom && !implantDescription)} onClick={startProcedure}>START PROCEDURE</button>
+          {procedure && <p className="rd-confirmation" role="status"><CheckCircle2 size={16}/> Procedure selected: {procedure.implantName} for {chosenCharacter?.name}. Preview only — installation and player synchronization will be added later.</p>}
         </div>
       </div>
     </div>
