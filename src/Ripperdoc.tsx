@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Activity, CheckCircle2, X, ImageIcon } from 'lucide-react';
+import { Activity, CheckCircle2, ImageIcon } from 'lucide-react';
 import { supabase } from './supabase';
 import { anatomicalPositions } from './anatomicalPositions';
 import './Ripperdoc.css';
@@ -109,7 +109,6 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
     {procedure && <div className="rd-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setProcedure(null); }}>
       <section className="rd-modal" role="dialog" aria-modal="true" aria-label="Procedure overview">
         <div className="rd-modal-header"><div><small>RIPPERDOC // PREOPERATIVE ASSESSMENT</small><h3>PROCEDURE OVERVIEW</h3></div>
-          <button type="button" className="rd-modal-close" aria-label="Close procedure overview" onClick={() => setProcedure(null)}><X size={19}/></button>
         </div>
         <div className="rd-modal-body">
           <div className="rd-artwork" aria-label="Implant artwork">
