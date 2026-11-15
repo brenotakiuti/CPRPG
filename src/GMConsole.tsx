@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Shield, Users, Wrench, Zap, Stethoscope } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
 import ItemCatalog from './ItemCatalog';
 import LiveSession from './LiveSession';
 import CampaignLogs from './CampaignLogs';
+import Ripperdoc from './Ripperdoc';
 
 // Temporary visual thresholds; can later be supplied by campaign stat-tier records.
 const DEFAULT_STAT_TIERS = [
@@ -78,18 +79,18 @@ export default function GMConsole({
   campaign,
   onSwitchCampaign,
 }: GMConsoleProps) {
-  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'factions' | 'logs'>(() => {
+  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'ripperdoc' | 'factions' | 'logs'>(() => {
     const saved = sessionStorage.getItem('gm-page:' + campaign.id);
-    return saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' || saved === 'logs' ? saved : 'live';
+    return saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'ripperdoc' || saved === 'factions' || saved === 'logs' ? saved : 'live';
   });
   // Mount data-heavy tools on first visit, then retain their data and Realtime subscriptions.
   const [visitedTools, setVisitedTools] = useState<string[]>(() => {
     const saved = sessionStorage.getItem('gm-page:' + campaign.id) ?? 'live';
-    return ['live', 'bank', 'logs', 'inventory'].includes(saved) ? [saved] : [];
+    return ['live', 'bank', 'logs', 'inventory', 'ripperdoc'].includes(saved) ? [saved] : [];
   });
   const openPage = (next: typeof page) => {
     setPage(next);
-    if (['live', 'bank', 'logs', 'inventory'].includes(next)) {
+    if (['live', 'bank', 'logs', 'inventory', 'ripperdoc'].includes(next)) {
       setVisitedTools(previous => previous.includes(next) ? previous : [...previous, next]);
     }
   };
@@ -441,6 +442,7 @@ export default function GMConsole({
     { id: 'characters', label: 'Characters', icon: Users },
     { id: 'bank', label: 'Bank', icon: Landmark },
     { id: 'inventory', label: 'Inventory', icon: Package },
+    { id: 'ripperdoc', label: 'Ripperdoc', icon: Stethoscope },
     { id: 'factions', label: 'Factions', icon: Shield },
     { id: 'logs', label: 'Logs', icon: ScrollText },
   ] as const;
@@ -686,13 +688,14 @@ export default function GMConsole({
             </div>
           </section>
         </div>
-      ) : page === 'inventory' ? null : (
+      ) : page === 'inventory' || page === 'ripperdoc' ? null : (
         <div className="gm-dashboard-panel gm-empty-detail">Factions — coming later</div>
       )}
       {visitedTools.includes('live') && <div style={{ display: page === 'live' ? undefined : 'none' }}><LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} /></div>}
       {visitedTools.includes('bank') && <div style={{ display: page === 'bank' ? undefined : 'none' }} className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>}
       {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
       {visitedTools.includes('inventory') && <div style={{ display: page === 'inventory' ? undefined : 'none' }}><ItemCatalog /></div>}
+      {visitedTools.includes('ripperdoc') && <div style={{ display: page === 'ripperdoc' ? undefined : 'none' }}><Ripperdoc characters={characters} /></div>}
     </div>
   );
 }
