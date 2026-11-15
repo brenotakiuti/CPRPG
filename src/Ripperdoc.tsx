@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Activity, CheckCircle2 } from 'lucide-react';
+import { Activity, CheckCircle2, X, ImageIcon } from 'lucide-react';
 import { supabase } from './supabase';
 import { anatomicalPositions } from './anatomicalPositions';
 import './Ripperdoc.css';
 
 type Character = { id: string; name: string };
-type Implant = { id: string; name: string; rarity: string; price: number; description: string | null };
-type Procedure = { characterId: string; implantName: string; implantDescription: string; positionId: string };
+type Implant = { id: string; name: string; rarity: string; price: number; description: string | null; properties: { image?: string } | null };
+type Procedure = { characterName: string; implantName: string; implantDescription: string; positionLabel: string; image: string | null };
 export default function Ripperdoc({ characters }: { characters: Character[] }) {
   const [characterId, setCharacterId] = useState('');
   const [implantId, setImplantId] = useState('');
@@ -17,12 +17,13 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [procedure, setProcedure] = useState<Procedure | null>(null);
+  const [procedureStarted, setProcedureStarted] = useState(false);
   useEffect(() => {
     let active = true;
     void (async () => {
       setLoading(true);
       const { data, error: queryError } = await supabase.from('items')
-        .select('id, name, rarity, price, description').eq('category', 'Cyberware').order('name');
+        .select('id, name, rarity, price, description, properties').eq('category', 'Cyberware').order('name');
       if (!active) return;
       setImplants((data ?? []) as Implant[]);
       setError(queryError?.message ?? '');
@@ -42,7 +43,8 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
   const startProcedure = () => {
     if (!chosenCharacter || !implantName || !chosenPosition || (isCustom && !implantDescription)) return;
     // UI-only phase: no installation, database write, or player communication yet.
-    setProcedure({ characterId, implantName, implantDescription, positionId });
+    setProcedure({ characterName: chosenCharacter.name, implantName, implantDescription, positionLabel: chosenPosition.label + ' (' + chosenPosition.id + ')', image: isCustom ? null : chosenImplant?.properties?.image ?? null });
+    setProcedureStarted(false);
   };
   return <section className="rd-page" aria-label="Ripperdoc">
     <div className="rd-heading"><Activity size={21}/><div><strong>RIPPERDOC // OPERATING ROOM</strong><p>Prepare a cyberware procedure. Installation is not connected yet.</p></div></div>
@@ -98,15 +100,36 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
               </div>}
             </div>)}
         </div>
-        <div className="rd-procedure">
-          <strong>PROCEDURE PREVIEW</strong>
-          <p>Patient: {chosenCharacter?.name ?? 'Not selected'}</p>
-          <p>Cyberware: {implantName || 'Not selected'}</p>
-          <p>Position: {chosenPosition ? chosenPosition.label + ' (' + chosenPosition.id + ')' : 'Not selected'}</p>
-          <button type="button" disabled={!chosenCharacter || !implantName || !chosenPosition || (isCustom && !implantDescription)} onClick={startProcedure}>START PROCEDURE</button>
-          {procedure && <p className="rd-confirmation" role="status"><CheckCircle2 size={16}/> Procedure selected: {procedure.implantName} for {chosenCharacter?.name}. Preview only — installation and player synchronization will be added later.</p>}
+        <div className="rd-next-action">
+          <button type="button" disabled={!chosenCharacter || !implantName || !chosenPosition || (isCustom && !implantDescription)}
+            onClick={startProcedure}>REVIEW PROCEDURE</button>
         </div>
       </div>
     </div>
+    {procedure && <div className="rd-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setProcedure(null); }}>
+      <section className="rd-modal" role="dialog" aria-modal="true" aria-label="Procedure overview">
+        <div className="rd-modal-header"><div><small>RIPPERDOC // PREOPERATIVE ASSESSMENT</small><h3>PROCEDURE OVERVIEW</h3></div>
+          <button type="button" className="rd-modal-close" aria-label="Close procedure overview" onClick={() => setProcedure(null)}><X size={19}/></button>
+        </div>
+        <div className="rd-modal-body">
+          <div className="rd-artwork" aria-label="Implant artwork">
+            {procedure.image ? <img src={procedure.image} alt={procedure.implantName + ' artwork'}/> :
+              <div className="rd-artwork-placeholder"><ImageIcon size={30}/><span>IMPLANT ARTWORK</span><small>NO IMAGE AVAILABLE</small></div>}
+          </div>
+          <div className="rd-modal-details">
+            <div><small>PATIENT</small><strong>{procedure.characterName}</strong></div>
+            <div><small>CYBERWARE</small><strong>{procedure.implantName}</strong></div>
+            <div><small>INSTALLATION SITE</small><strong>{procedure.positionLabel}</strong></div>
+            {procedure.implantDescription && <div><small>DESCRIPTION</small><p>{procedure.implantDescription}</p></div>}
+          </div>
+        </div>
+        <div className="rd-modal-footer">
+          {procedureStarted && <p role="status" className="rd-confirmation"><CheckCircle2 size={16}/> Procedure initiated in preview mode. No installation has been saved.</p>}
+          <button type="button" className="rd-modal-cancel" onClick={() => setProcedure(null)}>BACK</button>
+          <button type="button" className="rd-modal-start" disabled={procedureStarted}
+            onClick={() => setProcedureStarted(true)}>{procedureStarted ? 'PROCEDURE INITIATED' : 'INITIATE PROCEDURE'}</button>
+        </div>
+      </section>
+    </div>}
   </section>;
 }
