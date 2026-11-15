@@ -68,25 +68,36 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
       <div className="rd-catalog-panel">
         <strong>CYBERWARE CATALOG</strong>
         <div className="rd-items">
-          <button type="button" className={'rd-item rd-custom-choice' + (isCustom ? ' selected' : '')}
-            aria-pressed={isCustom} onClick={() => { setImplantId('custom'); setProcedure(null); }}>
-            <span><b>+ Custom Cyberware</b><small>Invent a new implant for this procedure</small></span>
-          </button>
+          <div className="rd-item-entry">
+            <button type="button" className={'rd-item rd-custom-choice' + (isCustom ? ' selected' : '')}
+              aria-pressed={isCustom} aria-expanded={isCustom}
+              onClick={() => { setImplantId(isCustom ? '' : 'custom'); setProcedure(null); }}>
+              <span><b>+ Custom Cyberware</b><small>Invent a new implant for this procedure</small></span>
+            </button>
+            {isCustom && <div className="rd-inline-detail rd-custom-fields">
+              <label className="rd-field">CYBERWARE NAME
+                <input type="text" maxLength={120} value={customName} placeholder="Enter implant name"
+                  onChange={e => { setCustomName(e.target.value); setProcedure(null); }}/>
+              </label>
+              <label className="rd-field">DESCRIPTION
+                <textarea rows={4} maxLength={2000} value={customDescription} placeholder="Describe the implant and its effects"
+                  onChange={e => { setCustomDescription(e.target.value); setProcedure(null); }}/>
+              </label>
+            </div>}
+          </div>
+          {loading ? <p>Loading cyberware…</p> : error ? <p role="alert">{error}</p> : implants.length === 0 ? <p>No catalog cyberware found.</p> :
+            implants.map(i => <div className="rd-item-entry" key={i.id}>
+              <button type="button" className={'rd-item' + (implantId === i.id ? ' selected' : '')}
+                aria-pressed={implantId === i.id} aria-expanded={implantId === i.id}
+                onClick={() => { setImplantId(implantId === i.id ? '' : i.id); setProcedure(null); }}>
+                <span><b>{i.name}</b><small>{i.rarity}</small></span>
+                <strong>€${Number(i.price).toLocaleString('en-US')}</strong>
+              </button>
+              {implantId === i.id && <div className="rd-inline-detail">
+                <p className="rd-description">{i.description || 'No description available.'}</p>
+              </div>}
+            </div>)}
         </div>
-        {loading ? <p>Loading cyberware…</p> : error ? <p role="alert">{error}</p> : implants.length === 0 ? <p>No catalog cyberware found.</p> :
-          <div className="rd-items">{implants.map(i => <button key={i.id} type="button" className={'rd-item' + (implantId === i.id ? ' selected' : '')}
-            aria-pressed={implantId === i.id} onClick={() => { setImplantId(i.id); setProcedure(null); }}>
-            <span><b>{i.name}</b><small>{i.rarity}</small></span><strong>€${Number(i.price).toLocaleString('en-US')}</strong>
-          </button>)}</div>}
-        {isCustom && <div className="rd-custom-fields">
-          <label className="rd-field">CYBERWARE NAME
-            <input type="text" maxLength={120} value={customName} placeholder="Enter implant name" onChange={e => { setCustomName(e.target.value); setProcedure(null); }}/>
-          </label>
-          <label className="rd-field">DESCRIPTION
-            <textarea rows={4} maxLength={2000} value={customDescription} placeholder="Describe the implant and its effects" onChange={e => { setCustomDescription(e.target.value); setProcedure(null); }}/>
-          </label>
-        </div>}
-        {!isCustom && chosenImplant?.description && <p className="rd-description">{chosenImplant.description}</p>}
         <div className="rd-procedure">
           <strong>PROCEDURE PREVIEW</strong>
           <p>Patient: {chosenCharacter?.name ?? 'Not selected'}</p>
