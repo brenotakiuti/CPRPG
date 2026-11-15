@@ -6,7 +6,7 @@ import './Ripperdoc.css';
 
 type Character = { id: string; name: string };
 type Implant = { id: string; name: string; rarity: string; price: number; description: string | null; properties: { image?: string } | null };
-type Procedure = { characterName: string; implantName: string; implantDescription: string; positionLabel: string; image: string | null };
+type Procedure = { characterId: string; itemId: string | null; positionId: string; characterName: string; implantName: string; implantDescription: string; positionLabel: string; image: string | null };
 export default function Ripperdoc({ characters }: { characters: Character[] }) {
   const [characterId, setCharacterId] = useState('');
   const [implantId, setImplantId] = useState('');
@@ -18,6 +18,8 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
   const [error, setError] = useState('');
   const [procedure, setProcedure] = useState<Procedure | null>(null);
   const [procedureStarted, setProcedureStarted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [procedureError, setProcedureError] = useState('');
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -42,12 +44,33 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
   const chosenCharacter = characters.find(c => c.id === characterId);
   const startProcedure = () => {
     if (!chosenCharacter || !implantName || !chosenPosition || (isCustom && !implantDescription)) return;
-    // UI-only phase: no installation, database write, or player communication yet.
-    setProcedure({ characterName: chosenCharacter.name, implantName, implantDescription, positionLabel: chosenPosition.label + ' (' + chosenPosition.id + ')', image: isCustom ? null : chosenImplant?.properties?.image ?? null });
+    setProcedure({ characterId, itemId: isCustom ? null : chosenImplant?.id ?? null, positionId, characterName: chosenCharacter.name, implantName, implantDescription, positionLabel: chosenPosition.label + ' (' + chosenPosition.id + ')', image: isCustom ? null : chosenImplant?.properties?.image ?? null });
     setProcedureStarted(false);
+    setProcedureError('');
+  };
+  const initiateProcedure = async () => {
+    if (!procedure || saving || procedureStarted) return;
+    setSaving(true);
+    setProcedureError('');
+    try {
+      const { error: insertError } = await supabase.from('character_cyberware').insert({
+        character_id: procedure.characterId,
+        item_id: procedure.itemId,
+        name: procedure.implantName,
+        description: procedure.implantDescription,
+        position_id: procedure.positionId,
+        image_url: procedure.image,
+      });
+      if (insertError) throw insertError;
+      setProcedureStarted(true);
+    } catch (cause) {
+      setProcedureError(cause instanceof Error ? cause.message : 'Could not save the installation. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
   return <section className="rd-page" aria-label="Ripperdoc">
-    <div className="rd-heading"><Activity size={21}/><div><strong>RIPPERDOC // OPERATING ROOM</strong><p>Prepare a cyberware procedure. Installation is not connected yet.</p></div></div>
+    <div className="rd-heading"><Activity size={21}/><div><strong>RIPPERDOC // OPERATING ROOM</strong><p>Prepare a cyberware procedure. Install cyberware on a selected character.</p></div></div>
     <div className="rd-workspace">
       <div className="rd-scan-panel">
         <label className="rd-field">PATIENT
@@ -106,7 +129,7 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
         </div>
       </div>
     </div>
-    {procedure && <div className="rd-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setProcedure(null); }}>
+    {procedure && <div className="rd-modal-backdrop" onMouseDown={e => { if (!saving && e.target === e.currentTarget) setProcedure(null); }}>
       <section className="rd-modal" role="dialog" aria-modal="true" aria-label="Procedure overview">
         <div className="rd-modal-header"><div><small>RIPPERDOC // PREOPERATIVE ASSESSMENT</small><h3>PROCEDURE OVERVIEW</h3></div>
         </div>
@@ -123,10 +146,11 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
           </div>
         </div>
         <div className="rd-modal-footer">
-          {procedureStarted && <p role="status" className="rd-confirmation"><CheckCircle2 size={16}/> Procedure initiated in preview mode. No installation has been saved.</p>}
-          <button type="button" className="rd-modal-cancel" onClick={() => setProcedure(null)}>BACK</button>
-          <button type="button" className="rd-modal-start" disabled={procedureStarted}
-            onClick={() => setProcedureStarted(true)}>{procedureStarted ? 'PROCEDURE INITIATED' : 'INITIATE PROCEDURE'}</button>
+          {procedureStarted && <p role="status" className="rd-confirmation"><CheckCircle2 size={16}/> Cyberware installation saved successfully.</p>}
+          {procedureError && <p role="alert" className="rd-procedure-error">{procedureError}</p>}
+          <button type="button" className="rd-modal-cancel" disabled={saving} onClick={() => setProcedure(null)}>BACK</button>
+          <button type="button" className="rd-modal-start" disabled={saving || procedureStarted}
+            onClick={() => void initiateProcedure()}>{saving ? 'INSTALLING...' : procedureStarted ? 'PROCEDURE COMPLETED' : 'INITIATE PROCEDURE'}</button>
         </div>
       </section>
     </div>}
