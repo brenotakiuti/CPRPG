@@ -31,3 +31,5 @@
 .rd-modal-start:disabled{opacity:.65;cursor:default}
 .rd-modal-footer .rd-confirmation{flex-basis:100%;margin:0 0 7px;font-size:12px}
 @media(max-width:520px){.rd-modal-body{grid-template-columns:1fr}.rd-artwork{width:150px;max-width:100%;margin:auto}.rd-modal-header{padding:14px}.rd-modal-body{padding:14px}.rd-modal-footer{padding:14px}}
+
+.rd-procedure-error{flex-basis:100%;margin:0 0 7px;color:#ff9c9c;font-size:12px;overflow-wrap:anywhere}.rd-modal-cancel:disabled{opacity:.5;cursor:not-allowed}
