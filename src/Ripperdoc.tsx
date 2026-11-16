@@ -144,12 +144,13 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
             aria-label={p.label + ' (' + p.id + ')'} aria-pressed={positionId === p.id}
             title={p.label + ' (' + p.id + ')'}
             onClick={() => { setPositionId(positionId === p.id ? '' : p.id); setProcedure(null); setSelectedInstalledId(''); }}><span>{p.id}</span></button>)}
+          {mode === 'remove' && <button type="button" className="rd-show-all" onClick={() => { setPositionId(''); setSelectedInstalledId(''); setProcedure(null); }}>FULL SCAN</button>}
         </div>
         <div className="rd-position-caption">{chosenPosition ? chosenPosition.id + ' // ' + chosenPosition.label : 'SELECT ANATOMICAL POSITION'}</div>
       </div>
       <div className="rd-catalog-panel">
         <strong>{mode === 'install' ? 'CYBERWARE CATALOG' : 'INSTALLED CYBERWARE'}</strong>
-        {mode === 'remove' ? <><button type="button" className="rd-show-all" onClick={() => { setPositionId(''); setSelectedInstalledId(''); setProcedure(null); }}>SHOW ALL</button><div className="rd-items">
+        {mode === 'remove' ? <><div className="rd-items">
           {!characterId ? <p>Select a patient to view installed cyberware.</p> : installedLoading ? <p>Loading installed cyberware…</p> : installedError ? <p role="alert">{installedError}</p> : installed.length === 0 ? <p>No active cyberware installed.</p> :
             installed.filter(i => !positionId || i.position_id === positionId).map(i => <div className="rd-item-entry" key={i.id}>
               <button type="button" className={'rd-item' + (selectedInstalledId === i.id ? ' selected' : '')} aria-pressed={selectedInstalledId === i.id} aria-expanded={selectedInstalledId === i.id}
