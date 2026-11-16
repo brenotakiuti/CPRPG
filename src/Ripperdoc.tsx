@@ -50,8 +50,8 @@ function CyberwareArtworkZoom({ src, alt }: { src: string; alt: string }) {
  function pointerEnd(e: React.PointerEvent<HTMLDivElement>) { pointers.current.delete(e.pointerId); gesture.current = null; }
  return <>
   <button type="button" aria-label={`Inspect ${alt} artwork`} title="Inspect artwork" onClick={() => { setTransform({x:0,y:0,scale:1}); setOpen(true); }}
-   style={{position:'absolute',right:10,bottom:10,zIndex:2,display:'grid',placeItems:'center',width:40,height:40,borderRadius:8,border:'1px solid #e8bd4a',background:'#10151de8',color:'#e8bd4a',cursor:'pointer'}}>
-   <Search size={21} aria-hidden="true"/>
+   style={{position:'absolute',right:5,bottom:5,zIndex:2,display:'grid',placeItems:'center',width:24,height:24,borderRadius:8,border:'1px solid #e8bd4a',background:'#10151de8',color:'#e8bd4a',cursor:'pointer'}}>
+   <Search size={14} aria-hidden="true"/>
   </button>
   {open && createPortal(<div role="dialog" aria-modal="true" aria-label={`Inspect ${alt} artwork`}
    style={{position:'fixed',inset:0,zIndex:2000,display:'flex',flexDirection:'column',alignItems:'center',background:'rgba(2,4,10,.96)',color:'#f0e5cc',padding:'max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom))',boxSizing:'border-box'}}>
