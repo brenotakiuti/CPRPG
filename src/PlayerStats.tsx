@@ -2,14 +2,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import { ArrowLeft, ScanLine } from 'lucide-react';
 import './PlayerStats.css';
+import { anatomicalPositions } from './anatomicalPositions';
 
-const slots = [
- {id:'arms',label:'ARMS',name:'Arm Augmentation',description:'Cybernetic upper-limb enhancements for strength, dexterity, or integrated tools.',points:[[68,31]]},
- {id:'legs',label:'LEGS',name:'Leg Augmentation',description:'Lower-limb reinforcements designed to improve mobility, stability, and jumping.',points:[[61,65]]},
- {id:'spine',label:'SPINE',name:'Spinal Augmentation',description:'Implants along the spinal column for structural support and neural communication.',points:[[50,14]]},
- {id:'operating',label:'OPERATING SYSTEM',name:'Cybernetic Operating System',description:'A central neural processor that coordinates installed cyberware and advanced functions.',points:[[50,6]]},
- {id:'crotch',label:'CROTCH',name:'Pelvic Augmentation',description:'Specialized implants in the pelvic region; capabilities depend on the installed model.',points:[[50,46]]},
-] as const;
 const attributes = [
  {name:'BODY',value:6,description:'Strength and endurance.'},
  {name:'REFLEXES',value:7,description:'Speed and coordination.'},
@@ -39,10 +33,11 @@ export default function PlayerStats({onBack,characterId}:{onBack:()=>void;charac
  const [mapSelected,setMapSelected]=useState<string|null>(null);
  const [listSelected,setListSelected]=useState<string|null>(null);
  const [view,setView]=useState<'map'|'list'>('map');
- const active=slots.find(s=>s.id===mapSelected);
- const zoom = active ? (active.id === 'legs' ? 2.65 : active.id === 'arms' ? 2.7 : active.id === 'crotch' ? 2.8 : 3.2) : 1;
- const [focusX,focusY] = active?.points[0] ?? [50,50];
+ const active=anatomicalPositions.find(s=>s.id===mapSelected);
+ const zoom = active ? 2.7 : 1;
+ const [focusX,focusY] = active ? [active.x,active.y] : [50,50];
  const zoomStyle = {transform: `translate(${(50-focusX)*zoom}%, ${(50-focusY)*zoom}%) scale(${zoom})`};
+ const implantsAt = (positionId: string) => installed.filter(i => i.position_id === positionId);
  const showMap = () => { setMapSelected(null); setView('map'); };
  const showList = () => { setListSelected(null); setView('list'); };
  return <section className="ps-page" aria-label="Character stats">
@@ -62,19 +57,21 @@ export default function PlayerStats({onBack,characterId}:{onBack:()=>void;charac
     </div>}
    </div>)}</div>}
   </section>
-  <section className="ps-panel"><div className="ps-heading"><strong>CYBERWARE // INSTALLED</strong><small>DEMO SLOTS</small></div>
+  <section className="ps-panel"><div className="ps-heading"><strong>CYBERWARE // INSTALLED</strong><small>15 POSITIONS // LIVE DATA</small></div>
    <div className="ps-tabs"><button type="button" className={view==='map'?'active':''} aria-pressed={view==='map'} onClick={showMap}>BODY MAP</button><button type="button" className={view==='list'?'active':''} aria-pressed={view==='list'} onClick={showList}>LIST</button></div>
    <div className={'ps-layout '+(view==='list'?'ps-list-only':'')}>
     {view==='map'&&<div className="ps-body">
      <div className="ps-scan-viewport"><div className="ps-scan-layer" style={zoomStyle}>
       <img src="/cyberware/cyberware-anatomical-scan.webp" alt="Cybernetic anatomical illustration"/>
-      {slots.flatMap(s=>s.points.map(([x,y],i)=><button type="button" key={s.id+i} className={'ps-marker '+(mapSelected===s.id?'active':'')} style={{left:x+'%',top:y+'%',transform:`translate(-50%, -50%) scale(${1 / zoom})`}} title={s.label} aria-label={'Select '+s.label} onClick={()=>setMapSelected(s.id)}/>))}
+      {anatomicalPositions.map(s=><button type="button" key={s.id} className={'ps-marker '+(mapSelected===s.id?'active':'')+(implantsAt(s.id).length?' installed':'')} style={{left:s.x+'%',top:s.y+'%',transform:`translate(-50%, -50%) scale(${1 / zoom})`}} title={s.label+(implantsAt(s.id).length?' // '+implantsAt(s.id).length+' installed':'')} aria-label={'Select '+s.label} onClick={()=>setMapSelected(s.id)}/>)}
      </div>{active&&<button type="button" className="ps-zoom-back" onClick={()=>setMapSelected(null)}><ArrowLeft size={13}/> FULL BODY</button>}</div>
      <div className="ps-scan-label">{active?'FOCUSED SCAN // '+active.label:'ANATOMICAL SCAN'}</div>
     </div>}
-    <div className="ps-slots">{slots.map(s=><div key={s.id} className="ps-slot-entry">
-     <button type="button" aria-pressed={(view==='map'?mapSelected:listSelected)===s.id} className={(view==='map'?mapSelected:listSelected)===s.id?'selected':''} onClick={()=>view==='map'?setMapSelected(s.id):setListSelected(s.id)}><span>{s.label}</span><strong>{s.name}</strong></button>
-     {(view==='map'?mapSelected:listSelected)===s.id&&<div className="ps-inline-detail" aria-live="polite"><p>{s.description}</p><small>PLACEHOLDER // No cyberware is installed or modified.</small></div>}
+    <div className="ps-slots">{anatomicalPositions.map(s=><div key={s.id} className="ps-slot-entry">
+     <button type="button" aria-pressed={(view==='map'?mapSelected:listSelected)===s.id} className={(view==='map'?mapSelected:listSelected)===s.id?'selected':''} onClick={()=>view==='map'?setMapSelected(s.id):setListSelected(s.id)}><span>{s.id} // {s.label.toUpperCase()}</span><strong>{implantsAt(s.id).length ? implantsAt(s.id).map(i=>i.name).join(', ') : 'No cyberware installed'}</strong></button>
+     {(view==='map'?mapSelected:listSelected)===s.id&&<div className="ps-inline-detail" aria-live="polite">
+      {implantsAt(s.id).length===0?<p>No cyberware installed at this position.</p>:implantsAt(s.id).map(i=><div key={i.id} className="ps-position-implant"><strong>{i.name}</strong><div className="ps-installed-detail">{i.image_url&&<img src={i.image_url} alt={i.name+' artwork'}/>}<p>{i.description||'No description available.'}</p></div></div>)}
+     </div>}
     </div>)}</div>
    </div>
   </section>
