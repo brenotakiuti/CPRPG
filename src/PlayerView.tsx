@@ -291,10 +291,10 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const [logsVisited, setLogsVisited] = useState(initialScreen.logs);
   const navRef = useRef<PlayerScreen>(initialScreen);
   const navigationKey = useRef('player-navigation:' + (token ?? 'current'));
-  function navigate(next: PlayerScreen) {
+  const pendingStatsTab = useRef<'map' | 'list' | null>(null);
+  function applyScreen(next: PlayerScreen) {
     navRef.current = next;
     sessionStorage.setItem(screenKey, JSON.stringify(next));
-    window.history.pushState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: next }, '');
     setInventoryOpen(next.inventory);
     setInventorySelection(next.selected);
     setLogsOpen(next.logs);
@@ -305,6 +305,30 @@ export default function PlayerView({ token }: PlayerViewProps) {
     if (next.inventory) setInventoryVisited(true);
     if (next.logs) setLogsVisited(true);
   }
+  function updateStats(view: 'map' | 'list', position: string | null) {
+    const current = navRef.current;
+    if (!current.stats || (current.statsView ?? 'map') === view && (current.statsPosition ?? null) === position) return;
+    // Changing tabs is not a history step. If a detail is open, collapse it
+    // back to the base Stats entry before switching tabs.
+    if (current.statsPosition && !position && view !== (current.statsView ?? 'map')) {
+      pendingStatsTab.current = view;
+      window.history.back();
+      return;
+    }
+    const next = { ...current, statsView: view, statsPosition: position };
+    if (position && !current.statsPosition) {
+      navigate(next);
+    } else if (!position && current.statsPosition) {
+      window.history.back();
+    } else {
+      applyScreen(next);
+      window.history.replaceState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: next }, '');
+    }
+  }
+  function navigate(next: PlayerScreen) {
+    applyScreen(next);
+    window.history.pushState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: next }, '');
+  }
   function goBack() {
     if (navRef.current.logs || navRef.current.diagnostics || navRef.current.stats || navRef.current.selected || navRef.current.inventory) window.history.back();
   }
@@ -314,17 +338,16 @@ export default function PlayerView({ token }: PlayerViewProps) {
       const next = event.state?.playerNavigationKey === navigationKey.current
         ? event.state.playerScreen as PlayerScreen
         : { inventory: false, selected: null, logs: false, diagnostics: false };
-      navRef.current = next;
-      sessionStorage.setItem(screenKey, JSON.stringify(next));
-      setInventoryOpen(next.inventory);
-      setInventorySelection(next.selected);
-      setLogsOpen(next.logs);
-      setStatsOpen(next.stats === true);
-      setStatsView(next.statsView ?? 'map');
-      setStatsPosition(next.statsPosition ?? null);
-      setDiagnosticsOpen(next.diagnostics === true);
-      if (next.inventory) setInventoryVisited(true);
-      if (next.logs) setLogsVisited(true);
+      if (pendingStatsTab.current && next.stats) {
+        const tab = pendingStatsTab.current;
+        pendingStatsTab.current = null;
+        const base = { ...next, statsView: tab, statsPosition: null };
+        applyScreen(base);
+        window.history.replaceState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: base }, '');
+      } else {
+        pendingStatsTab.current = null;
+        applyScreen(next);
+      }
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -743,7 +766,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <h1>{character?.name ?? 'PLAYER TERMINAL'}</h1>
           <p>CHARACTER DASHBOARD</p>
         </header>
-        {!diagnosticsOpen && character && statsOpen && <PlayerStats onBack={goBack} cyberware={cyberwareData} view={statsView} selectedPosition={statsPosition} onNavigate={(view, position) => navigate({ ...navRef.current, stats: true, statsView: view, statsPosition: position })} />}
+        {!diagnosticsOpen && character && statsOpen && <PlayerStats onBack={goBack} cyberware={cyberwareData} view={statsView} selectedPosition={statsPosition} onNavigate={updateStats} />}
         {!diagnosticsOpen && character && inventoryVisited && <div style={{ display: inventoryOpen && !statsOpen ? undefined : 'none' }}><PlayerInventory inventory={inventoryData} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
         {!diagnosticsOpen && character ? (
           <div style={{ display: inventoryOpen || statsOpen ? 'none' : 'flex', flexDirection: 'column', gap: 12 }}>
