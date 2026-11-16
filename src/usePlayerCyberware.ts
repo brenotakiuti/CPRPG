@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
-export type InstalledCyberware = { id: string; name: string; description: string | null; image_url: string | null; position_id: string };
+export type InstalledCyberware = { id: string; item_id: string | null; name: string; description: string | null; image_url: string | null; position_id: string };
 export type PlayerCyberwareData = { installed: InstalledCyberware[]; loading: boolean; error: string };
 export function usePlayerCyberware(characterId: string | null): PlayerCyberwareData {
  const [installed,setInstalled]=useState<InstalledCyberware[]>([]);
@@ -16,7 +16,7 @@ export function usePlayerCyberware(characterId: string | null): PlayerCyberwareD
   const version=generation.current;
   do {
    pending.current=false;
-   const {data,error:readError}=await supabase.from('character_cyberware').select('id,name,description,image_url,position_id').eq('character_id',characterId).is('removed_at',null).order('installed_at',{ascending:false});
+   const {data,error:readError}=await supabase.from('character_cyberware').select('id,item_id,name,description,image_url,position_id').eq('character_id',characterId).is('removed_at',null).order('installed_at',{ascending:false});
    if(version!==generation.current)break;
    if(!pending.current){
     if(readError)setError(readError.message);

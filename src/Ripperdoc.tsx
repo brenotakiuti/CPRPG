@@ -176,7 +176,7 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
           </div>
           <div className="rd-modal-details">
             <div><small>PATIENT</small><strong>{procedure.characterName}</strong></div>
-            <div><small>CYBERWARE</small><strong>{procedure.implantName}</strong></div>
+            <div><small>CYBERWARE</small><strong>{procedure.implantName}</strong>{procedure.itemId === null && <small style={{ color: '#d5a5ff', marginTop: 4 }}>CUSTOM MADE</small>}</div>
             <div><small>INSTALLATION SITE</small><strong>{procedure.positionLabel}</strong></div>
             {procedure.implantDescription && <div><small>DESCRIPTION</small><p>{procedure.implantDescription}</p></div>}
           </div>
