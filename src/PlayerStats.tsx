@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { supabase } from './supabase';
 import { ArrowLeft, ScanLine } from 'lucide-react';
 import './PlayerStats.css';
 
@@ -16,7 +17,25 @@ const attributes = [
  {name:'INTELLIGENCE',value:8,description:'Analysis and netrunning.'},
  {name:'COOL',value:5,description:'Composure under pressure.'},
 ];
-export default function PlayerStats({onBack}:{onBack:()=>void}) {
+type InstalledCyberware = { id: string; name: string; description: string | null; image_url: string | null; position_id: string };
+export default function PlayerStats({onBack,characterId}:{onBack:()=>void;characterId:string}) {
+ const [installed,setInstalled]=useState<InstalledCyberware[]>([]);
+ const [installedLoading,setInstalledLoading]=useState(true);
+ const [installedError,setInstalledError]=useState('');
+ const [selectedInstalled,setSelectedInstalled]=useState<string|null>(null);
+ useEffect(()=>{
+  let active=true;
+  const load=async()=>{
+   const {data,error}=await supabase.from('character_cyberware').select('id,name,description,image_url,position_id').eq('character_id',characterId).is('removed_at',null).order('installed_at',{ascending:false});
+   if(!active)return;
+   setInstalled((data??[]) as InstalledCyberware[]);
+   setInstalledError(error?.message??'');
+   setInstalledLoading(false);
+  };
+  setInstalledLoading(true);void load();
+  const channel=supabase.channel('player-cyberware-'+characterId).on('postgres_changes',{event:'*',schema:'public',table:'character_cyberware',filter:'character_id=eq.'+characterId},()=>{void load();}).subscribe();
+  return ()=>{active=false;void supabase.removeChannel(channel);};
+ },[characterId]);
  const [mapSelected,setMapSelected]=useState<string|null>(null);
  const [listSelected,setListSelected]=useState<string|null>(null);
  const [view,setView]=useState<'map'|'list'>('map');
@@ -30,6 +49,18 @@ export default function PlayerStats({onBack}:{onBack:()=>void}) {
   <header className="ps-header"><button type="button" onClick={onBack}><ArrowLeft size={17}/> Back</button><div><small>PERSONAL PROFILE // NIGHT CITY</small><h2>CHARACTER STATS</h2></div><ScanLine size={22}/></header>
   <section className="ps-panel"><div className="ps-heading"><strong>ATTRIBUTES</strong><small>DEMO VALUES</small></div>
    <div className="ps-attributes">{attributes.map(a=><div className="ps-attribute-tile" key={a.name}><span>{a.name}</span><strong>{a.value}</strong></div>)}</div>
+  </section>
+  <section className="ps-panel"><div className="ps-heading"><strong>INSTALLED IMPLANTS</strong><small>LIVE DATA</small></div>
+   {installedLoading?<p>Loading implants…</p>:installedError?<p role="alert">{installedError}</p>:installed.length===0?<p>No cyberware installed.</p>:
+   <div className="ps-slots">{installed.map(i=><div className="ps-slot-entry" key={i.id}>
+    <button type="button" className={selectedInstalled===i.id?'selected':''} aria-expanded={selectedInstalled===i.id} onClick={()=>setSelectedInstalled(selectedInstalled===i.id?null:i.id)}>
+     <span>{i.position_id}</span><strong>{i.name}</strong>
+    </button>
+    {selectedInstalled===i.id&&<div className="ps-inline-detail ps-installed-detail">
+      {i.image_url&&<img src={i.image_url} alt={i.name+' artwork'}/>}
+      <p>{i.description||'No description available.'}</p>
+    </div>}
+   </div>)}</div>}
   </section>
   <section className="ps-panel"><div className="ps-heading"><strong>CYBERWARE // INSTALLED</strong><small>DEMO SLOTS</small></div>
    <div className="ps-tabs"><button type="button" className={view==='map'?'active':''} aria-pressed={view==='map'} onClick={showMap}>BODY MAP</button><button type="button" className={view==='list'?'active':''} aria-pressed={view==='list'} onClick={showList}>LIST</button></div>
