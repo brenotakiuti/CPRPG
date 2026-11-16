@@ -33,3 +33,8 @@
 @media(max-width:520px){.rd-modal-body{grid-template-columns:1fr}.rd-artwork{width:150px;max-width:100%;margin:auto}.rd-modal-header{padding:14px}.rd-modal-body{padding:14px}.rd-modal-footer{padding:14px}}
 
 .rd-procedure-error{flex-basis:100%;margin:0 0 7px;color:#ff9c9c;font-size:12px;overflow-wrap:anywhere}.rd-modal-cancel:disabled{opacity:.5;cursor:not-allowed}
+
+/* Artwork alongside implant descriptions in the GM catalog. */
+.rd-implant-detail{display:grid;grid-template-columns:112px minmax(0,1fr);gap:12px;align-items:start}
+.rd-implant-image{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:#0c141f;border:1px solid #43566b;border-radius:5px}
+@media(max-width:420px){.rd-implant-detail{grid-template-columns:88px minmax(0,1fr);gap:9px}}
