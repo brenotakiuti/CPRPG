@@ -30,3 +30,9 @@
 .ps-attributes .ps-attribute-tile span{font-size:9px;color:#c1ceda;overflow-wrap:anywhere}
 .ps-attributes .ps-attribute-tile strong{font-size:21px;font-variant-numeric:tabular-nums}
 @media(max-width:380px){.ps-attributes .ps-attribute-tile{padding:6px}.ps-attributes .ps-attribute-tile span{font-size:8px}.ps-attributes .ps-attribute-tile strong{font-size:19px}}
+
+/* Installed cyberware: compact artwork alongside the description. */
+.ps-installed-detail{display:grid;grid-template-columns:112px minmax(0,1fr);gap:10px;align-items:start}
+.ps-installed-detail img{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:#0b131d;border:1px solid #405268;border-radius:5px}
+.ps-installed-detail p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:380px){.ps-installed-detail{grid-template-columns:86px minmax(0,1fr);gap:8px}}
