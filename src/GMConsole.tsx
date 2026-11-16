@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useGMArtworkCache } from './useGMArtworkCache';
 import { QRCodeSVG } from 'qrcode.react';
 import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Shield, Users, Wrench, Zap, Slice } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
@@ -79,6 +80,7 @@ export default function GMConsole({
   campaign,
   onSwitchCampaign,
 }: GMConsoleProps) {
+  useGMArtworkCache();
   const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'ripperdoc' | 'factions' | 'logs'>(() => {
     const saved = sessionStorage.getItem('gm-page:' + campaign.id);
     return saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'ripperdoc' || saved === 'factions' || saved === 'logs' ? saved : 'live';
