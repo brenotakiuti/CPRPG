@@ -38,3 +38,22 @@
 .rd-implant-detail{display:grid;grid-template-columns:112px minmax(0,1fr);gap:12px;align-items:start}
 .rd-implant-image{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:#0c141f;border:1px solid #43566b;border-radius:5px}
 @media(max-width:420px){.rd-implant-detail{grid-template-columns:88px minmax(0,1fr);gap:9px}}
+
+/* Custom implants use the exact same image/description grid as catalog implants. */
+.rd-custom-artwork-detail{margin-top:3px}
+.rd-artwork-select{position:relative;display:block;width:100%;aspect-ratio:1;padding:0;background:#0c141f;border:1px solid #43566b;border-radius:5px;overflow:hidden;cursor:pointer}
+.rd-artwork-select:hover,.rd-artwork-select:focus-visible{border-color:#e8bd4a;outline:1px solid #e8bd4a}
+.rd-artwork-select .rd-implant-image{border:0;border-radius:0;height:100%}
+.rd-artwork-select-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;width:100%;height:100%;padding:7px;color:#e8bd4a;font-size:9px;font-weight:700;line-height:1.3;text-align:center}
+.rd-custom-artwork-description{min-width:0}
+.rd-custom-artwork-description small{display:block;margin-top:8px;color:#e8bd4a;font-size:11px}
+.rd-artwork-picker{width:min(92vw,760px);display:flex;flex-direction:column;overflow:hidden}
+.rd-artwork-picker .rd-modal-header{flex-shrink:0}
+.rd-artwork-search{display:flex;align-items:center;gap:9px;margin:14px 18px;padding:9px 12px;background:#0c141f;border:1px solid #43566b;border-radius:5px;color:#9daebe}
+.rd-artwork-search input{width:100%;min-width:0;background:transparent;border:0;outline:0;color:#e6edf5;font:inherit;font-size:13px}
+.rd-artwork-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:10px;overflow-y:auto;padding:0 18px 18px}
+.rd-artwork-option{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:0;padding:7px;background:#192634;border:1px solid #43566b;border-radius:6px;color:#e6edf5;cursor:pointer;text-align:center}
+.rd-artwork-option:hover,.rd-artwork-option:focus-visible,.rd-artwork-option.selected{border-color:#e8bd4a;outline:0}
+.rd-artwork-option img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:3px;background:#0c141f}
+.rd-artwork-option span{font-size:11px;overflow-wrap:anywhere}
+.rd-artwork-empty{color:#9daebe;font-size:13px}

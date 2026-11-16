@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Activity, CheckCircle2, ImageIcon } from 'lucide-react';
+import { Activity, CheckCircle2, ImageIcon, Search, X } from 'lucide-react';
 import { CyberwareArtworkZoom } from './CyberwareArtworkZoom';
 import { supabase } from './supabase';
 import { anatomicalPositions } from './anatomicalPositions';
 import './Ripperdoc.css';
 
 
+declare const __GM_ARTWORK_MANIFEST__: { url: string; sha: string }[];
+const cyberwareArtwork = __GM_ARTWORK_MANIFEST__
+  .map(entry => entry.url)
+  .filter(url => /^\/cyberware\/[^/]+\.webp$/i.test(url) && !url.toLowerCase().includes('anatomical-scan'))
+  .map(url => ({ url, name: decodeURIComponent(url.split('/').pop() ?? '').replace(/\.webp$/i, '').replace(/([a-z])([A-Z])/g, '$1 $2') }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 type Character = { id: string; name: string };
 type Implant = { id: string; name: string; rarity: string; price: number; description: string | null; properties: { image?: string } | null };
 type Procedure = { characterId: string; itemId: string | null; positionId: string; characterName: string; implantName: string; implantDescription: string; positionLabel: string; image: string | null };
@@ -15,6 +21,9 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
   const [positionId, setPositionId] = useState('');
   const [customName, setCustomName] = useState('');
   const [customDescription, setCustomDescription] = useState('');
+  const [customArtwork, setCustomArtwork] = useState('');
+  const [artworkPickerOpen, setArtworkPickerOpen] = useState(false);
+  const [artworkSearch, setArtworkSearch] = useState('');
   const [implants, setImplants] = useState<Implant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -39,14 +48,15 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
     if (!characters.some(c => c.id === characterId)) setCharacterId('');
   }, [characters, characterId]);
   const chosenImplant = implants.find(i => i.id === implantId);
+  const visibleArtwork = cyberwareArtwork.filter(image => image.name.toLowerCase().includes(artworkSearch.trim().toLowerCase()));
   const isCustom = implantId === 'custom';
   const implantName = isCustom ? customName.trim() : chosenImplant?.name ?? '';
   const implantDescription = isCustom ? customDescription.trim() : chosenImplant?.description ?? '';
   const chosenPosition = anatomicalPositions.find(p => p.id === positionId);
   const chosenCharacter = characters.find(c => c.id === characterId);
   const startProcedure = () => {
-    if (!chosenCharacter || !implantName || !chosenPosition || (isCustom && !implantDescription)) return;
-    setProcedure({ characterId, itemId: isCustom ? null : chosenImplant?.id ?? null, positionId, characterName: chosenCharacter.name, implantName, implantDescription, positionLabel: chosenPosition.label + ' (' + chosenPosition.id + ')', image: isCustom ? null : chosenImplant?.properties?.image ?? null });
+    if (!chosenCharacter || !implantName || !chosenPosition || (isCustom && (!implantDescription || !customArtwork))) return;
+    setProcedure({ characterId, itemId: isCustom ? null : chosenImplant?.id ?? null, positionId, characterName: chosenCharacter.name, implantName, implantDescription, positionLabel: chosenPosition.label + ' (' + chosenPosition.id + ')', image: isCustom ? customArtwork : chosenImplant?.properties?.image ?? null });
     setProcedureStarted(false);
     setProcedureError('');
   };
@@ -110,6 +120,16 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
                 <textarea rows={4} maxLength={2000} value={customDescription} placeholder="Describe the implant and its effects"
                   onChange={e => { setCustomDescription(e.target.value); setProcedure(null); }}/>
               </label>
+              <div className="rd-implant-detail rd-custom-artwork-detail">
+                <button type="button" className="rd-artwork-select" onClick={() => { setArtworkSearch(''); setArtworkPickerOpen(true); }} aria-label={customArtwork ? 'Change custom implant artwork' : 'Select custom implant artwork'}>
+                  {customArtwork ? <img className="rd-implant-image" src={customArtwork} alt="Selected custom implant artwork"/> :
+                    <span className="rd-artwork-select-placeholder"><ImageIcon size={23}/><span>CLICK TO SELECT ARTWORK</span></span>}
+                </button>
+                <div className="rd-custom-artwork-description">
+                  <p className="rd-description">{customDescription.trim() || 'Enter the implant description above.'}</p>
+                  {!customArtwork && <small>Artwork is required to review this procedure.</small>}
+                </div>
+              </div>
             </div>}
           </div>
           {loading ? <p>Loading cyberware…</p> : error ? <p role="alert">{error}</p> : implants.length === 0 ? <p>No catalog cyberware found.</p> :
@@ -126,11 +146,26 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
             </div>)}
         </div>
         <div className="rd-next-action">
-          <button type="button" disabled={!chosenCharacter || !implantName || !chosenPosition || (isCustom && !implantDescription)}
+          <button type="button" disabled={!chosenCharacter || !implantName || !chosenPosition || (isCustom && (!implantDescription || !customArtwork))}
             onClick={startProcedure}>REVIEW PROCEDURE</button>
         </div>
       </div>
     </div>
+    {artworkPickerOpen && <div className="rd-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setArtworkPickerOpen(false); }}>
+      <section className="rd-modal rd-artwork-picker" role="dialog" aria-modal="true" aria-label="Cyberware artwork library">
+        <div className="rd-modal-header"><div><small>RIPPERDOC // CUSTOM CYBERWARE</small><h3>SELECT ARTWORK</h3></div>
+          <button type="button" className="rd-modal-close" aria-label="Close artwork gallery" onClick={() => setArtworkPickerOpen(false)}><X size={19}/></button>
+        </div>
+        <label className="rd-artwork-search"><Search size={17}/><input value={artworkSearch} onChange={e => setArtworkSearch(e.target.value)} placeholder="Search cyberware artwork..." aria-label="Search cyberware artwork"/></label>
+        <div className="rd-artwork-grid">
+          {visibleArtwork.map(art => <button type="button" key={art.url} className={'rd-artwork-option' + (customArtwork === art.url ? ' selected' : '')}
+            onClick={() => { setCustomArtwork(art.url); setArtworkPickerOpen(false); setProcedure(null); }}>
+            <img src={art.url} alt={art.name} loading="lazy"/><span>{art.name}</span>
+          </button>)}
+          {visibleArtwork.length === 0 && <p className="rd-artwork-empty">No matching artwork.</p>}
+        </div>
+      </section>
+    </div>}
     {procedure && <div className="rd-modal-backdrop" onMouseDown={e => { if (!saving && e.target === e.currentTarget) setProcedure(null); }}>
       <section className="rd-modal" role="dialog" aria-modal="true" aria-label="Procedure overview">
         <div className="rd-modal-header"><div><small>RIPPERDOC // PREOPERATIVE ASSESSMENT</small><h3>PROCEDURE OVERVIEW</h3></div>
