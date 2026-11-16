@@ -61,3 +61,12 @@
 /* Keep editable custom implant fields beside the artwork, never above it. */
 .rd-custom-artwork-description .rd-field:last-of-type{margin-bottom:0}
 .rd-custom-artwork-description .rd-field{min-width:0}
+
+/* Installation and removal modes. */
+.rd-mode-switch{display:flex;gap:6px;margin-bottom:16px;padding:4px;background:#101a26;border:1px solid #405268;border-radius:6px;width:fit-content}
+.rd-mode-switch button{padding:9px 22px;border:1px solid transparent;border-radius:4px;background:transparent;color:#b9c7d6;font-weight:800;cursor:pointer}
+.rd-mode-switch button.active{background:#e8bd4a;color:#10151d}
+.rd-position.occupied:not(.selected){border-color:#e8bd4a;box-shadow:0 0 0 3px #e8bd4a55}
+/* Image-only gallery; filenames are retained as accessible image labels. */
+.rd-artwork-grid{padding-top:16px;grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+.rd-artwork-option{gap:0}
