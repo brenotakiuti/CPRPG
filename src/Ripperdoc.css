@@ -57,3 +57,7 @@
 .rd-artwork-option img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:3px;background:#0c141f}
 .rd-artwork-option span{font-size:11px;overflow-wrap:anywhere}
 .rd-artwork-empty{color:#9daebe;font-size:13px}
+
+/* Keep editable custom implant fields beside the artwork, never above it. */
+.rd-custom-artwork-description .rd-field:last-of-type{margin-bottom:0}
+.rd-custom-artwork-description .rd-field{min-width:0}

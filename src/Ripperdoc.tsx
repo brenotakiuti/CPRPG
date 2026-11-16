@@ -112,21 +112,20 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
               <span><b>+ Custom Cyberware</b><small>Invent a new implant for this procedure</small></span>
             </button>
             {isCustom && <div className="rd-inline-detail rd-custom-fields">
-              <label className="rd-field">CYBERWARE NAME
-                <input type="text" maxLength={120} value={customName} placeholder="Enter implant name"
-                  onChange={e => { setCustomName(e.target.value); setProcedure(null); }}/>
-              </label>
-              <label className="rd-field">DESCRIPTION
-                <textarea rows={4} maxLength={2000} value={customDescription} placeholder="Describe the implant and its effects"
-                  onChange={e => { setCustomDescription(e.target.value); setProcedure(null); }}/>
-              </label>
               <div className="rd-implant-detail rd-custom-artwork-detail">
                 <button type="button" className="rd-artwork-select" onClick={() => { setArtworkSearch(''); setArtworkPickerOpen(true); }} aria-label={customArtwork ? 'Change custom implant artwork' : 'Select custom implant artwork'}>
                   {customArtwork ? <img className="rd-implant-image" src={customArtwork} alt="Selected custom implant artwork"/> :
                     <span className="rd-artwork-select-placeholder"><ImageIcon size={23}/><span>CLICK TO SELECT ARTWORK</span></span>}
                 </button>
                 <div className="rd-custom-artwork-description">
-                  <p className="rd-description">{customDescription.trim() || 'Enter the implant description above.'}</p>
+                  <label className="rd-field">CYBERWARE NAME
+                    <input type="text" maxLength={120} value={customName} placeholder="Enter implant name"
+                      onChange={e => { setCustomName(e.target.value); setProcedure(null); }}/>
+                  </label>
+                  <label className="rd-field">DESCRIPTION
+                    <textarea rows={4} maxLength={2000} value={customDescription} placeholder="Describe the implant and its effects"
+                      onChange={e => { setCustomDescription(e.target.value); setProcedure(null); }}/>
+                  </label>
                   {!customArtwork && <small>Artwork is required to review this procedure.</small>}
                 </div>
               </div>
