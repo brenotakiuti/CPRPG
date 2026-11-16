@@ -149,7 +149,7 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
       </div>
       <div className="rd-catalog-panel">
         <strong>{mode === 'install' ? 'CYBERWARE CATALOG' : 'INSTALLED CYBERWARE'}</strong>
-        {mode === 'remove' ? <div className="rd-items">
+        {mode === 'remove' ? <><button type="button" className="rd-show-all" onClick={() => { setPositionId(''); setSelectedInstalledId(''); setProcedure(null); }}>SHOW ALL</button><div className="rd-items">
           {!characterId ? <p>Select a patient to view installed cyberware.</p> : installedLoading ? <p>Loading installed cyberware…</p> : installedError ? <p role="alert">{installedError}</p> : installed.length === 0 ? <p>No active cyberware installed.</p> :
             installed.filter(i => !positionId || i.position_id === positionId).map(i => <div className="rd-item-entry" key={i.id}>
               <button type="button" className={'rd-item' + (selectedInstalledId === i.id ? ' selected' : '')} aria-pressed={selectedInstalledId === i.id} aria-expanded={selectedInstalledId === i.id}
@@ -162,7 +162,7 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
               </div></div>}
             </div>)}
           {characterId && !installedLoading && !installedError && installed.length > 0 && positionId && !installed.some(i => i.position_id === positionId) && <p>No implants at this position. Select another position or clear the map selection.</p>}
-        </div> : <div className="rd-items">
+        </div></> : <div className="rd-items">
           <div className="rd-item-entry">
             <button type="button" className={'rd-item rd-custom-choice' + (isCustom ? ' selected' : '')}
               aria-pressed={isCustom} aria-expanded={isCustom}

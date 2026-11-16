@@ -70,3 +70,7 @@
 /* Image-only gallery; filenames are retained as accessible image labels. */
 .rd-artwork-grid{padding-top:16px;grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
 .rd-artwork-option{gap:0}
+
+/* Persistent clear-filter action in the removal catalog. */
+.rd-show-all{display:block;margin-top:12px;padding:8px 13px;background:#263546;border:1px solid #e8bd4a;border-radius:5px;color:#e8bd4a;font-size:11px;font-weight:800;cursor:pointer}
+.rd-show-all:hover,.rd-show-all:focus-visible{background:#34465a}
