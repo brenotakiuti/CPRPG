@@ -119,7 +119,7 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
                 <strong>€${Number(i.price).toLocaleString('en-US')}</strong>
               </button>
               {implantId === i.id && <div className="rd-inline-detail">
-                <p className="rd-description">{i.description || 'No description available.'}</p>
+                <div className="rd-implant-detail">{i.properties?.image && <img className="rd-implant-image" src={i.properties.image} alt={i.name + ' artwork'}/>}<p className="rd-description">{i.description || 'No description available.'}</p></div>
               </div>}
             </div>)}
         </div>
