@@ -50,7 +50,7 @@ function CyberwareArtworkZoom({ src, alt }: { src: string; alt: string }) {
  function pointerEnd(e: React.PointerEvent<HTMLDivElement>) { pointers.current.delete(e.pointerId); gesture.current = null; }
  return <>
   <button type="button" aria-label={`Inspect ${alt} artwork`} title="Inspect artwork" onClick={() => { setTransform({x:0,y:0,scale:1}); setOpen(true); }}
-   style={{position:'absolute',right:5,bottom:5,zIndex:2,display:'grid',placeItems:'center',width:24,height:24,borderRadius:8,border:'1px solid #e8bd4a',background:'#10151de8',color:'#e8bd4a',cursor:'pointer'}}>
+   style={{position:'absolute',right:5,bottom:5,zIndex:2,display:'flex',alignItems:'center',justifyContent:'center',padding:0,lineHeight:0,width:24,height:24,borderRadius:8,border:'1px solid #e8bd4a',background:'#10151de8',color:'#e8bd4a',cursor:'pointer'}}>
    <Search size={14} aria-hidden="true"/>
   </button>
   {open && createPortal(<div role="dialog" aria-modal="true" aria-label={`Inspect ${alt} artwork`}
