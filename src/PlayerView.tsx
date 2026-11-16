@@ -7,6 +7,7 @@ import PlayerLogs from './PlayerLogs';
 import PlayerSpotlights from './PlayerSpotlights';
 import DiceSpotlight from './DiceSpotlight';
 import PlayerStats from './PlayerStats';
+import { usePlayerCyberware } from './usePlayerCyberware';
 
 type PlayerCharacter = {
   id: string;
@@ -267,6 +268,7 @@ type PlayerViewProps = {
 export default function PlayerView({ token }: PlayerViewProps) {
   const [character, setCharacter] = useState<PlayerCharacter | null>(null);
   const inventoryData = usePlayerInventory(character?.id ?? null);
+  const cyberwareData = usePlayerCyberware(character?.id ?? null);
   const [body, setBody] = useState<number | null>(null);
   const [diceOpen, setDiceOpen] = useState(false);
   type PlayerScreen = { inventory: boolean; selected: string | null; logs: boolean; stats?: boolean; diagnostics?: boolean };
@@ -735,7 +737,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <h1>{character?.name ?? 'PLAYER TERMINAL'}</h1>
           <p>CHARACTER DASHBOARD</p>
         </header>
-        {!diagnosticsOpen && character && statsOpen && <PlayerStats onBack={goBack} characterId={character.id} />}
+        {!diagnosticsOpen && character && statsOpen && <PlayerStats onBack={goBack} cyberware={cyberwareData} />}
         {!diagnosticsOpen && character && inventoryVisited && <div style={{ display: inventoryOpen && !statsOpen ? undefined : 'none' }}><PlayerInventory inventory={inventoryData} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
         {!diagnosticsOpen && character ? (
           <div style={{ display: inventoryOpen || statsOpen ? 'none' : 'flex', flexDirection: 'column', gap: 12 }}>
