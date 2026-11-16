@@ -36,3 +36,8 @@
 .ps-installed-detail img{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:#0b131d;border:1px solid #405268;border-radius:5px}
 .ps-installed-detail p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:380px){.ps-installed-detail{grid-template-columns:86px minmax(0,1fr);gap:8px}}
+
+/* Show implant descriptions beneath their artwork, including narrow mobile screens. */
+.ps-installed-detail{display:flex;flex-direction:column;align-items:stretch;gap:8px}
+.ps-installed-detail img{width:100%;max-width:240px;aspect-ratio:1;object-fit:contain}
+@media(max-width:380px){.ps-installed-detail{display:flex;flex-direction:column;gap:8px}}
