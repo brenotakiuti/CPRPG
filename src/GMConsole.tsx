@@ -5,7 +5,7 @@ import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Cop
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
-import ItemCatalog from './ItemCatalog';
+import GMInventory from './GMInventory';
 import LiveSession from './LiveSession';
 import CampaignLogs from './CampaignLogs';
 import Ripperdoc from './Ripperdoc';
@@ -696,7 +696,7 @@ export default function GMConsole({
       {visitedTools.includes('live') && <div style={{ display: page === 'live' ? undefined : 'none' }}><LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} /></div>}
       {visitedTools.includes('bank') && <div style={{ display: page === 'bank' ? undefined : 'none' }} className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>}
       {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
-      {visitedTools.includes('inventory') && <div style={{ display: page === 'inventory' ? undefined : 'none' }}><ItemCatalog /></div>}
+      {visitedTools.includes('inventory') && <div style={{ display: page === 'inventory' ? undefined : 'none' }}><GMInventory campaignId={campaign.id} /></div>}
       {visitedTools.includes('ripperdoc') && <div style={{ display: page === 'ripperdoc' ? undefined : 'none' }}><Ripperdoc characters={characters} /></div>}
     </div>
   );
