@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { ArrowLeft, ScanLine } from 'lucide-react';
 import { CyberwareArtworkZoom } from './CyberwareArtworkZoom';
 import type { PlayerCyberwareData, InstalledCyberware } from './usePlayerCyberware';
@@ -15,19 +15,18 @@ const attributes = [
  {name:'INTELLIGENCE',value:8,description:'Analysis and netrunning.'},
  {name:'COOL',value:5,description:'Composure under pressure.'},
 ];
-export default function PlayerStats({onBack,cyberware}:{onBack:()=>void;cyberware:PlayerCyberwareData}) {
+export default function PlayerStats({onBack,cyberware,view,selectedPosition,onNavigate}:{onBack:()=>void;cyberware:PlayerCyberwareData;view:'map'|'list';selectedPosition:string|null;onNavigate:(view:'map'|'list',position:string|null)=>void}) {
  const { installed, loading: installedLoading, error: installedError } = cyberware;
- const [mapSelected,setMapSelected]=useState<string|null>(null);
- const [listSelected,setListSelected]=useState<string|null>(null);
- const [view,setView]=useState<'map'|'list'>('map');
+ const mapSelected=view==='map'?selectedPosition:null;
+ const listSelected=view==='list'?selectedPosition:null;
  const active=anatomicalPositions.find(s=>s.id===mapSelected);
  const zoom = active ? 2.7 : 1;
  const [focusX,focusY] = active ? [active.x,active.y] : [50,50];
  const zoomStyle = {transform: `translate(${(50-focusX)*zoom}%, ${(50-focusY)*zoom}%) scale(${zoom})`};
  const byPosition = useMemo(() => { const grouped: Record<string, InstalledCyberware[]> = {}; for (const implant of installed) (grouped[implant.position_id] ??= []).push(implant); return grouped; }, [installed]);
  const implantsAt = (positionId: string) => byPosition[positionId] ?? [];
- const showMap = () => { setMapSelected(null); setView('map'); };
- const showList = () => { setListSelected(null); setView('list'); };
+ const showMap = () => { if (view !== 'map' || selectedPosition) onNavigate('map',null); };
+ const showList = () => { if (view !== 'list' || selectedPosition) onNavigate('list',null); };
  return <section className="ps-page" aria-label="Character stats">
   <header className="ps-header"><button type="button" onClick={onBack}><ArrowLeft size={17}/> Back</button><div><small>PERSONAL PROFILE // NIGHT CITY</small><h2>CHARACTER STATS</h2></div><ScanLine size={22}/></header>
   <section className="ps-panel"><div className="ps-heading"><strong>ATTRIBUTES</strong><small>DEMO VALUES</small></div>
@@ -39,12 +38,12 @@ export default function PlayerStats({onBack,cyberware}:{onBack:()=>void;cyberwar
     {view==='map'&&<div className="ps-body">
      <div className="ps-scan-viewport"><div className="ps-scan-layer" style={zoomStyle}>
       <img src="/cyberware/cyberware-anatomical-scan.webp" alt="Cybernetic anatomical illustration"/>
-      {anatomicalPositions.map(s=><button type="button" key={s.id} className={'ps-marker '+(mapSelected===s.id?'active':'')+(implantsAt(s.id).length?' installed':'')} style={{left:s.x+'%',top:s.y+'%',transform:`translate(-50%, -50%) scale(${1 / zoom})`}} title={s.label+(implantsAt(s.id).length?' // '+implantsAt(s.id).length+' installed':'')} aria-label={'Select '+s.label} onClick={()=>setMapSelected(s.id)}/>)}
-     </div>{active&&<button type="button" className="ps-zoom-back" onClick={()=>setMapSelected(null)}><ArrowLeft size={13}/> FULL BODY</button>}</div>
+      {anatomicalPositions.map(s=><button type="button" key={s.id} className={'ps-marker '+(mapSelected===s.id?'active':'')+(implantsAt(s.id).length?' installed':'')} style={{left:s.x+'%',top:s.y+'%',transform:`translate(-50%, -50%) scale(${1 / zoom})`}} title={s.label+(implantsAt(s.id).length?' // '+implantsAt(s.id).length+' installed':'')} aria-label={'Select '+s.label} onClick={()=>onNavigate('map',s.id)}/>)}
+     </div>{active&&<button type="button" className="ps-zoom-back" onClick={onBack}><ArrowLeft size={13}/> FULL BODY</button>}</div>
      <div className="ps-scan-label">{active?'FOCUSED SCAN // '+active.label:'ANATOMICAL SCAN'}</div>
     </div>}
     <div className="ps-slots">{installedLoading?<p>Loading implants…</p>:installedError?<p role="alert">{installedError}</p>:installed.length===0?<p>No cyberware installed.</p>:anatomicalPositions.filter(s=>implantsAt(s.id).length>0).map(s=><div key={s.id} className="ps-slot-entry">
-     <button type="button" aria-pressed={(view==='map'?mapSelected:listSelected)===s.id} className={(view==='map'?mapSelected:listSelected)===s.id?'selected':''} onClick={()=>view==='map'?setMapSelected(s.id):setListSelected(s.id)}><span>{s.id} // {s.label.toUpperCase()}</span><strong>{implantsAt(s.id).length ? implantsAt(s.id).map(i=>i.name).join(', ') : 'No cyberware installed'}</strong></button>
+     <button type="button" aria-pressed={(view==='map'?mapSelected:listSelected)===s.id} className={(view==='map'?mapSelected:listSelected)===s.id?'selected':''} onClick={()=>onNavigate(view,selectedPosition===s.id?null:s.id)}><span>{s.id} // {s.label.toUpperCase()}</span><strong>{implantsAt(s.id).length ? implantsAt(s.id).map(i=>i.name).join(', ') : 'No cyberware installed'}</strong></button>
      {(view==='map'?mapSelected:listSelected)===s.id&&<div className="ps-inline-detail" aria-live="polite">
       {implantsAt(s.id).length===0?<p>No cyberware installed at this position.</p>:implantsAt(s.id).map(i=><div key={i.id} className="ps-position-implant"><strong>{i.name}</strong>{i.item_id === null && <span style={{ marginLeft: 8, color: '#d5a5ff', fontSize: 10, fontWeight: 700 }}>CUSTOM MADE</span>}<div className="ps-installed-detail">{i.image_url&&<div style={{position:'relative',width:'100%',maxWidth:240}}><img src={i.image_url} alt={i.name+' artwork'}/><CyberwareArtworkZoom src={i.image_url} alt={i.name}/></div>}<p>{i.description||'No description available.'}</p></div></div>)}
      </div>}

@@ -271,17 +271,19 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const cyberwareData = usePlayerCyberware(character?.id ?? null);
   const [body, setBody] = useState<number | null>(null);
   const [diceOpen, setDiceOpen] = useState(false);
-  type PlayerScreen = { inventory: boolean; selected: string | null; logs: boolean; stats?: boolean; diagnostics?: boolean };
+  type PlayerScreen = { inventory: boolean; selected: string | null; logs: boolean; stats?: boolean; diagnostics?: boolean; statsView?: 'map' | 'list'; statsPosition?: string | null };
   const screenKey = 'player-screen:' + (token ?? 'current');
   function restoreScreen(): PlayerScreen {
     try {
       const value = JSON.parse(sessionStorage.getItem(screenKey) || 'null');
-      return { inventory: value?.inventory === true, selected: typeof value?.selected === 'string' ? value.selected : null, logs: value?.logs === true, stats: value?.stats === true, diagnostics: value?.diagnostics === true };
+      return { inventory: value?.inventory === true, selected: typeof value?.selected === 'string' ? value.selected : null, logs: value?.logs === true, stats: value?.stats === true, statsView: value?.statsView === 'list' ? 'list' : 'map', statsPosition: typeof value?.statsPosition === 'string' ? value.statsPosition : null, diagnostics: value?.diagnostics === true };
     } catch { return { inventory: false, selected: null, logs: false, diagnostics: false }; }
   }
   const [initialScreen] = useState(restoreScreen);
   const [logsOpen, setLogsOpen] = useState(initialScreen.logs);
   const [statsOpen, setStatsOpen] = useState(initialScreen.stats === true);
+  const [statsView, setStatsView] = useState<'map' | 'list'>(initialScreen.statsView ?? 'map');
+  const [statsPosition, setStatsPosition] = useState<string | null>(initialScreen.statsPosition ?? null);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(initialScreen.diagnostics === true);
   const [inventoryOpen, setInventoryOpen] = useState(initialScreen.inventory);
   const [inventorySelection, setInventorySelection] = useState<string | null>(initialScreen.selected);
@@ -297,6 +299,8 @@ export default function PlayerView({ token }: PlayerViewProps) {
     setInventorySelection(next.selected);
     setLogsOpen(next.logs);
     setStatsOpen(next.stats === true);
+    setStatsView(next.statsView ?? 'map');
+    setStatsPosition(next.statsPosition ?? null);
     setDiagnosticsOpen(next.diagnostics === true);
     if (next.inventory) setInventoryVisited(true);
     if (next.logs) setLogsVisited(true);
@@ -316,6 +320,8 @@ export default function PlayerView({ token }: PlayerViewProps) {
       setInventorySelection(next.selected);
       setLogsOpen(next.logs);
       setStatsOpen(next.stats === true);
+      setStatsView(next.statsView ?? 'map');
+      setStatsPosition(next.statsPosition ?? null);
       setDiagnosticsOpen(next.diagnostics === true);
       if (next.inventory) setInventoryVisited(true);
       if (next.logs) setLogsVisited(true);
@@ -737,7 +743,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <h1>{character?.name ?? 'PLAYER TERMINAL'}</h1>
           <p>CHARACTER DASHBOARD</p>
         </header>
-        {!diagnosticsOpen && character && statsOpen && <PlayerStats onBack={goBack} cyberware={cyberwareData} />}
+        {!diagnosticsOpen && character && statsOpen && <PlayerStats onBack={goBack} cyberware={cyberwareData} view={statsView} selectedPosition={statsPosition} onNavigate={(view, position) => navigate({ ...navRef.current, stats: true, statsView: view, statsPosition: position })} />}
         {!diagnosticsOpen && character && inventoryVisited && <div style={{ display: inventoryOpen && !statsOpen ? undefined : 'none' }}><PlayerInventory inventory={inventoryData} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
         {!diagnosticsOpen && character ? (
           <div style={{ display: inventoryOpen || statsOpen ? 'none' : 'flex', flexDirection: 'column', gap: 12 }}>

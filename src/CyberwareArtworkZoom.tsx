@@ -5,6 +5,22 @@ import { Search } from 'lucide-react';
 /* Cyberware-only portal viewer: leaves the inventory artwork component unchanged. */
 export function CyberwareArtworkZoom({ src, alt, compact = false }: { src: string; alt: string; compact?: boolean }) {
  const [open, setOpen] = useState(false);
+ const viewerKey = useRef('cyberware-artwork:' + Math.random().toString(36).slice(2));
+ const openRef = useRef(false);
+ const closeViewer = () => { if (openRef.current) window.history.back(); };
+ const openViewer = () => {
+  setTransform({x:0,y:0,scale:1});
+  window.history.pushState({ ...window.history.state, cyberwareViewerKey: viewerKey.current }, '');
+  openRef.current = true;
+  setOpen(true);
+ };
+ useEffect(() => {
+  const onPop = (event: PopStateEvent) => {
+   if (event.state?.cyberwareViewerKey !== viewerKey.current) { openRef.current = false; setOpen(false); }
+  };
+  window.addEventListener('popstate', onPop);
+  return () => window.removeEventListener('popstate', onPop);
+ }, []);
  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
  const viewport = useRef<HTMLDivElement>(null);
  const image = useRef<HTMLImageElement>(null);
@@ -14,7 +30,7 @@ export function CyberwareArtworkZoom({ src, alt, compact = false }: { src: strin
  current.current = transform;
  useEffect(() => {
   if (!open) return;
-  const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); };
+  const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') closeViewer(); };
   document.addEventListener('keydown', onKey);
   return () => document.removeEventListener('keydown', onKey);
  }, [open]);
@@ -46,7 +62,7 @@ export function CyberwareArtworkZoom({ src, alt, compact = false }: { src: strin
  }
  function pointerEnd(e: React.PointerEvent<HTMLDivElement>) { pointers.current.delete(e.pointerId); gesture.current = null; }
  return <>
-  <button type="button" aria-label={`Inspect ${alt} artwork`} title="Inspect artwork" onClick={() => { setTransform({x:0,y:0,scale:1}); setOpen(true); }}
+  <button type="button" aria-label={`Inspect ${alt} artwork`} title="Inspect artwork" onClick={openViewer}
    style={{position:'absolute',right:compact?5:10,bottom:compact?5:10,zIndex:2,display:'flex',alignItems:'center',justifyContent:'center',padding:0,lineHeight:0,width:compact?24:40,height:compact?24:40,borderRadius:8,border:'1px solid #e8bd4a',background:'#10151de8',color:'#e8bd4a',cursor:'pointer'}}>
    <Search size={compact?14:21} aria-hidden="true"/>
   </button>
@@ -60,7 +76,7 @@ export function CyberwareArtworkZoom({ src, alt, compact = false }: { src: strin
      style={{maxWidth:'100%',maxHeight:'100%',width:'auto',height:'auto',objectFit:'contain',transform:`translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,transformOrigin:'center',pointerEvents:'none'}}/>
    </div>
    <div style={{flexShrink:0,padding:'14px 0 4px',display:'flex',justifyContent:'center',width:'100%'}}>
-    <button type="button" onClick={()=>setOpen(false)} style={{border:'1px solid #c4a261',borderRadius:7,background:'#d3aa5c',color:'#16120b',padding:'12px 38px',fontWeight:700,fontSize:15,cursor:'pointer'}}>CLOSE</button>
+    <button type="button" onClick={closeViewer} style={{border:'1px solid #c4a261',borderRadius:7,background:'#d3aa5c',color:'#16120b',padding:'12px 38px',fontWeight:700,fontSize:15,cursor:'pointer'}}>CLOSE</button>
    </div>
   </div>, document.body)}
  </>;
