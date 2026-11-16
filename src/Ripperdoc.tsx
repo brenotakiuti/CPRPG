@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Activity, CheckCircle2, ImageIcon, X } from 'lucide-react';
+import { Activity, CheckCircle2, ImageIcon, ScanLine, X } from 'lucide-react';
 import { CyberwareArtworkZoom } from './CyberwareArtworkZoom';
 import { supabase } from './supabase';
 import { anatomicalPositions } from './anatomicalPositions';
@@ -144,7 +144,7 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
             aria-label={p.label + ' (' + p.id + ')'} aria-pressed={positionId === p.id}
             title={p.label + ' (' + p.id + ')'}
             onClick={() => { setPositionId(positionId === p.id ? '' : p.id); setProcedure(null); setSelectedInstalledId(''); }}><span>{p.id}</span></button>)}
-          {mode === 'remove' && <button type="button" className="rd-show-all" onClick={() => { setPositionId(''); setSelectedInstalledId(''); setProcedure(null); }}>FULL SCAN</button>}
+          {mode === 'remove' && <button type="button" className="rd-show-all" aria-label="Full scan" title="Full scan" onClick={() => { setPositionId(''); setSelectedInstalledId(''); setProcedure(null); }}><ScanLine size={20} aria-hidden="true"/></button>}
         </div>
         <div className="rd-position-caption">{chosenPosition ? chosenPosition.id + ' // ' + chosenPosition.label : 'SELECT ANATOMICAL POSITION'}</div>
       </div>
