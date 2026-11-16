@@ -735,7 +735,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <h1>{character?.name ?? 'PLAYER TERMINAL'}</h1>
           <p>CHARACTER DASHBOARD</p>
         </header>
-        {!diagnosticsOpen && character && statsOpen && <PlayerStats onBack={goBack} />}
+        {!diagnosticsOpen && character && statsOpen && <PlayerStats onBack={goBack} characterId={character.id} />}
         {!diagnosticsOpen && character && inventoryVisited && <div style={{ display: inventoryOpen && !statsOpen ? undefined : 'none' }}><PlayerInventory inventory={inventoryData} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
         {!diagnosticsOpen && character ? (
           <div style={{ display: inventoryOpen || statsOpen ? 'none' : 'flex', flexDirection: 'column', gap: 12 }}>
