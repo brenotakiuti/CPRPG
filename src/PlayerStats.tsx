@@ -3,6 +3,7 @@ import { supabase } from './supabase';
 import { ArrowLeft, ScanLine } from 'lucide-react';
 import './PlayerStats.css';
 import { anatomicalPositions } from './anatomicalPositions';
+import { ArtworkZoomButton } from './ArtworkViewer';
 
 const attributes = [
  {name:'BODY',value:6,description:'Strength and endurance.'},
@@ -52,7 +53,7 @@ export default function PlayerStats({onBack,characterId}:{onBack:()=>void;charac
      <span>{i.position_id}</span><strong>{i.name}</strong>
     </button>
     {selectedInstalled===i.id&&<div className="ps-inline-detail ps-installed-detail">
-      {i.image_url&&<img src={i.image_url} alt={i.name+' artwork'}/>}
+      {i.image_url&&<div style={{position:'relative',width:'100%',maxWidth:240}}><img src={i.image_url} alt={i.name+' artwork'}/><ArtworkZoomButton src={i.image_url} alt={i.name}/></div>}
       <p>{i.description||'No description available.'}</p>
     </div>}
    </div>)}</div>}
@@ -70,7 +71,7 @@ export default function PlayerStats({onBack,characterId}:{onBack:()=>void;charac
     <div className="ps-slots">{installedLoading?<p>Loading implants…</p>:installedError?<p role="alert">{installedError}</p>:installed.length===0?<p>No cyberware installed.</p>:anatomicalPositions.filter(s=>implantsAt(s.id).length>0).map(s=><div key={s.id} className="ps-slot-entry">
      <button type="button" aria-pressed={(view==='map'?mapSelected:listSelected)===s.id} className={(view==='map'?mapSelected:listSelected)===s.id?'selected':''} onClick={()=>view==='map'?setMapSelected(s.id):setListSelected(s.id)}><span>{s.id} // {s.label.toUpperCase()}</span><strong>{implantsAt(s.id).length ? implantsAt(s.id).map(i=>i.name).join(', ') : 'No cyberware installed'}</strong></button>
      {(view==='map'?mapSelected:listSelected)===s.id&&<div className="ps-inline-detail" aria-live="polite">
-      {implantsAt(s.id).length===0?<p>No cyberware installed at this position.</p>:implantsAt(s.id).map(i=><div key={i.id} className="ps-position-implant"><strong>{i.name}</strong><div className="ps-installed-detail">{i.image_url&&<img src={i.image_url} alt={i.name+' artwork'}/>}<p>{i.description||'No description available.'}</p></div></div>)}
+      {implantsAt(s.id).length===0?<p>No cyberware installed at this position.</p>:implantsAt(s.id).map(i=><div key={i.id} className="ps-position-implant"><strong>{i.name}</strong><div className="ps-installed-detail">{i.image_url&&<div style={{position:'relative',width:'100%',maxWidth:240}}><img src={i.image_url} alt={i.name+' artwork'}/><ArtworkZoomButton src={i.image_url} alt={i.name}/></div>}<p>{i.description||'No description available.'}</p></div></div>)}
      </div>}
     </div>)}</div>
    </div>
