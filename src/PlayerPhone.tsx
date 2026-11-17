@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, LockKeyhole, MessageSquare, RadioTower, Send, ShieldAlert, UserRound } from 'lucide-react';
+import { ArrowLeft, LockKeyhole, MessageSquare, Send, ShieldAlert, UserRound } from 'lucide-react';
 import { supabase } from './supabase';
 import './PlayerPhone.css';
 
