@@ -6,6 +6,7 @@ import './PlayerPhone.css';
 type Contact = { identity_id: string; kind: string; label: string; anonymous: boolean; can_message: boolean; can_call: boolean; has_conversation: boolean };
 type Thread = { conversation_id: string; other_identity_id: string; other_label: string; other_anonymous: boolean; last_message_at: string | null; last_message: string | null; unread_count: number };
 type Message = { message_id: string; sender_identity_id: string; body: string; created_at: string };
+const REVEAL_EVENT_PREFIX = '[GHOST//LINK IDENTITY REVEALED] ';
 
 export default function PlayerPhone({ characterId, onBack }: { characterId: string; onBack: () => void }) {
   const [selfId, setSelfId] = useState('');
@@ -169,7 +170,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     </> : <>
       <div className="ghost-heading"><button onClick={() => { setSelected(null); void refresh().catch(() => {}); }} aria-label="Back to inbox"><ArrowLeft size={20}/></button><UserRound size={27}/><div><h2>{selectedLabel}</h2><small>{selectedMasked ? 'IDENTITY MASKED' : 'SECURE CONNECTION'}</small></div></div>
       <div className="ghost-status"><ShieldAlert size={15}/> {selectedMasked ? 'UNREGISTERED SIGNAL' : 'PRIVATE COMMUNICATION'}</div>
-      <div className="ghost-messages" ref={historyRef} onScroll={handleHistoryScroll}>{messages.length === 0 && <p className="ghost-muted">No messages yet.</p>}{messages.map(m => <div key={m.message_id} className={'ghost-bubble ' + (m.sender_identity_id === selfId ? 'outgoing' : 'incoming')}><span>{m.body}</span><small>{time(m.created_at)}</small></div>)}</div>
+      <div className="ghost-messages" ref={historyRef} onScroll={handleHistoryScroll}>{messages.length === 0 && <p className="ghost-muted">No messages yet.</p>}{messages.map(m => <div key={m.message_id} className={'ghost-bubble ' + (m.sender_identity_id !== selfId && m.body.startsWith(REVEAL_EVENT_PREFIX) ? 'ghost-system-event' : m.sender_identity_id === selfId ? 'outgoing' : 'incoming')}><span>{m.sender_identity_id !== selfId && m.body.startsWith(REVEAL_EVENT_PREFIX) ? <><strong>GHOST//LINK · IDENTITY REVEALED</strong>{m.body.slice(REVEAL_EVENT_PREFIX.length)}</> : m.body}</span><small>{time(m.created_at)}</small></div>)}</div>
       <form className="ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input value={draft} onChange={e => setDraft(e.target.value)} maxLength={4000} placeholder="Transmit message..." aria-label="Message"/><button type="submit" disabled={busy || !draft.trim()} aria-label="Send message"><Send size={19}/></button></form>
     </>}
     {error && <p className="ghost-error" role="alert">{error}</p>}

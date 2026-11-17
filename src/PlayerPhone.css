@@ -15,3 +15,5 @@
 @keyframes ghostHeaderPulse{0%,100%{border-bottom-color:#35c5d3}45%{border-bottom-color:#d77aff}}
 .ghost-top.ghost-signal-pulse{animation:ghostHeaderPulse 300ms ease-out both}
 @media(prefers-reduced-motion:reduce){.ghost-contact.ghost-contact-pulse,.ghost-top.ghost-signal-pulse{animation:none!important}}
+
+.ghost-bubble.ghost-system-event{align-self:center;max-width:94%;width:max-content;text-align:center;background:#272039;border:1px solid #73569a;color:#e8d9fa}.ghost-system-event strong{display:block;font-size:10px;letter-spacing:.7px;color:#c79af0;margin-bottom:7px}.ghost-system-event span{display:block}.ghost-system-event small{text-align:center}
