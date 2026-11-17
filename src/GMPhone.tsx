@@ -27,24 +27,27 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [glowingMessageIds, setGlowingMessageIds] = useState<string[]>([]);
-  const glowStartedAt = useRef(new Map<string, number>());
+  const glowPending = useRef(new Set<string>());
   const glowTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const lastGlowingConversation = useRef('');
   const historyRef = useRef<HTMLDivElement | null>(null);
   const historyPrevious = useRef({ conversation: '', lastMessage: '' });
+  const scrollAnimation = useRef<number | null>(null);
   const markReadInFlight = useRef(new Set<string>());
   const clearReadGlow = useCallback(() => {
-    const now = Date.now();
-    for (const [id, started] of glowStartedAt.current) {
-      const remaining = Math.max(0, 600 - (now - started));
+    // The glow countdown begins only when the conversation reaches the bottom.
+    for (const id of glowPending.current) {
+      glowPending.current.delete(id);
       const timer = setTimeout(() => {
-        glowStartedAt.current.delete(id);
         setGlowingMessageIds(current => current.filter(value => value !== id));
-      }, remaining);
+      }, 1200);
       glowTimers.current.push(timer);
     }
   }, []);
-  useEffect(() => () => glowTimers.current.forEach(clearTimeout), []);
+  useEffect(() => () => {
+    glowTimers.current.forEach(clearTimeout);
+    if (scrollAnimation.current !== null) cancelAnimationFrame(scrollAnimation.current);
+  }, []);
   const selectedConversationRef = useRef('');
   const tabRef = useRef<Tab>('messages');
   selectedConversationRef.current = selectedConversation;
@@ -56,7 +59,6 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
       const marked = await supabase.rpc('phone_gm_mark_read', { p_conversation_id: conversationId });
       if (marked.error) throw marked.error;
       onRead?.();
-      clearReadGlow();
       const updated = await supabase.rpc('phone_gm_threads', { p_campaign_id: campaignId });
       if (updated.error) throw updated.error;
       setThreads((updated.data || []) as Thread[]);
@@ -70,14 +72,15 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     const node = historyRef.current;
     if (!node || !selectedConversationRef.current || tabRef.current !== 'messages') return;
     if (node.scrollHeight - node.scrollTop - node.clientHeight <= 8) {
+      clearReadGlow();
       void markConversationRead(selectedConversationRef.current);
     }
-  }, [markConversationRead]);
+  }, [markConversationRead, clearReadGlow]);
   useEffect(() => {
     if (!selectedConversation || tab !== 'messages') return;
     if (lastGlowingConversation.current !== selectedConversation) {
       lastGlowingConversation.current = selectedConversation;
-      glowStartedAt.current.clear();
+      glowPending.current.clear();
       setGlowingMessageIds([]);
     }
     const thread = threads.find(t => t.conversation_id === selectedConversation);
@@ -85,10 +88,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     if (!unread || !messages.length) return;
     const incoming = messages.filter(m => m.sender_identity_id !== thread?.npc_identity_id);
     const ids = incoming.slice(-unread).map(m => m.message_id);
-    const now = Date.now();
-    ids.forEach(id => {
-      if (!glowStartedAt.current.has(id)) glowStartedAt.current.set(id, now);
-    });
+    ids.forEach(id => glowPending.current.add(id));
     setGlowingMessageIds(current => {
       const merged = [...new Set([...current, ...ids])];
       return merged.length === current.length ? current : merged;
@@ -100,16 +100,42 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     const lastMessage = messages[messages.length - 1]?.message_id || '';
     const previous = historyPrevious.current;
     if (previous.conversation !== selectedConversation || previous.lastMessage !== lastMessage) {
-      // Opening a conversation jumps to the bottom; appended messages scroll smoothly.
-      // The scroll handler marks incoming messages read only after reaching the bottom.
       const opening = previous.conversation !== selectedConversation;
-      node.scrollTo({ top: node.scrollHeight, behavior: opening ? 'instant' : 'smooth' });
+      if (scrollAnimation.current !== null) cancelAnimationFrame(scrollAnimation.current);
       historyPrevious.current = { conversation: selectedConversation, lastMessage };
-      if (opening && messages.length && node.scrollHeight - node.scrollTop - node.clientHeight <= 8) {
-        void markConversationRead(selectedConversation);
+      const target = Math.max(0, node.scrollHeight - node.clientHeight);
+      if (opening || !lastMessage) {
+        node.scrollTop = target;
+        clearReadGlow();
+        if (messages.length) void markConversationRead(selectedConversation);
+      } else {
+        const from = node.scrollTop;
+        const distance = target - from;
+        if (distance <= 1) {
+          node.scrollTop = target;
+          clearReadGlow();
+          if (messages.length) void markConversationRead(selectedConversation);
+        } else {
+          // Explicit timing avoids browser-dependent instant jumps on long conversations.
+          const duration = Math.min(1400, Math.max(450, distance * 1.25));
+          const started = performance.now();
+          const step = (now: number) => {
+            const t = Math.min(1, (now - started) / duration);
+            const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+            node.scrollTop = from + distance * eased;
+            if (t < 1) scrollAnimation.current = requestAnimationFrame(step);
+            else {
+              scrollAnimation.current = null;
+              node.scrollTop = target;
+              clearReadGlow();
+              if (messages.length) void markConversationRead(selectedConversation);
+            }
+          };
+          scrollAnimation.current = requestAnimationFrame(step);
+        }
       }
     }
-  }, [selectedConversation, tab, messages, markConversationRead]);
+  }, [selectedConversation, tab, messages, markConversationRead, clearReadGlow]);
 
   const refresh = useCallback(async () => {
     const [t, n] = await Promise.all([
