@@ -146,17 +146,18 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
   const refresh = useCallback(async () => {
     const [t, n, p] = await Promise.all([
       supabase.rpc('phone_gm_threads', { p_campaign_id: campaignId }),
-      supabase.from('phone_identities').select('id,internal_name,display_name,anonymous').eq('campaign_id', campaignId).eq('kind', 'npc'),
+      supabase.rpc('phone_gm_identities', { p_campaign_id: campaignId }),
       supabase.from('characters').select('id,name').eq('campaign_id', campaignId).order('name'),
     ]);
     if (t.error) throw t.error;
-    // Identity listing may be restricted by RLS; conversation list still works.
+    // The GM-only RPC returns identities even when they have no conversations.
     const next = (t.data || []) as Thread[];
     setThreads(next);
-    if (!n.error) setIdentities((n.data || []) as Identity[]);
+    if (n.error) throw n.error;
+    setIdentities((n.data || []) as Identity[]);
     if (!p.error) setPlayers((p.data || []) as {id:string;name:string}[]);
     else setError(p.error.message);
-    setSelectedIdentity(current => current || next[0]?.npc_identity_id || (!n.error ? (n.data?.[0]?.id ?? '') : ''));
+    setSelectedIdentity(current => current || next[0]?.npc_identity_id || (n.data?.[0]?.id ?? ''));
     setSelectedConversation(current => current && next.some(row => row.conversation_id === current) ? current : '');
   }, [campaignId]);
   const read = useCallback(async (conversationId: string) => {
