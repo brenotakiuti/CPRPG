@@ -72,7 +72,7 @@ export default function GMInventory({ campaignId }: { campaignId: string }) {
   const selected = options.find(option => option.id === selectedItem);
   const numericQuantity = Number(quantity);
   const quantityValid = quantity.trim() !== '' && Number.isSafeInteger(numericQuantity) && numericQuantity > 0;
-  const valid = !loading && !busy && !!recipient && sender !== recipient && !!selected && !selected.equipped &&
+  const valid = !loading && !busy && !!recipient && sender !== recipient && !!selected &&
     quantityValid && (selected.quantity === null || numericQuantity <= selected.quantity) &&
     (sender === WORLD || selected.item?.category !== 'Weapon' || numericQuantity === 1);
 
@@ -122,8 +122,8 @@ export default function GMInventory({ campaignId }: { campaignId: string }) {
       <label>ITEM
         <select value={selectedItem} disabled={busy || loading} onChange={e => { setSelectedItem(e.target.value); setQuantity('1'); setSuccess(false); setError(''); }}>
           <option value="">Select item</option>
-          {options.map(option => <option key={option.id} value={option.id} disabled={option.equipped || !option.item}>
-            {option.item?.name ?? 'Unknown item'}{option.quantity !== null ? ' ×' + option.quantity : ''}{option.equipped ? ' — Equipped (unequip first)' : ''}
+          {options.map(option => <option key={option.id} value={option.id} disabled={!option.item}>
+            {option.item?.name ?? 'Unknown item'}{option.quantity !== null ? ' ×' + option.quantity : ''}{option.equipped ? ' — Equipped (will unequip)' : ''}
           </option>)}
         </select>
       </label>
