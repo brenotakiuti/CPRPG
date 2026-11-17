@@ -331,6 +331,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
   function navigate(next: PlayerScreen) {
     applyScreen(next);
     window.history.pushState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: next }, '');
+    if (next.transfer) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }
   function goBack() {
     if (navRef.current.logs || navRef.current.diagnostics || navRef.current.stats || navRef.current.selected || navRef.current.inventory || navRef.current.transfer) window.history.back();
@@ -793,7 +794,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
             </div>
             <PlayerLoadout inventory={inventoryData} onInspect={id => openInventory(id)} onInventory={() => openInventory()} />
             <section className="player-card player-navigation">
-              <h2>CHARACTER <span>›</span></h2>
+              <h2>CHARACTER</h2>
               <div className="player-nav-grid">
                 <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, stats: true })} style={{ cursor: "pointer", font: "inherit" }}><UserRound size={24} aria-hidden="true" /><span>STATS</span></button>
                 <button type="button" className="player-nav-tile" onClick={() => openInventory()} style={{ cursor: "pointer", font: "inherit" }}><Backpack size={24} aria-hidden="true" /><span>INVENTORY</span></button>
