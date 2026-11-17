@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useGMArtworkCache } from './useGMArtworkCache';
 import { QRCodeSVG } from 'qrcode.react';
-import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Shield, Users, Wrench, Zap, Slice } from 'lucide-react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, MessageSquare, Shield, Users, Wrench, Zap, Slice } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
@@ -9,6 +9,7 @@ import GMInventory from './GMInventory';
 import LiveSession from './LiveSession';
 import CampaignLogs from './CampaignLogs';
 import Ripperdoc from './Ripperdoc';
+import GMPhone from './GMPhone';
 
 // Temporary visual thresholds; can later be supplied by campaign stat-tier records.
 const DEFAULT_STAT_TIERS = [
@@ -81,14 +82,14 @@ export default function GMConsole({
   onSwitchCampaign,
 }: GMConsoleProps) {
   useGMArtworkCache();
-  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'ripperdoc' | 'factions' | 'logs'>(() => {
+  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'ripperdoc' | 'factions' | 'logs' | 'phone'>(() => {
     const saved = sessionStorage.getItem('gm-page:' + campaign.id);
-    return saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'ripperdoc' || saved === 'factions' || saved === 'logs' ? saved : 'live';
+    return saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'ripperdoc' || saved === 'factions' || saved === 'logs' || saved === 'phone' ? saved : 'live';
   });
   // Mount data-heavy tools on first visit, then retain their data and Realtime subscriptions.
   const [visitedTools, setVisitedTools] = useState<string[]>(() => {
     const saved = sessionStorage.getItem('gm-page:' + campaign.id) ?? 'live';
-    return ['live', 'bank', 'logs', 'inventory', 'ripperdoc'].includes(saved) ? [saved] : [];
+    return ['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone'].includes(saved) ? [saved] : [];
   });
   const openPage = (next: typeof page) => {
     setPage(next);
@@ -447,6 +448,7 @@ export default function GMConsole({
     { id: 'ripperdoc', label: 'Ripperdoc', icon: Slice },
     { id: 'factions', label: 'Factions', icon: Shield },
     { id: 'logs', label: 'Logs', icon: ScrollText },
+    { id: 'phone', label: 'Ghost//Link', icon: MessageSquare },
   ] as const;
   const creationControls = (
     <div className="gm-invitations-layout">
@@ -690,13 +692,14 @@ export default function GMConsole({
             </div>
           </section>
         </div>
-      ) : page === 'inventory' || page === 'ripperdoc' ? null : (
+      ) : page === 'inventory' || page === 'ripperdoc' || page === 'phone' ? null : (
         <div className="gm-dashboard-panel gm-empty-detail">Factions — coming later</div>
       )}
       {visitedTools.includes('live') && <div style={{ display: page === 'live' ? undefined : 'none' }}><LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} /></div>}
       {visitedTools.includes('bank') && <div style={{ display: page === 'bank' ? undefined : 'none' }} className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>}
       {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
       {visitedTools.includes('inventory') && <div style={{ display: page === 'inventory' ? undefined : 'none' }}><GMInventory campaignId={campaign.id} /></div>}
+      {visitedTools.includes('phone') && <div style={{ display: page === 'phone' ? undefined : 'none' }}><GMPhone campaignId={campaign.id} campaignName={campaign.name} /></div>}
       {visitedTools.includes('ripperdoc') && <div style={{ display: page === 'ripperdoc' ? undefined : 'none' }}><Ripperdoc characters={characters} /></div>}
     </div>
   );
