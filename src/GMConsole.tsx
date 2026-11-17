@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useGMArtworkCache } from './useGMArtworkCache';
 import { QRCodeSVG } from 'qrcode.react';
 import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, MessageSquare, Shield, Users, Wrench, Zap, Slice } from 'lucide-react';
@@ -93,10 +93,29 @@ export default function GMConsole({
   });
   const openPage = (next: typeof page) => {
     setPage(next);
-    if (['live', 'bank', 'logs', 'inventory', 'ripperdoc'].includes(next)) {
+    if (['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone'].includes(next)) {
       setVisitedTools(previous => previous.includes(next) ? previous : [...previous, next]);
     }
   };
+  const [phoneUnread, setPhoneUnread] = useState(0);
+  const refreshPhoneUnread = useCallback(async () => {
+    const result = await supabase.rpc('phone_gm_unread', { p_campaign_id: campaign.id });
+    if (result.error) {
+      console.warn('[Ghost//Link] GM unread count unavailable:', result.error.message);
+      return;
+    }
+    const rows = (result.data || []) as Array<{ unread_count: number }>;
+    setPhoneUnread(rows.reduce((sum, row) => sum + Number(row.unread_count || 0), 0));
+  }, [campaign.id]);
+  useEffect(() => {
+    void refreshPhoneUnread();
+    const channel = supabase.channel('gm-phone-badge-' + campaign.id)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'phone_messages', filter: 'campaign_id=eq.' + campaign.id }, () => { void refreshPhoneUnread(); })
+      .subscribe();
+    const focus = () => { void refreshPhoneUnread(); };
+    window.addEventListener('focus', focus);
+    return () => { window.removeEventListener('focus', focus); void supabase.removeChannel(channel); };
+  }, [campaign.id, refreshPhoneUnread]);
   const [selectedId, setSelectedId] = useState(() => sessionStorage.getItem('gm-selected-character:' + campaign.id) || '');
   const [detailTab, setDetailTab] = useState<'stats' | 'cyberware' | 'inventory' | 'access'>(() => {
     const saved = sessionStorage.getItem('gm-character-tab:' + campaign.id);
@@ -515,7 +534,7 @@ export default function GMConsole({
         {navigation.map((item) => (
           <button key={item.id} type="button" className={page === item.id ? 'gm-tab active' : 'gm-tab'}
             aria-current={page === item.id ? 'page' : undefined} onClick={() => openPage(item.id)}>
-            <item.icon size={19} strokeWidth={1.9} aria-hidden="true" />
+            <span className="gm-phone-nav-icon"><item.icon size={19} strokeWidth={1.9} aria-hidden="true" />{item.id === "phone" && phoneUnread > 0 && <b className="gm-phone-nav-badge">{phoneUnread > 99 ? "99+" : phoneUnread}</b>}</span>
             <span className="gm-sr-only">{item.label}</span>
           </button>
         ))}
@@ -699,7 +718,7 @@ export default function GMConsole({
       {visitedTools.includes('bank') && <div style={{ display: page === 'bank' ? undefined : 'none' }} className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>}
       {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
       {visitedTools.includes('inventory') && <div style={{ display: page === 'inventory' ? undefined : 'none' }}><GMInventory campaignId={campaign.id} /></div>}
-      {visitedTools.includes('phone') && <div style={{ display: page === 'phone' ? undefined : 'none' }}><GMPhone campaignId={campaign.id} campaignName={campaign.name} /></div>}
+      {visitedTools.includes('phone') && <div style={{ display: page === 'phone' ? undefined : 'none' }}><GMPhone campaignId={campaign.id} campaignName={campaign.name} onRead={refreshPhoneUnread} /></div>}
       {visitedTools.includes('ripperdoc') && <div style={{ display: page === 'ripperdoc' ? undefined : 'none' }}><Ripperdoc characters={characters} /></div>}
     </div>
   );

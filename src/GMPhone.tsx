@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MessageSquare, Users, VenetianMask, Phone, Settings2, Send, RefreshCw } from 'lucide-react';
 import { supabase } from './supabase';
 import './GMPhone.css';
 
-type Thread = { conversation_id: string; npc_identity_id: string; npc_internal_name: string; npc_public_label: string; player_identity_id: string; player_name: string; last_message_at: string | null; last_message: string | null };
+type Thread = { conversation_id: string; npc_identity_id: string; npc_internal_name: string; npc_public_label: string; player_identity_id: string; player_name: string; last_message_at: string | null; last_message: string | null; unread_count: number };
 type Message = { message_id: string; sender_identity_id: string; body: string; created_at: string };
 type Identity = { id: string; internal_name: string; display_name: string; anonymous: boolean };
 type Tab = 'messages' | 'contacts' | 'identities' | 'calls' | 'settings';
@@ -15,7 +15,7 @@ const tabs: { id: Tab; label: string; icon: typeof MessageSquare }[] = [
   { id: 'settings', label: 'Settings', icon: Settings2 },
 ];
 const time = (value: string) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-export default function GMPhone({ campaignId, campaignName }: { campaignId: string; campaignName: string }) {
+export default function GMPhone({ campaignId, campaignName, onRead }: { campaignId: string; campaignName: string; onRead?: () => void }) {
   const [tab, setTab] = useState<Tab>('messages');
   const [threads, setThreads] = useState<Thread[]>([]);
   const [identities, setIdentities] = useState<Identity[]>([]);
@@ -26,6 +26,10 @@ export default function GMPhone({ campaignId, campaignName }: { campaignId: stri
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const selectedConversationRef = useRef('');
+  const tabRef = useRef<Tab>('messages');
+  selectedConversationRef.current = selectedConversation;
+  tabRef.current = tab;
   const refresh = useCallback(async () => {
     const [t, n] = await Promise.all([
       supabase.rpc('phone_gm_threads', { p_campaign_id: campaignId }),
@@ -43,7 +47,14 @@ export default function GMPhone({ campaignId, campaignName }: { campaignId: stri
     const result = await supabase.rpc('phone_read_messages', { p_conversation_id: conversationId, p_limit: 100 });
     if (result.error) throw result.error;
     setMessages(((result.data || []) as Message[]).reverse());
-  }, []);
+    if (tabRef.current === 'messages' && selectedConversationRef.current === conversationId) {
+      const marked = await supabase.rpc('phone_gm_mark_read', { p_conversation_id: conversationId });
+      if (marked.error) throw marked.error;
+      onRead?.();
+      // Refresh per-persona and per-conversation unread indicators.
+      void refresh().catch(() => {});
+    }
+  }, [onRead, refresh]);
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -51,19 +62,19 @@ export default function GMPhone({ campaignId, campaignName }: { campaignId: stri
     return () => { active = false; };
   }, [refresh]);
   useEffect(() => {
-    if (!selectedConversation) { setMessages([]); return; }
+    if (!selectedConversation || tab !== 'messages') { setMessages([]); return; }
     let active = true;
     void read(selectedConversation).catch(e => { if (active) setError(e.message || String(e)); });
     return () => { active = false; };
-  }, [selectedConversation, read]);
+  }, [selectedConversation, tab, read]);
   useEffect(() => {
     const channel = supabase.channel('gm-ghost-link-' + campaignId)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'phone_messages' }, () => {
         void refresh().catch(() => {});
-        if (selectedConversation) void read(selectedConversation).catch(() => {});
+        if (tabRef.current === 'messages' && selectedConversationRef.current) void read(selectedConversationRef.current).catch(() => {});
       }).subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [campaignId, refresh, read, selectedConversation]);
+  }, [campaignId, refresh, read]);
   const selected = threads.find(t => t.conversation_id === selectedConversation);
   const allIdentities = identities.length ? identities : Array.from(new Map(threads.map(t => [t.npc_identity_id, { id: t.npc_identity_id, internal_name: t.npc_internal_name, display_name: t.npc_public_label, anonymous: t.npc_public_label === 'Unknown Number' }])).values());
   const shown = threads.filter(t => !selectedIdentity || t.npc_identity_id === selectedIdentity);
@@ -83,11 +94,11 @@ export default function GMPhone({ campaignId, campaignName }: { campaignId: stri
     <nav className="gm-ghost-tabs" aria-label="Ghost Link tools">{tabs.map(item => <button key={item.id} type="button" className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}><item.icon size={15}/>{item.label}</button>)}</nav>
     {tab === 'messages' ? <div className="gm-ghost-workstation">
       <aside className="gm-ghost-identities"><div className="gm-ghost-section-title">NPC IDENTITIES <span>{allIdentities.length}</span></div>
-        {allIdentities.map(identity => <button key={identity.id} className={'gm-ghost-entry ' + (selectedIdentity === identity.id ? 'active' : '')} onClick={() => { setSelectedIdentity(identity.id); setSelectedConversation(threads.find(t => t.npc_identity_id === identity.id)?.conversation_id || ''); }}><span className="gm-ghost-avatar">?</span><span><strong>{identity.internal_name || identity.display_name}</strong><small>{identity.anonymous ? 'Anonymous' : identity.display_name}</small></span></button>)}
+        {allIdentities.map(identity => <button key={identity.id} className={'gm-ghost-entry ' + (selectedIdentity === identity.id ? 'active' : '')} onClick={() => { setSelectedIdentity(identity.id); setSelectedConversation(threads.find(t => t.npc_identity_id === identity.id)?.conversation_id || ''); }}><span className="gm-ghost-avatar">?</span><span><strong>{identity.internal_name || identity.display_name}</strong><small>{identity.anonymous ? 'Anonymous' : identity.display_name}</small></span>{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0) > 0 && <b className="gm-ghost-unread">{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0)}</b>}</button>)}
         <div className="gm-ghost-placeholder">+ New Identity <small>Coming later</small></div>
       </aside>
       <aside className="gm-ghost-threads"><div className="gm-ghost-section-title">CONVERSATIONS <span>{shown.length}</span></div>
-        {shown.map(thread => <button key={thread.conversation_id} className={'gm-ghost-entry ' + (selectedConversation === thread.conversation_id ? 'active' : '')} onClick={() => { setSelectedConversation(thread.conversation_id); setDraft(''); }}><span className="gm-ghost-avatar player">{thread.player_name.slice(0,1).toUpperCase()}</span><span><strong>{thread.player_name}</strong><small>{thread.npc_internal_name} → {thread.player_name}</small><small className="gm-ghost-preview">{thread.last_message || 'New conversation'}</small></span></button>)}
+        {shown.map(thread => <button key={thread.conversation_id} className={'gm-ghost-entry ' + (selectedConversation === thread.conversation_id ? 'active' : '')} onClick={() => { setSelectedConversation(thread.conversation_id); setDraft(''); }}><span className="gm-ghost-avatar player">{thread.player_name.slice(0,1).toUpperCase()}</span><span><strong>{thread.player_name}</strong><small>{thread.npc_internal_name} → {thread.player_name}</small><small className="gm-ghost-preview">{thread.last_message || 'New conversation'}</small></span>{Number(thread.unread_count) > 0 && <b className="gm-ghost-unread">{thread.unread_count}</b>}</button>)}
         {!shown.length && <p className="gm-ghost-muted">No conversations for this identity yet.</p>}
       </aside>
       <main className="gm-ghost-chat">{selected ? <><div className="gm-ghost-chat-header"><div><strong>{selected.player_name} ↔ {selected.npc_internal_name}</strong><small>Sending as: {selected.npc_public_label}</small></div><span className="gm-ghost-tag">{selected.npc_public_label === 'Unknown Number' ? 'ANONYMOUS' : 'NPC IDENTITY'}</span></div>
