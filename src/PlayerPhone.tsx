@@ -45,7 +45,6 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     }
   }, [selected?.conversationId, selected?.id, messages, selfId]);
 
-  const [animatedMessageIds, setAnimatedMessageIds] = useState<string[]>([]);
   const [pulsingThreads, setPulsingThreads] = useState<string[]>([]);
   const [signalPulse, setSignalPulse] = useState(false);
   const selectedRef = useRef(selected);
@@ -53,20 +52,9 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const selfRef = useRef(selfId);
   selfRef.current = selfId;
   const knownMessages = useRef(new Set<string>());
-  const pendingIncomingAnimation = useRef(new Set<string>());
   const initializedConversations = useRef(new Set<string>());
   const pulseTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => { pulseTimers.current.forEach(clearTimeout); }, []);
-  // Start the slide only after the new bubble is actually present in the DOM.
-  useEffect(() => {
-    const arrived = messages.filter(m => pendingIncomingAnimation.current.has(m.message_id) && m.sender_identity_id !== selfId);
-    if (!arrived.length) return;
-    arrived.forEach(m => pendingIncomingAnimation.current.delete(m.message_id));
-    const ids = arrived.map(m => m.message_id);
-    setAnimatedMessageIds(current => [...new Set([...current, ...ids])]);
-    const timer = setTimeout(() => setAnimatedMessageIds(current => current.filter(id => !ids.includes(id))), 450);
-    pulseTimers.current.push(timer);
-  }, [messages, selfId]);
   const refresh = useCallback(async () => {
     const [t, d] = await Promise.all([
       supabase.rpc('phone_threads', { p_character_id: characterId }),
@@ -123,7 +111,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
         if (incoming.id && !knownMessages.current.has(incoming.id)) {
           knownMessages.current.add(incoming.id);
           if (current?.conversationId === incoming.conversation_id) {
-            pendingIncomingAnimation.current.add(incoming.id);
+            // Active conversation is refreshed below; no bubble animation.
           } else if (incoming.conversation_id) {
             setPulsingThreads(ids => [...new Set([...ids, incoming.conversation_id!])]);
             const timer = setTimeout(() => setPulsingThreads(ids => ids.filter(id => id !== incoming.conversation_id)), 650);
@@ -175,7 +163,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     </> : <>
       <div className="ghost-heading"><button onClick={() => { setSelected(null); void refresh().catch(() => {}); }} aria-label="Back to inbox"><ArrowLeft size={20}/></button><UserRound size={27}/><div><h2>{selected.label}</h2><small>{contacts.find(c => c.identity_id === selected.id)?.anonymous || selected.label === 'Unknown Number' ? 'IDENTITY MASKED' : 'SECURE CONNECTION'}</small></div></div>
       <div className="ghost-status"><ShieldAlert size={15}/> {selected.label === 'Unknown Number' ? 'UNREGISTERED SIGNAL' : 'PRIVATE COMMUNICATION'}</div>
-      <div className="ghost-messages" ref={historyRef} onScroll={handleHistoryScroll}>{messages.length === 0 && <p className="ghost-muted">No messages yet.</p>}{messages.map(m => <div key={m.message_id} className={'ghost-bubble ' + (m.sender_identity_id === selfId ? 'outgoing' : 'incoming') + (animatedMessageIds.includes(m.message_id) ? ' ghost-quick-pop' : '')}><span>{m.body}</span><small>{time(m.created_at)}</small></div>)}</div>
+      <div className="ghost-messages" ref={historyRef} onScroll={handleHistoryScroll}>{messages.length === 0 && <p className="ghost-muted">No messages yet.</p>}{messages.map(m => <div key={m.message_id} className={'ghost-bubble ' + (m.sender_identity_id === selfId ? 'outgoing' : 'incoming')}><span>{m.body}</span><small>{time(m.created_at)}</small></div>)}</div>
       <form className="ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input value={draft} onChange={e => setDraft(e.target.value)} maxLength={4000} placeholder="Transmit message..." aria-label="Message"/><button type="submit" disabled={busy || !draft.trim()} aria-label="Send message"><Send size={19}/></button></form>
     </>}
     {error && <p className="ghost-error" role="alert">{error}</p>}

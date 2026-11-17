@@ -27,36 +27,48 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const historyRef = useRef<HTMLDivElement | null>(null);
-  const historyNearBottom = useRef(true);
   const historyPrevious = useRef({ conversation: '', lastMessage: '' });
-  const handleHistoryScroll = useCallback(() => {
-    const node = historyRef.current;
-    if (!node) return;
-    historyNearBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80;
-  }, []);
-  useLayoutEffect(() => {
-    const node = historyRef.current;
-    const conversation = selectedConversation;
-    if (!node || !conversation) return;
-    const lastMessage = messages[messages.length - 1]?.message_id || '';
-    const previous = historyPrevious.current;
-    const changedConversation = previous.conversation !== conversation;
-    const changedLastMessage = previous.lastMessage !== lastMessage;
-    if (changedConversation || changedLastMessage) {
-      const shouldScroll = changedConversation || historyNearBottom.current ||
-        (messages.length > 0 && messages[messages.length - 1].sender_identity_id === threads.find(t => t.conversation_id === selectedConversation)?.npc_identity_id);
-      if (shouldScroll) {
-        node.scrollTo({ top: node.scrollHeight, behavior: changedConversation ? 'instant' : 'smooth' });
-        historyNearBottom.current = true;
-      }
-      historyPrevious.current = { conversation, lastMessage };
-    }
-  }, [selectedConversation, messages, threads]);
-
+  const markReadInFlight = useRef(new Set<string>());
   const selectedConversationRef = useRef('');
   const tabRef = useRef<Tab>('messages');
   selectedConversationRef.current = selectedConversation;
   tabRef.current = tab;
+  const markConversationRead = useCallback(async (conversationId: string) => {
+    if (!conversationId || markReadInFlight.current.has(conversationId)) return;
+    markReadInFlight.current.add(conversationId);
+    try {
+      const marked = await supabase.rpc('phone_gm_mark_read', { p_conversation_id: conversationId });
+      if (marked.error) throw marked.error;
+      onRead?.();
+      const updated = await supabase.rpc('phone_gm_threads', { p_campaign_id: campaignId });
+      if (updated.error) throw updated.error;
+      setThreads((updated.data || []) as Thread[]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      markReadInFlight.current.delete(conversationId);
+    }
+  }, [campaignId, onRead]);
+  const handleHistoryScroll = useCallback(() => {
+    const node = historyRef.current;
+    if (!node || !selectedConversationRef.current || tabRef.current !== 'messages') return;
+    if (node.scrollHeight - node.scrollTop - node.clientHeight <= 8) {
+      void markConversationRead(selectedConversationRef.current);
+    }
+  }, [markConversationRead]);
+  useLayoutEffect(() => {
+    const node = historyRef.current;
+    if (!node || !selectedConversation || tab !== 'messages') return;
+    const lastMessage = messages[messages.length - 1]?.message_id || '';
+    const previous = historyPrevious.current;
+    if (previous.conversation !== selectedConversation || previous.lastMessage !== lastMessage) {
+      // GM always follows the newest message, including messages from players.
+      node.scrollTop = node.scrollHeight;
+      historyPrevious.current = { conversation: selectedConversation, lastMessage };
+      if (messages.length) void markConversationRead(selectedConversation);
+    }
+  }, [selectedConversation, tab, messages, markConversationRead]);
+
   const refresh = useCallback(async () => {
     const [t, n] = await Promise.all([
       supabase.rpc('phone_gm_threads', { p_campaign_id: campaignId }),
@@ -70,18 +82,12 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     setSelectedIdentity(current => current || next[0]?.npc_identity_id || (!n.error ? (n.data?.[0]?.id ?? '') : ''));
     setSelectedConversation(current => current && next.some(row => row.conversation_id === current) ? current : '');
   }, [campaignId]);
-  const read = useCallback(async (conversationId: string, markAsRead = false) => {
+  const read = useCallback(async (conversationId: string) => {
     const result = await supabase.rpc('phone_read_messages', { p_conversation_id: conversationId, p_limit: 100 });
     if (result.error) throw result.error;
     setMessages(((result.data || []) as Message[]).reverse());
-    if (markAsRead && tabRef.current === 'messages' && selectedConversationRef.current === conversationId) {
-      const marked = await supabase.rpc('phone_gm_mark_read', { p_conversation_id: conversationId });
-      if (marked.error) throw marked.error;
-      onRead?.();
-      // Refresh per-persona and per-conversation unread indicators.
-      void refresh().catch(() => {});
-    }
-  }, [onRead, refresh]);
+
+  }, []);
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -125,7 +131,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
         <div className="gm-ghost-placeholder">+ New Identity <small>Coming later</small></div>
       </aside>
       <aside className="gm-ghost-threads"><div className="gm-ghost-section-title">CONVERSATIONS <span>{shown.length}</span></div>
-        {shown.map(thread => <button key={thread.conversation_id} className={'gm-ghost-entry ' + (selectedConversation === thread.conversation_id ? 'active' : '')} onClick={() => { setSelectedConversation(thread.conversation_id); setDraft(''); void read(thread.conversation_id, true).catch(e => setError(e instanceof Error ? e.message : String(e))); }}><span className="gm-ghost-avatar player">{thread.player_name.slice(0,1).toUpperCase()}</span><span><strong>{thread.player_name}</strong><small>{thread.npc_internal_name} → {thread.player_name}</small><small className="gm-ghost-preview">{thread.last_message || 'New conversation'}</small></span>{Number(thread.unread_count) > 0 && <b className="gm-ghost-unread">{thread.unread_count}</b>}</button>)}
+        {shown.map(thread => <button key={thread.conversation_id} className={'gm-ghost-entry ' + (selectedConversation === thread.conversation_id ? 'active' : '')} onClick={() => { setSelectedConversation(thread.conversation_id); setDraft(''); void read(thread.conversation_id).catch(e => setError(e instanceof Error ? e.message : String(e))); }}><span className="gm-ghost-avatar player">{thread.player_name.slice(0,1).toUpperCase()}</span><span><strong>{thread.player_name}</strong><small>{thread.npc_internal_name} → {thread.player_name}</small><small className="gm-ghost-preview">{thread.last_message || 'New conversation'}</small></span>{Number(thread.unread_count) > 0 && <b className="gm-ghost-unread">{thread.unread_count}</b>}</button>)}
         {!shown.length && <p className="gm-ghost-muted">No conversations for this identity yet.</p>}
       </aside>
       <main className="gm-ghost-chat">{selected ? <><div className="gm-ghost-chat-header"><div><strong>{selected.player_name} ↔ {selected.npc_internal_name}</strong><small>Sending as: {selected.npc_public_label}</small></div><span className="gm-ghost-tag">{selected.npc_public_label === 'Unknown Number' ? 'ANONYMOUS' : 'NPC IDENTITY'}</span></div>
