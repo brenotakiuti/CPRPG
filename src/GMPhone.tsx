@@ -41,13 +41,13 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     setThreads(next);
     if (!n.error) setIdentities((n.data || []) as Identity[]);
     setSelectedIdentity(current => current || next[0]?.npc_identity_id || (!n.error ? (n.data?.[0]?.id ?? '') : ''));
-    setSelectedConversation(current => current && next.some(row => row.conversation_id === current) ? current : (next[0]?.conversation_id || ''));
+    setSelectedConversation(current => current && next.some(row => row.conversation_id === current) ? current : '');
   }, [campaignId]);
-  const read = useCallback(async (conversationId: string) => {
+  const read = useCallback(async (conversationId: string, markAsRead = false) => {
     const result = await supabase.rpc('phone_read_messages', { p_conversation_id: conversationId, p_limit: 100 });
     if (result.error) throw result.error;
     setMessages(((result.data || []) as Message[]).reverse());
-    if (tabRef.current === 'messages' && selectedConversationRef.current === conversationId) {
+    if (markAsRead && tabRef.current === 'messages' && selectedConversationRef.current === conversationId) {
       const marked = await supabase.rpc('phone_gm_mark_read', { p_conversation_id: conversationId });
       if (marked.error) throw marked.error;
       onRead?.();
@@ -94,11 +94,11 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     <nav className="gm-ghost-tabs" aria-label="Ghost Link tools">{tabs.map(item => <button key={item.id} type="button" className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}><item.icon size={15}/>{item.label}</button>)}</nav>
     {tab === 'messages' ? <div className="gm-ghost-workstation">
       <aside className="gm-ghost-identities"><div className="gm-ghost-section-title">NPC IDENTITIES <span>{allIdentities.length}</span></div>
-        {allIdentities.map(identity => <button key={identity.id} className={'gm-ghost-entry ' + (selectedIdentity === identity.id ? 'active' : '')} onClick={() => { setSelectedIdentity(identity.id); setSelectedConversation(threads.find(t => t.npc_identity_id === identity.id)?.conversation_id || ''); }}><span className="gm-ghost-avatar">?</span><span><strong>{identity.internal_name || identity.display_name}</strong><small>{identity.anonymous ? 'Anonymous' : identity.display_name}</small></span>{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0) > 0 && <b className="gm-ghost-unread">{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0)}</b>}</button>)}
+        {allIdentities.map(identity => <button key={identity.id} className={'gm-ghost-entry ' + (selectedIdentity === identity.id ? 'active' : '')} onClick={() => { setSelectedIdentity(identity.id); setSelectedConversation(''); }}><span className="gm-ghost-avatar">?</span><span><strong>{identity.internal_name || identity.display_name}</strong><small>{identity.anonymous ? 'Anonymous' : identity.display_name}</small></span>{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0) > 0 && <b className="gm-ghost-unread">{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0)}</b>}</button>)}
         <div className="gm-ghost-placeholder">+ New Identity <small>Coming later</small></div>
       </aside>
       <aside className="gm-ghost-threads"><div className="gm-ghost-section-title">CONVERSATIONS <span>{shown.length}</span></div>
-        {shown.map(thread => <button key={thread.conversation_id} className={'gm-ghost-entry ' + (selectedConversation === thread.conversation_id ? 'active' : '')} onClick={() => { setSelectedConversation(thread.conversation_id); setDraft(''); }}><span className="gm-ghost-avatar player">{thread.player_name.slice(0,1).toUpperCase()}</span><span><strong>{thread.player_name}</strong><small>{thread.npc_internal_name} → {thread.player_name}</small><small className="gm-ghost-preview">{thread.last_message || 'New conversation'}</small></span>{Number(thread.unread_count) > 0 && <b className="gm-ghost-unread">{thread.unread_count}</b>}</button>)}
+        {shown.map(thread => <button key={thread.conversation_id} className={'gm-ghost-entry ' + (selectedConversation === thread.conversation_id ? 'active' : '')} onClick={() => { setSelectedConversation(thread.conversation_id); setDraft(''); void read(thread.conversation_id, true).catch(e => setError(e instanceof Error ? e.message : String(e))); }}><span className="gm-ghost-avatar player">{thread.player_name.slice(0,1).toUpperCase()}</span><span><strong>{thread.player_name}</strong><small>{thread.npc_internal_name} → {thread.player_name}</small><small className="gm-ghost-preview">{thread.last_message || 'New conversation'}</small></span>{Number(thread.unread_count) > 0 && <b className="gm-ghost-unread">{thread.unread_count}</b>}</button>)}
         {!shown.length && <p className="gm-ghost-muted">No conversations for this identity yet.</p>}
       </aside>
       <main className="gm-ghost-chat">{selected ? <><div className="gm-ghost-chat-header"><div><strong>{selected.player_name} ↔ {selected.npc_internal_name}</strong><small>Sending as: {selected.npc_public_label}</small></div><span className="gm-ghost-tag">{selected.npc_public_label === 'Unknown Number' ? 'ANONYMOUS' : 'NPC IDENTITY'}</span></div>
