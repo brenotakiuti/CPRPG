@@ -464,10 +464,10 @@ export default function GMConsole({
     { id: 'characters', label: 'Characters', icon: Users },
     { id: 'bank', label: 'Bank', icon: Landmark },
     { id: 'inventory', label: 'Inventory', icon: Package },
+    { id: 'phone', label: 'Ghost//Link', icon: MessageSquare },
     { id: 'ripperdoc', label: 'Ripperdoc', icon: Slice },
     { id: 'factions', label: 'Factions', icon: Shield },
     { id: 'logs', label: 'Logs', icon: ScrollText },
-    { id: 'phone', label: 'Ghost//Link', icon: MessageSquare },
   ] as const;
   const creationControls = (
     <div className="gm-invitations-layout">
@@ -539,12 +539,12 @@ export default function GMConsole({
           </button>
         ))}
       </nav>
-      <h2 className="gm-page-title">
+      {page !== 'phone' && <h2 className="gm-page-title">
         {(() => {
           const current = navigation.find((item) => item.id === page)!;
           return <><current.icon size={19} strokeWidth={1.9} aria-hidden="true" />{current.label}</>;
         })()}
-      </h2>
+      </h2>}
       {page === 'live' ? null : page === 'characters' ? (
         <div className="gm-characters-layout">
           <aside className="gm-roster">
