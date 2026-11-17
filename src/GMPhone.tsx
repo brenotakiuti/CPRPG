@@ -27,6 +27,9 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
   const [identityBusy, setIdentityBusy] = useState(false);
   const [selectedIdentity, setSelectedIdentity] = useState('');
   const [selectedConversation, setSelectedConversation] = useState('');
+  const [newChat, setNewChat] = useState(false);
+  const [newChatRecipient, setNewChatRecipient] = useState('');
+  const [playerIdentities, setPlayerIdentities] = useState<{ identity_id: string; character_id: string; player_name: string }[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -211,14 +214,42 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setIdentityBusy(false); }
   };
-  const send = async () => {
-    if (!selected || !draft.trim() || busy) return;
+  const startNewChat = async () => {
+    if (!selectedIdentity) return;
     setBusy(true); setError('');
     try {
-      const result = await supabase.rpc('phone_send_message', { p_sender_identity_id: selected.npc_identity_id, p_recipient_identity_id: selected.player_identity_id, p_body: draft.trim() });
+      const sync = await supabase.rpc('phone_sync_players', { p_campaign_id: campaignId });
+      if (sync.error) throw sync.error;
+      const result = await supabase.rpc('phone_gm_player_identities', { p_campaign_id: campaignId });
+      if (result.error) throw result.error;
+      setPlayerIdentities((result.data || []) as { identity_id: string; character_id: string; player_name: string }[]);
+      setNewChatRecipient(''); setSelectedConversation(''); setDraft(''); setNewChat(true);
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setBusy(false); }
+  };
+  const send = async () => {
+    const recipient = newChat ? playerIdentities.find(p => p.identity_id === newChatRecipient) : null;
+    const senderId = newChat ? selectedIdentity : selected?.npc_identity_id;
+    const recipientId = newChat ? recipient?.identity_id : selected?.player_identity_id;
+    if (!senderId || !recipientId || !draft.trim() || busy) return;
+    setBusy(true); setError('');
+    try {
+      const result = await supabase.rpc('phone_send_message', { p_sender_identity_id: senderId, p_recipient_identity_id: recipientId, p_body: draft.trim() });
       if (result.error) throw result.error;
       setDraft('');
-      await Promise.all([refresh(), read(selected.conversation_id)]);
+      if (newChat) {
+        const updated = await supabase.rpc('phone_gm_threads', { p_campaign_id: campaignId });
+        if (updated.error) throw updated.error;
+        const next = (updated.data || []) as Thread[];
+        setThreads(next);
+        const opened = next.find(t => t.npc_identity_id === senderId && t.player_identity_id === recipientId);
+        if (!opened) throw new Error('Message sent, but conversation could not be opened. Refresh to find it.');
+        setNewChat(false);
+        setSelectedConversation(opened.conversation_id);
+        await read(opened.conversation_id);
+      } else if (selected) {
+        await Promise.all([refresh(), read(selected.conversation_id)]);
+      }
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(false); }
   };
@@ -227,7 +258,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     <nav className="gm-ghost-tabs" aria-label="Ghost Link tools">{tabs.map(item => <button key={item.id} type="button" className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}><item.icon size={15}/>{item.label}</button>)}</nav>
     {tab === 'messages' ? <div className="gm-ghost-workstation">
       <aside className="gm-ghost-identities"><div className="gm-ghost-section-title">NPC IDENTITIES <span>{allIdentities.length}</span></div>
-        {allIdentities.map(identity => <button key={identity.id} className={'gm-ghost-entry ' + (selectedIdentity === identity.id ? 'active' : '')} onClick={() => { setSelectedIdentity(identity.id); setSelectedConversation(''); }}><span className="gm-ghost-avatar">?</span><span><strong>{identity.internal_name || identity.display_name}</strong><small>{identity.anonymous ? 'Anonymous' : identity.display_name}</small></span>{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0) > 0 && <b className="gm-ghost-unread">{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0)}</b>}</button>)}
+        {allIdentities.map(identity => <button key={identity.id} className={'gm-ghost-entry ' + (selectedIdentity === identity.id ? 'active' : '')} onClick={() => { setSelectedIdentity(identity.id); setSelectedConversation(''); setNewChat(false); }}><span className="gm-ghost-avatar">?</span><span><strong>{identity.internal_name || identity.display_name}</strong><small>{identity.anonymous ? 'Anonymous' : identity.display_name}</small></span>{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0) > 0 && <b className="gm-ghost-unread">{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0)}</b>}</button>)}
         <button type="button" className="gm-ghost-create-trigger" onClick={() => { setCreatingIdentity(v => !v); setError(''); }}>+ New Identity</button>
         {creatingIdentity && <form className="gm-ghost-create-form" onSubmit={e => { e.preventDefault(); void createIdentity(); }}>
           <strong>CREATE NPC IDENTITY</strong>
@@ -238,10 +269,11 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
         </form>}
       </aside>
       <aside className="gm-ghost-threads"><div className="gm-ghost-section-title">CONVERSATIONS <span>{shown.length}</span></div>
-        {shown.map(thread => <button key={thread.conversation_id} className={'gm-ghost-entry ' + (selectedConversation === thread.conversation_id ? 'active' : '')} onClick={() => { setSelectedConversation(thread.conversation_id); setDraft(''); void read(thread.conversation_id).catch(e => setError(e instanceof Error ? e.message : String(e))); }}><span className="gm-ghost-avatar player">{thread.player_name.slice(0,1).toUpperCase()}</span><span><strong>{thread.player_name}</strong><small>{thread.npc_internal_name} → {thread.player_name}</small><small className="gm-ghost-preview">{thread.last_message || 'New conversation'}</small></span>{Number(thread.unread_count) > 0 && <b className="gm-ghost-unread">{thread.unread_count}</b>}</button>)}
+        <button type="button" className="gm-ghost-create-trigger" disabled={!selectedIdentity || busy} onClick={() => { void startNewChat(); }}>+ New Chat</button>
+        {shown.map(thread => <button key={thread.conversation_id} className={'gm-ghost-entry ' + (selectedConversation === thread.conversation_id ? 'active' : '')} onClick={() => { setNewChat(false); setSelectedConversation(thread.conversation_id); setDraft(''); void read(thread.conversation_id).catch(e => setError(e instanceof Error ? e.message : String(e))); }}><span className="gm-ghost-avatar player">{thread.player_name.slice(0,1).toUpperCase()}</span><span><strong>{thread.player_name}</strong><small>{thread.npc_internal_name} → {thread.player_name}</small><small className="gm-ghost-preview">{thread.last_message || 'New conversation'}</small></span>{Number(thread.unread_count) > 0 && <b className="gm-ghost-unread">{thread.unread_count}</b>}</button>)}
         {!shown.length && <p className="gm-ghost-muted">No conversations for this identity yet.</p>}
       </aside>
-      <main className="gm-ghost-chat">{selected ? <><div className="gm-ghost-chat-header"><div><strong>{selected.player_name} ↔ {selected.npc_internal_name}</strong><small>Sending as: {selected.npc_public_label}</small></div><span className="gm-ghost-tag">{selected.npc_public_label === 'Unknown Number' ? 'ANONYMOUS' : 'NPC IDENTITY'}</span></div>
+      <main className="gm-ghost-chat">{newChat ? <><div className="gm-ghost-chat-header"><div><strong>NEW CONVERSATION</strong><small>Sending as: {allIdentities.find(i => i.id === selectedIdentity)?.internal_name || 'NPC'}</small></div><button type="button" className="gm-ghost-cancel-chat" onClick={() => { setNewChat(false); setDraft(''); }}>Cancel</button></div><div className="gm-ghost-new-chat"><label htmlFor="gm-new-chat-recipient">Player character</label><select id="gm-new-chat-recipient" value={newChatRecipient} onChange={e => setNewChatRecipient(e.target.value)}><option value="">Select a recipient...</option>{playerIdentities.map(p => <option key={p.identity_id} value={p.identity_id}>{p.player_name}</option>)}</select><p>The conversation will appear when you send the first message.</p></div><form className="gm-ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input aria-label="First NPC message" maxLength={4000} value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write the first message..."/><button disabled={!newChatRecipient || !draft.trim() || busy} type="submit"><Send size={15}/> SEND</button></form></> : selected ? <><div className="gm-ghost-chat-header"><div><strong>{selected.player_name} ↔ {selected.npc_internal_name}</strong><small>Sending as: {selected.npc_public_label}</small></div><span className="gm-ghost-tag">{selected.npc_public_label === 'Unknown Number' ? 'ANONYMOUS' : 'NPC IDENTITY'}</span></div>
         <div className="gm-ghost-history" ref={historyRef} onScroll={handleHistoryScroll}>{messages.map(message => <div key={message.message_id} className={'gm-ghost-bubble ' + (message.sender_identity_id === selected.npc_identity_id ? 'out' : 'in') + (glowingMessageIds.includes(message.message_id) ? ' gm-ghost-unread-glow' : '')}><div>{message.body}</div><small>{message.sender_identity_id === selected.npc_identity_id ? selected.npc_internal_name : selected.player_name} · {time(message.created_at)}</small></div>)}{!messages.length && <p className="gm-ghost-muted">No messages loaded.</p>}</div>
         <form className="gm-ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input aria-label="NPC message" maxLength={4000} value={draft} onChange={e => setDraft(e.target.value)} placeholder={'Send as ' + selected.npc_internal_name + '...'} /><button disabled={!draft.trim() || busy} type="submit"><Send size={15}/> SEND</button></form>
       </> : <div className="gm-ghost-empty">Select a conversation to begin messaging.</div>}</main>
