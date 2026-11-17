@@ -399,8 +399,13 @@ export default function PlayerView({ token }: PlayerViewProps) {
     };
   }, [recordDiagnostic]);
   const [feedCampaignId, setFeedCampaignId] = useState<string | null>(null);
-  const [hudMessage, setHudMessage] = useState<{ id: string; text: string; duration: number } | null>(null);
-  const hudQueue = useRef<Array<{ id: string; text: string; duration: number }>>([]);
+  type HudNotice = { id: string; text: string; duration: number; kind?: 'ghostlink'; sender?: string };
+  const [hudMessage, setHudMessage] = useState<HudNotice | null>(null);
+  const hudQueue = useRef<HudNotice[]>([]);
+  const [phoneUnread, setPhoneUnread] = useState(0);
+  const phoneOpenRef = useRef(false);
+  const phoneKnown = useRef(new Set<string>());
+
   const hudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hudActive = useRef(false);
 
@@ -460,6 +465,45 @@ export default function PlayerView({ token }: PlayerViewProps) {
       void supabase.removeChannel(channel);
     };
   }, [feedCampaignId, character?.id]);
+  // Keep phone notifications separate from campaign_events while sharing the HUD queue.
+  useEffect(() => {
+    if (!character?.id || !feedCampaignId) return;
+    let alive = true;
+    phoneKnown.current.clear();
+    const updateUnread = async () => {
+      const result = await supabase.rpc('phone_threads', { p_character_id: character.id });
+      if (!alive || result.error) return;
+      const rows = (result.data || []) as Array<{ unread_count: number }>;
+      setPhoneUnread(rows.reduce((sum, row) => sum + Number(row.unread_count || 0), 0));
+    };
+    const initialize = async () => {
+      const identity = await supabase.rpc('phone_ensure_player_identity', { p_character_id: character.id });
+      if (!alive || identity.error) return;
+      const selfId = identity.data as string;
+      await updateUnread();
+      const channel = supabase.channel('player-phone-hud-' + character.id)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'phone_messages', filter: 'campaign_id=eq.' + feedCampaignId }, async ({ new: message }) => {
+          if (!alive || message.sender_identity_id === selfId || typeof message.id !== 'string' || phoneKnown.current.has(message.id)) return;
+          phoneKnown.current.add(message.id);
+          const result = await supabase.rpc('phone_threads', { p_character_id: character.id });
+          if (!alive || result.error) return;
+          const threads = (result.data || []) as Array<{ conversation_id: string; other_label: string; unread_count: number }>;
+          setPhoneUnread(threads.reduce((sum, row) => sum + Number(row.unread_count || 0), 0));
+          const thread = threads.find(row => row.conversation_id === message.conversation_id);
+          if (!thread || phoneOpenRef.current) return;
+          const body = typeof message.body === 'string' ? message.body.trim().replace(/\\s+/g, ' ') : '';
+          hudQueue.current.push({ id: message.id, kind: 'ghostlink', sender: thread.other_label, text: body.slice(0, 110), duration: 2500 });
+          if (!hudActive.current) showNextHudMessage();
+        }).subscribe();
+      return channel;
+    };
+    let channel: ReturnType<typeof supabase.channel> | undefined;
+    void initialize().then(value => { if (!alive && value) void supabase.removeChannel(value); else channel = value; }).catch(error => console.warn('[Ghost//Link HUD]', error));
+    const refresh = () => { void updateUnread(); };
+    window.addEventListener('focus', refresh);
+    return () => { alive = false; window.removeEventListener('focus', refresh); if (channel) void supabase.removeChannel(channel); };
+  }, [feedCampaignId, character?.id]);
+  phoneOpenRef.current = Boolean(navRef.current.phone);
   const characterLoaded = useRef(false);
   const [message, setMessage] = useState('Connecting...');
   const [connected, setConnected] = useState(false);
@@ -770,7 +814,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
 
   return (
     <main className="player-terminal">
-      {hudMessage && <div className="player-hud-feed" role="status" key={hudMessage.id} style={{ animationDuration: `${hudMessage.duration}ms` }}>{hudMessage.text}</div>}
+      {hudMessage && <div className={"player-hud-feed" + (hudMessage.kind === "ghostlink" ? " player-hud-ghostlink" : "")} role="status" key={hudMessage.id} style={{ animationDuration: `${hudMessage.duration}ms` }}>{hudMessage.kind === "ghostlink" ? <><img src="/ghost-link-icon.svg" width={30} height={30} alt="" aria-hidden="true" /><span className="player-hud-ghostlink-copy"><strong>GHOST//LINK · {hudMessage.sender}</strong><span>{hudMessage.text}</span></span></> : hudMessage.text}</div>}
       <div className="player-shell">
         <header className="player-card player-header">
           <div className="player-header-top"><span>NIGHT CITY // 2077</span><div className="player-header-actions"><RadioTower size={16} aria-hidden="true" /><button type="button" className="player-logs-trigger" aria-label="Open personal logs" title="Personal logs" disabled={!character || !feedCampaignId} onClick={() => { if (character && feedCampaignId) navigate({ ...navRef.current, logs: true, diagnostics: false }); }}><History size={19} aria-hidden="true" /></button><button type="button" className="player-logs-trigger" aria-label="Open diagnostics" title="Diagnostics" onClick={() => { if (!navRef.current.diagnostics) navigate({ inventory: false, selected: null, logs: false, diagnostics: true }); }}><Bug size={19} aria-hidden="true" /></button></div></div>
@@ -806,7 +850,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
               <div className="player-nav-grid">
                 <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, stats: true })} style={{ cursor: "pointer", font: "inherit" }}><UserRound size={24} aria-hidden="true" /><span>STATS</span></button>
                 <button type="button" className="player-nav-tile" onClick={() => openInventory()} style={{ cursor: "pointer", font: "inherit" }}><Backpack size={24} aria-hidden="true" /><span>INVENTORY</span></button>
-                <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, phone: true })} style={{ cursor: "pointer", font: "inherit" }}><img src="/ghost-link-icon.svg" width={30} height={30} alt="" aria-hidden="true" /><span>GHOST//LINK</span></button>
+                <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, phone: true })} style={{ cursor: "pointer", font: "inherit" }}><span className="player-phone-icon"><img src="/ghost-link-icon.svg" width={30} height={30} alt="" aria-hidden="true" />{phoneUnread > 0 && <b className="player-phone-unread">{phoneUnread > 99 ? "99+" : phoneUnread}</b>}</span><span>GHOST//LINK</span></button>
                 <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, transfer: "money" })} style={{ cursor: "pointer", font: "inherit" }}><Send size={24} aria-hidden="true" /><span>SEND MONEY</span></button>
                 <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, transfer: "item" })} style={{ cursor: "pointer", font: "inherit" }}><Package size={24} aria-hidden="true" /><span>SEND ITEM</span></button>
               </div>
