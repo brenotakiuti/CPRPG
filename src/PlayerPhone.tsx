@@ -53,9 +53,20 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const selfRef = useRef(selfId);
   selfRef.current = selfId;
   const knownMessages = useRef(new Set<string>());
+  const pendingIncomingAnimation = useRef(new Set<string>());
   const initializedConversations = useRef(new Set<string>());
   const pulseTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => { pulseTimers.current.forEach(clearTimeout); }, []);
+  // Start the slide only after the new bubble is actually present in the DOM.
+  useEffect(() => {
+    const arrived = messages.filter(m => pendingIncomingAnimation.current.has(m.message_id) && m.sender_identity_id !== selfId);
+    if (!arrived.length) return;
+    arrived.forEach(m => pendingIncomingAnimation.current.delete(m.message_id));
+    const ids = arrived.map(m => m.message_id);
+    setAnimatedMessageIds(current => [...new Set([...current, ...ids])]);
+    const timer = setTimeout(() => setAnimatedMessageIds(current => current.filter(id => !ids.includes(id))), 450);
+    pulseTimers.current.push(timer);
+  }, [messages, selfId]);
   const refresh = useCallback(async () => {
     const [t, d] = await Promise.all([
       supabase.rpc('phone_threads', { p_character_id: characterId }),
@@ -112,9 +123,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
         if (incoming.id && !knownMessages.current.has(incoming.id)) {
           knownMessages.current.add(incoming.id);
           if (current?.conversationId === incoming.conversation_id) {
-            setAnimatedMessageIds(ids => [...ids, incoming.id!]);
-            const timer = setTimeout(() => setAnimatedMessageIds(ids => ids.filter(id => id !== incoming.id)), 350);
-            pulseTimers.current.push(timer);
+            pendingIncomingAnimation.current.add(incoming.id);
           } else if (incoming.conversation_id) {
             setPulsingThreads(ids => [...new Set([...ids, incoming.conversation_id!])]);
             const timer = setTimeout(() => setPulsingThreads(ids => ids.filter(id => id !== incoming.conversation_id)), 650);
