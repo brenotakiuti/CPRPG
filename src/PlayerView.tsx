@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
-import { HeartPulse, Wallet, Send, Package, Dices, Crosshair, Swords, ArrowLeft, Utensils, BriefcaseMedical, UserRound, Backpack, Smartphone, Wifi, WifiOff, RadioTower, History, Bug, Copy, Trash2, Info, AlertTriangle } from 'lucide-react';
+import { HeartPulse, Wallet, Send, Package, Dices, Crosshair, Swords, ArrowLeft, Utensils, BriefcaseMedical, UserRound, Backpack, Wifi, WifiOff, RadioTower, History, Bug, Copy, Trash2, Info, AlertTriangle } from 'lucide-react';
 import './PlayerView.css';
 import { ArtworkZoomButton } from './ArtworkViewer';
 import PlayerLogs from './PlayerLogs';
@@ -806,7 +806,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
               <div className="player-nav-grid">
                 <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, stats: true })} style={{ cursor: "pointer", font: "inherit" }}><UserRound size={24} aria-hidden="true" /><span>STATS</span></button>
                 <button type="button" className="player-nav-tile" onClick={() => openInventory()} style={{ cursor: "pointer", font: "inherit" }}><Backpack size={24} aria-hidden="true" /><span>INVENTORY</span></button>
-                <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, phone: true })} style={{ cursor: "pointer", font: "inherit" }}><Smartphone size={24} aria-hidden="true" /><span>PHONE</span></button>
+                <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, phone: true })} style={{ cursor: "pointer", font: "inherit" }}><img src="/ghost-link-icon.svg" width={30} height={30} alt="" aria-hidden="true" /><span>GHOST//LINK</span></button>
                 <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, transfer: "money" })} style={{ cursor: "pointer", font: "inherit" }}><Send size={24} aria-hidden="true" /><span>SEND MONEY</span></button>
                 <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, transfer: "item" })} style={{ cursor: "pointer", font: "inherit" }}><Package size={24} aria-hidden="true" /><span>SEND ITEM</span></button>
               </div>

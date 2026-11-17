@@ -92,7 +92,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   };
   const time = (date: string) => new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   return <section className="ghost-link" aria-label="Ghost Link messaging">
-    <header className="ghost-top"><span><RadioTower size={17}/> GHOST//LINK</span><span><LockKeyhole size={13}/> PRIVATE CHANNEL</span></header>
+    <header className="ghost-top"><span><img src="/ghost-link-icon.svg" width={26} height={26} alt="" aria-hidden="true"/> GHOST//LINK</span><span><LockKeyhole size={13}/> PRIVATE CHANNEL</span></header>
     {!selected ? <>
       <div className="ghost-heading"><button onClick={onBack} aria-label="Return to dashboard"><ArrowLeft size={20}/></button><div><h2>{directory ? 'CONTACTS' : 'SIGNAL INBOX'}</h2><small>PRIVATE COMMUNICATION NETWORK</small></div><button onClick={() => setDirectory(!directory)} aria-label={directory ? 'Show inbox' : 'New conversation'}><MessageSquare size={21}/></button></div>
       {loading && <p className="ghost-muted">Connecting to network...</p>}
