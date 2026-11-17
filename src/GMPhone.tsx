@@ -15,6 +15,22 @@ const tabs: { id: Tab; label: string; icon: typeof MessageSquare }[] = [
   { id: 'settings', label: 'Settings', icon: Settings2 },
 ];
 const time = (value: string) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+// Preserve Supabase/PostgREST error details instead of rendering "[object Object]".
+const describePhoneError = (error: unknown): string => {
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object') {
+    const value = error as Record<string, unknown>;
+    const fields = [
+      value.code ? `Code: ${String(value.code)}` : '',
+      value.message ? `Message: ${String(value.message)}` : '',
+      value.details ? `Details: ${String(value.details)}` : '',
+      value.hint ? `Hint: ${String(value.hint)}` : '',
+    ].filter(Boolean);
+    if (fields.length) return fields.join(' | ');
+    try { return JSON.stringify(error); } catch { /* Fall back to string conversion. */ }
+  }
+  return String(error);
+};
 export default function GMPhone({ campaignId, campaignName, onRead }: { campaignId: string; campaignName: string; onRead?: () => void }) {
   const [tab, setTab] = useState<Tab>('messages');
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -208,7 +224,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
       if (result.error) throw result.error;
       await Promise.all([refresh(), read(selected.conversation_id)]);
       setConfirmReveal(false);
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { setError(describePhoneError(e)); }
     finally { setRevealing(false); }
   };
   const allIdentities = identities.length ? identities : Array.from(new Map(threads.map(t => [t.npc_identity_id, { id: t.npc_identity_id, internal_name: t.npc_internal_name, display_name: t.npc_public_label, anonymous: t.npc_public_label === 'Unknown Number' }])).values());
