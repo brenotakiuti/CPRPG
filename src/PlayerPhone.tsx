@@ -1,0 +1,106 @@
+import { useCallback, useEffect, useState } from 'react';
+import { ArrowLeft, LockKeyhole, MessageSquare, RadioTower, Send, ShieldAlert, UserRound } from 'lucide-react';
+import { supabase } from './supabase';
+import './PlayerPhone.css';
+
+type Contact = { identity_id: string; kind: string; label: string; anonymous: boolean; can_message: boolean; can_call: boolean; has_conversation: boolean };
+type Thread = { conversation_id: string; other_identity_id: string; other_label: string; other_anonymous: boolean; last_message_at: string | null; last_message: string | null; unread_count: number };
+type Message = { message_id: string; sender_identity_id: string; body: string; created_at: string };
+
+export default function PlayerPhone({ characterId, onBack }: { characterId: string; onBack: () => void }) {
+  const [selfId, setSelfId] = useState('');
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [selected, setSelected] = useState<{ id: string; label: string; conversationId?: string } | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [directory, setDirectory] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const refresh = useCallback(async () => {
+    const [t, d] = await Promise.all([
+      supabase.rpc('phone_threads', { p_character_id: characterId }),
+      supabase.rpc('phone_directory', { p_character_id: characterId }),
+    ]);
+    if (t.error || d.error) throw new Error(t.error?.message || d.error?.message);
+    setThreads((t.data || []) as Thread[]);
+    setContacts((d.data || []) as Contact[]);
+  }, [characterId]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const identity = await supabase.rpc('phone_ensure_player_identity', { p_character_id: characterId });
+        if (identity.error) throw identity.error;
+        if (cancelled) return;
+        setSelfId(identity.data as string);
+        await refresh();
+      } catch (e) { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); }
+      finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [characterId, refresh]);
+  const read = useCallback(async (conversationId: string) => {
+    const result = await supabase.rpc('phone_read_messages', { p_conversation_id: conversationId, p_limit: 100 });
+    if (result.error) throw result.error;
+    setMessages(((result.data || []) as Message[]).reverse());
+  }, []);
+  useEffect(() => {
+    if (!selected?.conversationId) { setMessages([]); return; }
+    let cancelled = false;
+    read(selected.conversationId).catch(e => { if (!cancelled) setError(String(e.message || e)); });
+    return () => { cancelled = true; };
+  }, [selected?.conversationId, read]);
+  useEffect(() => {
+    const channel = supabase.channel('ghost-link-' + characterId)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'phone_messages' }, () => {
+        void refresh().catch(() => {});
+        if (selected?.conversationId) void read(selected.conversationId).catch(() => {});
+      }).subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [characterId, refresh, read, selected?.conversationId]);
+  const openThread = (t: Thread) => { setError(''); setDirectory(false); setSelected({ id: t.other_identity_id, label: t.other_label, conversationId: t.conversation_id }); };
+  const openContact = (c: Contact) => {
+    const existing = threads.find(t => t.other_identity_id === c.identity_id);
+    setError(''); setDirectory(false);
+    setSelected({ id: c.identity_id, label: c.label, conversationId: existing?.conversation_id });
+  };
+  const send = async () => {
+    if (!selected || !selfId || !draft.trim() || busy) return;
+    setBusy(true); setError('');
+    try {
+      const response = await supabase.rpc('phone_send_message', {
+        p_sender_identity_id: selfId, p_recipient_identity_id: selected.id, p_body: draft.trim(),
+      });
+      if (response.error) throw response.error;
+      setDraft('');
+      await refresh();
+      const result = await supabase.rpc('phone_threads', { p_character_id: characterId });
+      if (result.error) throw result.error;
+      const thread = ((result.data || []) as Thread[]).find(t => t.other_identity_id === selected.id);
+      if (thread) { setSelected(s => s ? { ...s, conversationId: thread.conversation_id } : s); await read(thread.conversation_id); }
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setBusy(false); }
+  };
+  const time = (date: string) => new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return <section className="ghost-link" aria-label="Ghost Link messaging">
+    <header className="ghost-top"><span><RadioTower size={17}/> GHOST//LINK</span><span><LockKeyhole size={13}/> PRIVATE CHANNEL</span></header>
+    {!selected ? <>
+      <div className="ghost-heading"><button onClick={onBack} aria-label="Return to dashboard"><ArrowLeft size={20}/></button><div><h2>{directory ? 'CONTACTS' : 'SIGNAL INBOX'}</h2><small>PRIVATE COMMUNICATION NETWORK</small></div><button onClick={() => setDirectory(!directory)} aria-label={directory ? 'Show inbox' : 'New conversation'}><MessageSquare size={21}/></button></div>
+      {loading && <p className="ghost-muted">Connecting to network...</p>}
+      {!loading && (directory ? contacts.length === 0 : threads.length === 0) && <p className="ghost-muted">{directory ? 'No contacts available.' : 'No conversations yet. Select the message icon to find contacts.'}</p>}
+      <div className="ghost-list">
+        {directory ? contacts.filter(c => c.can_message).map(c => <button key={c.identity_id} className="ghost-contact" onClick={() => openContact(c)}><UserRound size={24}/><span><strong>{c.label}</strong><small>{c.anonymous ? 'MASKED IDENTITY' : c.kind === 'player' ? 'PLAYER CONTACT' : 'REGISTERED CONTACT'}</small></span></button>)
+          : threads.map(t => <button key={t.conversation_id} className="ghost-contact" onClick={() => openThread(t)}><UserRound size={24}/><span><strong>{t.other_label}</strong><small>{t.last_message || 'New conversation'}</small></span>{Number(t.unread_count) > 0 && <b className="ghost-unread">{t.unread_count}</b>}</button>)}
+      </div>
+    </> : <>
+      <div className="ghost-heading"><button onClick={() => { setSelected(null); void refresh().catch(() => {}); }} aria-label="Back to inbox"><ArrowLeft size={20}/></button><UserRound size={27}/><div><h2>{selected.label}</h2><small>{contacts.find(c => c.identity_id === selected.id)?.anonymous || selected.label === 'Unknown Number' ? 'IDENTITY MASKED' : 'SECURE CONNECTION'}</small></div></div>
+      <div className="ghost-status"><ShieldAlert size={15}/> {selected.label === 'Unknown Number' ? 'UNREGISTERED SIGNAL' : 'PRIVATE COMMUNICATION'}</div>
+      <div className="ghost-messages">{messages.length === 0 && <p className="ghost-muted">No messages yet.</p>}{messages.map(m => <div key={m.message_id} className={'ghost-bubble ' + (m.sender_identity_id === selfId ? 'outgoing' : 'incoming')}><span>{m.body}</span><small>{time(m.created_at)}</small></div>)}</div>
+      <form className="ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input value={draft} onChange={e => setDraft(e.target.value)} maxLength={4000} placeholder="Transmit message..." aria-label="Message"/><button type="submit" disabled={busy || !draft.trim()} aria-label="Send message"><Send size={19}/></button></form>
+    </>}
+    {error && <p className="ghost-error" role="alert">{error}</p>}
+    <footer className="ghost-footer"><LockKeyhole size={12}/> GHOST//LINK • NETWORK ACTIVE</footer>
+  </section>;
+}
