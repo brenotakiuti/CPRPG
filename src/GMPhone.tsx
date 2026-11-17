@@ -62,10 +62,14 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     const lastMessage = messages[messages.length - 1]?.message_id || '';
     const previous = historyPrevious.current;
     if (previous.conversation !== selectedConversation || previous.lastMessage !== lastMessage) {
-      // GM always follows the newest message, including messages from players.
-      node.scrollTop = node.scrollHeight;
+      // Opening a conversation jumps to the bottom; appended messages scroll smoothly.
+      // The scroll handler marks incoming messages read only after reaching the bottom.
+      const opening = previous.conversation !== selectedConversation;
+      node.scrollTo({ top: node.scrollHeight, behavior: opening ? 'instant' : 'smooth' });
       historyPrevious.current = { conversation: selectedConversation, lastMessage };
-      if (messages.length) void markConversationRead(selectedConversation);
+      if (opening && messages.length && node.scrollHeight - node.scrollTop - node.clientHeight <= 8) {
+        void markConversationRead(selectedConversation);
+      }
     }
   }, [selectedConversation, tab, messages, markConversationRead]);
 
