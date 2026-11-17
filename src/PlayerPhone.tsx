@@ -41,11 +41,18 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     })();
     return () => { cancelled = true; };
   }, [characterId, refresh]);
+  const markRead = useCallback(async (conversationId: string) => {
+    if (!selfId) return;
+    const result = await supabase.rpc('phone_mark_read', { p_conversation_id: conversationId, p_reader_identity_id: selfId });
+    if (result.error) throw result.error;
+    await refresh();
+  }, [selfId, refresh]);
   const read = useCallback(async (conversationId: string) => {
     const result = await supabase.rpc('phone_read_messages', { p_conversation_id: conversationId, p_limit: 100 });
     if (result.error) throw result.error;
     setMessages(((result.data || []) as Message[]).reverse());
-  }, []);
+    await markRead(conversationId);
+  }, [markRead]);
   useEffect(() => {
     if (!selected?.conversationId) { setMessages([]); return; }
     let cancelled = false;
