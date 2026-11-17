@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, LockKeyhole, MessageSquare, Send, ShieldAlert, UserRound } from 'lucide-react';
 import { supabase } from './supabase';
 import './PlayerPhone.css';
@@ -18,6 +18,17 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [animatedMessageIds, setAnimatedMessageIds] = useState<string[]>([]);
+  const [pulsingThreads, setPulsingThreads] = useState<string[]>([]);
+  const [signalPulse, setSignalPulse] = useState(false);
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+  const selfRef = useRef(selfId);
+  selfRef.current = selfId;
+  const knownMessages = useRef(new Set<string>());
+  const initializedConversations = useRef(new Set<string>());
+  const pulseTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => { pulseTimers.current.forEach(clearTimeout); }, []);
   const refresh = useCallback(async () => {
     const [t, d] = await Promise.all([
       supabase.rpc('phone_threads', { p_character_id: characterId }),
@@ -50,7 +61,13 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const read = useCallback(async (conversationId: string) => {
     const result = await supabase.rpc('phone_read_messages', { p_conversation_id: conversationId, p_limit: 100 });
     if (result.error) throw result.error;
-    setMessages(((result.data || []) as Message[]).reverse());
+    const next = ((result.data || []) as Message[]).reverse();
+    // The first load is history, not a new-message event.
+    if (!initializedConversations.current.has(conversationId)) {
+      next.forEach(m => knownMessages.current.add(m.message_id));
+      initializedConversations.current.add(conversationId);
+    }
+    setMessages(next);
     await markRead(conversationId);
   }, [markRead]);
   useEffect(() => {
@@ -61,12 +78,30 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   }, [selected?.conversationId, read]);
   useEffect(() => {
     const channel = supabase.channel('ghost-link-' + characterId)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'phone_messages' }, () => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'phone_messages' }, payload => {
+        const incoming = payload.new as { id?: string; sender_identity_id?: string; conversation_id?: string };
+        if (incoming.sender_identity_id === selfRef.current) return;
+        const current = selectedRef.current;
+        if (incoming.id && !knownMessages.current.has(incoming.id)) {
+          knownMessages.current.add(incoming.id);
+          if (current?.conversationId === incoming.conversation_id) {
+            setAnimatedMessageIds(ids => [...ids, incoming.id!]);
+            const timer = setTimeout(() => setAnimatedMessageIds(ids => ids.filter(id => id !== incoming.id)), 350);
+            pulseTimers.current.push(timer);
+          } else if (incoming.conversation_id) {
+            setPulsingThreads(ids => [...new Set([...ids, incoming.conversation_id!])]);
+            const timer = setTimeout(() => setPulsingThreads(ids => ids.filter(id => id !== incoming.conversation_id)), 650);
+            pulseTimers.current.push(timer);
+          }
+          setSignalPulse(true);
+          const timer = setTimeout(() => setSignalPulse(false), 350);
+          pulseTimers.current.push(timer);
+        }
         void refresh().catch(() => {});
-        if (selected?.conversationId) void read(selected.conversationId).catch(() => {});
+        if (current?.conversationId) void read(current.conversationId).catch(() => {});
       }).subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [characterId, refresh, read, selected?.conversationId]);
+  }, [characterId, refresh, read]);
   const openThread = (t: Thread) => { setError(''); setDirectory(false); setSelected({ id: t.other_identity_id, label: t.other_label, conversationId: t.conversation_id }); };
   const openContact = (c: Contact) => {
     const existing = threads.find(t => t.other_identity_id === c.identity_id);
@@ -92,19 +127,19 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   };
   const time = (date: string) => new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   return <section className="ghost-link" aria-label="Ghost Link messaging">
-    <header className="ghost-top"><span><img src="/ghost-link-icon.svg" width={26} height={26} alt="" aria-hidden="true"/> GHOST//LINK</span><span><LockKeyhole size={13}/> PRIVATE CHANNEL</span></header>
+    <header className={"ghost-top" + (signalPulse ? " ghost-signal-pulse" : "")}><span><img src="/ghost-link-icon.svg" width={26} height={26} alt="" aria-hidden="true"/> GHOST//LINK</span><span><LockKeyhole size={13}/> PRIVATE CHANNEL</span></header>
     {!selected ? <>
       <div className="ghost-heading"><button onClick={onBack} aria-label="Return to dashboard"><ArrowLeft size={20}/></button><div><h2>{directory ? 'CONTACTS' : 'SIGNAL INBOX'}</h2><small>PRIVATE COMMUNICATION NETWORK</small></div><button onClick={() => setDirectory(!directory)} aria-label={directory ? 'Show inbox' : 'New conversation'}><MessageSquare size={21}/></button></div>
       {loading && <p className="ghost-muted">Connecting to network...</p>}
       {!loading && (directory ? contacts.length === 0 : threads.length === 0) && <p className="ghost-muted">{directory ? 'No contacts available.' : 'No conversations yet. Select the message icon to find contacts.'}</p>}
       <div className="ghost-list">
         {directory ? contacts.filter(c => c.can_message).map(c => <button key={c.identity_id} className="ghost-contact" onClick={() => openContact(c)}><UserRound size={24}/><span><strong>{c.label}</strong><small>{c.anonymous ? 'MASKED IDENTITY' : c.kind === 'player' ? 'PLAYER CONTACT' : 'REGISTERED CONTACT'}</small></span></button>)
-          : threads.map(t => <button key={t.conversation_id} className="ghost-contact" onClick={() => openThread(t)}><UserRound size={24}/><span><strong>{t.other_label}</strong><small>{t.last_message || 'New conversation'}</small></span>{Number(t.unread_count) > 0 && <b className="ghost-unread">{t.unread_count}</b>}</button>)}
+          : threads.map(t => <button key={t.conversation_id} className={"ghost-contact" + (pulsingThreads.includes(t.conversation_id) ? " ghost-contact-pulse" : "")} onClick={() => openThread(t)}><UserRound size={24}/><span><strong>{t.other_label}</strong><small>{t.last_message || 'New conversation'}</small></span>{Number(t.unread_count) > 0 && <b className="ghost-unread">{t.unread_count}</b>}</button>)}
       </div>
     </> : <>
       <div className="ghost-heading"><button onClick={() => { setSelected(null); void refresh().catch(() => {}); }} aria-label="Back to inbox"><ArrowLeft size={20}/></button><UserRound size={27}/><div><h2>{selected.label}</h2><small>{contacts.find(c => c.identity_id === selected.id)?.anonymous || selected.label === 'Unknown Number' ? 'IDENTITY MASKED' : 'SECURE CONNECTION'}</small></div></div>
       <div className="ghost-status"><ShieldAlert size={15}/> {selected.label === 'Unknown Number' ? 'UNREGISTERED SIGNAL' : 'PRIVATE COMMUNICATION'}</div>
-      <div className="ghost-messages">{messages.length === 0 && <p className="ghost-muted">No messages yet.</p>}{messages.map(m => <div key={m.message_id} className={'ghost-bubble ' + (m.sender_identity_id === selfId ? 'outgoing' : 'incoming')}><span>{m.body}</span><small>{time(m.created_at)}</small></div>)}</div>
+      <div className="ghost-messages">{messages.length === 0 && <p className="ghost-muted">No messages yet.</p>}{messages.map(m => <div key={m.message_id} className={'ghost-bubble ' + (m.sender_identity_id === selfId ? 'outgoing' : 'incoming') + (animatedMessageIds.includes(m.message_id) ? ' ghost-quick-pop' : '')}><span>{m.body}</span><small>{time(m.created_at)}</small></div>)}</div>
       <form className="ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input value={draft} onChange={e => setDraft(e.target.value)} maxLength={4000} placeholder="Transmit message..." aria-label="Message"/><button type="submit" disabled={busy || !draft.trim()} aria-label="Send message"><Send size={19}/></button></form>
     </>}
     {error && <p className="ghost-error" role="alert">{error}</p>}

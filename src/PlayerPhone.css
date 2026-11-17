@@ -9,3 +9,12 @@
 .ghost-bubble{max-width:85%;padding:12px;border:1px solid;display:flex;flex-direction:column;gap:8px;overflow-wrap:anywhere;font-size:13px;line-height:1.5}.ghost-bubble.incoming{align-self:flex-start;background:#23203e;border-color:#60438b;border-radius:12px 12px 12px 2px}.ghost-bubble.outgoing{align-self:flex-end;background:#103c4c;border-color:#227d8c;border-radius:12px 12px 2px 12px}.ghost-bubble small{align-self:flex-end;color:#a8b9ce;font-size:10px}
 .ghost-compose{display:flex;gap:8px;padding:12px}.ghost-compose input{flex:1;min-width:0;border:1px solid #35516b;background:#111f35;color:#fff;border-radius:5px;padding:12px;font:inherit;font-size:13px}.ghost-compose button{border:0;background:#54e8ed;color:#081526;border-radius:5px;padding:10px 14px;cursor:pointer}.ghost-compose button:disabled{opacity:.4;cursor:default}
 .ghost-footer{justify-content:center;background:#101c30;color:#7792ad;padding:12px;font-size:10px;letter-spacing:1px}.ghost-muted{padding:16px;color:#9eb1c8;font-size:13px}.ghost-error{margin:8px 12px;color:#ff939d;font-size:12px}
+
+/* Mobile-only: incoming messages snap in from the left in 160ms. */
+@keyframes ghostQuickPop{0%{opacity:0;transform:translateX(-18px) scale(.96)}65%{opacity:1;transform:translateX(3px) scale(1.035)}100%{opacity:1;transform:translateX(0) scale(1)}}
+.ghost-bubble.ghost-quick-pop{transform-origin:left center;animation:ghostQuickPop 160ms ease-out both}
+@keyframes ghostInboxPulse{0%,100%{border-color:#2d4560;box-shadow:none}45%{border-color:#d77aff;box-shadow:0 0 12px #d77aff66}}
+.ghost-contact.ghost-contact-pulse{animation:ghostInboxPulse 550ms ease-out both}
+@keyframes ghostHeaderPulse{0%,100%{border-bottom-color:#35c5d3}45%{border-bottom-color:#d77aff}}
+.ghost-top.ghost-signal-pulse{animation:ghostHeaderPulse 300ms ease-out both}
+@media(prefers-reduced-motion:reduce){.ghost-bubble.ghost-quick-pop,.ghost-contact.ghost-contact-pulse,.ghost-top.ghost-signal-pulse{animation:none!important}}
