@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck, UserRoundSearch, Wallet, Package, Send } from 'lucide-react';
 import { supabase } from './supabase';
+import PlayerLoading from './PlayerLoading';
 import './PlayerTransfers.css';
 
 type Recipient = { id: string; name: string };
@@ -9,7 +10,7 @@ type Item = { id: string; name: string; category: string; rarity: string; proper
 type Props = {
   kind: 'money' | 'item';
   character: { id: string; name: string; balance: number };
-  inventory: { entries: Entry[]; catalog: Record<string, Item>; refresh: () => Promise<void> };
+  inventory: { entries: Entry[]; catalog: Record<string, Item>; loading: boolean; error: string; refresh: () => Promise<void> };
   onBack: () => void;
 };
 
@@ -63,7 +64,7 @@ export default function PlayerTransfers({ kind, character, inventory, onBack }: 
     {kind === 'money' && <div className="transfer-balance"><span>AVAILABLE BALANCE</span><strong>{money(character.balance)} <em>E$</em></strong></div>}
     {step === 'edit' ? <>
       <div className="transfer-section-title">01 / RECIPIENT</div>
-      {loading ? <p className="transfer-muted">Loading recipients…</p> : <div className="transfer-recipient-grid">
+      {loading ? <PlayerLoading message="Retrieving recipients..." /> : error ? <p className="transfer-error" role="alert">{error}</p> : <div className="transfer-recipient-grid">
         {recipients.map(row => <button key={row.id} type="button" className={'transfer-recipient' + (recipient === row.id ? ' selected' : '')} onClick={() => setRecipient(row.id)}>
           <span className="transfer-avatar">{row.name.split(/\s+/).map(word => word[0]).slice(0, 2).join('').toUpperCase()}</span>
           {recipient === row.id && <CheckCircle2 className="transfer-check" size={18} />}
@@ -82,7 +83,7 @@ export default function PlayerTransfers({ kind, character, inventory, onBack }: 
         </div>
       </> : <>
         <div className="transfer-section-title">02 / SELECT ITEM</div>
-        <div className="transfer-item-list">{availableItems.map(entry => {
+        {inventory.loading ? <PlayerLoading message="Retrieving available items..." /> : inventory.error && !inventory.entries.length ? <p className="transfer-error" role="alert">{inventory.error}</p> : <div className="transfer-item-list">{availableItems.map(entry => {
           const item = inventory.catalog[entry.item_id];
           const image = item?.properties?.image;
           return <button key={entry.id} type="button" className={'transfer-item' + (itemId === entry.id ? ' selected' : '')} onClick={() => { setItemId(entry.id); setQuantity('1'); }}>
@@ -90,12 +91,12 @@ export default function PlayerTransfers({ kind, character, inventory, onBack }: 
             <span><strong>{item?.name ?? 'Unknown item'}</strong><small>{item?.rarity ?? 'Item'} · {item?.category ?? 'Item'} · ×{entry.quantity}</small></span>
             {itemId === entry.id && <CheckCircle2 size={18} />}
           </button>;
-        })}{!availableItems.length && <p className="transfer-muted">No items available to transfer.</p>}</div>
+        })}{!availableItems.length && <p className="transfer-muted">No items available to transfer.</p>}</div>}
         {selectedItem && <div className="transfer-input-card"><label htmlFor="transfer-quantity">QUANTITY</label><div className="transfer-money-input"><input id="transfer-quantity" inputMode="numeric" value={quantity} onChange={e => setQuantity(e.target.value)} /><button type="button" onClick={() => setQuantity(String(catalogItem?.category?.toLowerCase() === 'weapon' ? 1 : selectedItem.quantity))}>MAX</button></div></div>}
       </>}
       <div className="transfer-summary"><div><span>Recipient</span><strong>{target}</strong></div>{kind === 'money' && <div><span>Transfer fee</span><strong className="transfer-free">FREE</strong></div>}<div className="transfer-total"><span>{kind === 'money' ? 'Total' : 'Quantity'}</span><strong>{valid ? kind === 'money' ? money(sum) + ' E$' : count + ' × ' + (catalogItem?.name ?? 'Item') : '—'}</strong></div></div>
       {error && <p className="transfer-error" role="alert">{error}</p>}
-      <button type="button" className="transfer-primary" disabled={!valid || loading} onClick={() => { setError(''); setStep('review'); }}>REVIEW TRANSFER <ArrowRight size={18} /></button>
+      <button type="button" className="transfer-primary" disabled={!valid || loading || !!error || (kind === 'item' && (inventory.loading || !!inventory.error))} onClick={() => { setError(''); setStep('review'); }}>REVIEW TRANSFER <ArrowRight size={18} /></button>
     </> : step === 'review' ? <div className="transfer-result"><ShieldCheck size={46} /><h3>Confirm transfer</h3><p>You are about to send</p><strong>{kind === 'money' ? money(sum) + ' E$' : count + ' × ' + (catalogItem?.name ?? 'Item')}</strong><p>to <b>{target}</b></p>{error && <p className="transfer-error" role="alert">{error}</p>}<button type="button" className="transfer-primary" disabled={busy} onClick={() => void confirm()}>{busy ? 'PROCESSING…' : 'CONFIRM TRANSFER'} <Send size={17} /></button><button type="button" className="transfer-secondary" disabled={busy} onClick={() => setStep('edit')}>EDIT TRANSFER</button></div>
       : <div className="transfer-result"><CheckCircle2 size={50} className="transfer-success" /><h3>Transfer complete</h3><p>{kind === 'money' ? money(sum) + ' E$' : count + ' × ' + (catalogItem?.name ?? 'Item')} sent to {target}</p><button type="button" className="transfer-primary" onClick={onBack}>BACK TO DASHBOARD <ArrowRight size={17} /></button></div>}
     <footer className="transfer-footer"><Wallet size={13} /> SECURE TRANSACTION // NIGHT CITY 2077</footer>

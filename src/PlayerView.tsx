@@ -8,6 +8,7 @@ import PlayerSpotlights from './PlayerSpotlights';
 import DiceSpotlight from './DiceSpotlight';
 import PlayerStats from './PlayerStats';
 import PlayerTransfers from './PlayerTransfers';
+import PlayerLoading from './PlayerLoading';
 import { usePlayerCyberware } from './usePlayerCyberware';
 
 type PlayerCharacter = {
@@ -136,9 +137,10 @@ function PlayerInventory({ inventory, onBack, initialSelectedId = null, onSelect
     </div>
     {(error || actionError) && <p role="alert" style={{ color: '#ffb3b3', fontSize: 13 }}>{actionError || error}</p>}
     {!selectedId ? <>
-      <p style={{ ...inventoryMuted, margin: '0 0 12px' }}>{loading ? 'Loading inventory…' : entries.length + (entries.length === 1 ? ' item' : ' items')}</p>
+      <p style={{ ...inventoryMuted, margin: '0 0 12px' }}>{!loading ? entries.length + (entries.length === 1 ? ' item' : ' items') : ''}</p>
       {!loading && entries.length === 0 && <p style={inventoryMuted}>No items in inventory.</p>}
-      <div style={{ background: '#14202c', border: '1px solid #354556', borderRadius: 8, padding: '4px 12px' }}>
+      {loading && <PlayerLoading message="Retrieving inventory..." />}
+      {!loading && <div style={{ background: '#14202c', border: '1px solid #354556', borderRadius: 8, padding: '4px 12px' }}>
       {[...entries].sort((a, b) => {
         const itemA = catalog[a.item_id];
         const itemB = catalog[b.item_id];
@@ -166,7 +168,7 @@ function PlayerInventory({ inventory, onBack, initialSelectedId = null, onSelect
           <span aria-hidden="true" style={{ color: '#8996a5' }}>›</span>
         </button>;
       })}
-      </div>
+      </div>}
     </> : selected ? <>
       <h3 style={{ margin: '0 0 4px', fontSize: 25, fontWeight: 600 }}>{item?.name ?? 'Unknown item'}</h3>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 16 }}>
@@ -212,7 +214,9 @@ function PlayerInventory({ inventory, onBack, initialSelectedId = null, onSelect
 
 
 function PlayerLoadout({ inventory, onInspect, onInventory }: { inventory: PlayerInventoryData; onInspect: (inventoryId: string) => void; onInventory: () => void }) {
-  const { entries, catalog } = inventory;
+  const { entries, catalog, loading, error } = inventory;
+  if (loading) return <section className="player-card" aria-label="Loadout"><div className="player-section-heading"><span>LOADOUT</span></div><PlayerLoading message="Retrieving equipment..." /></section>;
+  if (error && entries.length === 0) return <section className="player-card" aria-label="Loadout"><div className="player-section-heading"><span>LOADOUT</span></div><p role="alert">{error}</p></section>;
   const equipped = entries.filter(row => row.equipped_slot === 'weapon_1' || row.equipped_slot === 'weapon_2');
   return <section className="player-card" aria-label="Loadout" style={{ padding: 16 }}>
     <div className="player-section-heading" style={{ marginBottom: 12 }}>
@@ -805,7 +809,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
             </section>
             <footer className="player-footer"><span className={connected ? "player-online" : "player-offline"}>{connected ? <Wifi size={14} aria-hidden="true" /> : <WifiOff size={14} aria-hidden="true" />}{connected ? "CONNECTED" : "DISCONNECTED"}</span><span>PLAYER TERMINAL</span></footer>
           </div>
-        ) : !diagnosticsOpen ? <section className="player-card player-message" role="status">{message}</section> : null}
+        ) : !diagnosticsOpen ? <section className="player-card player-message" role="status">{!character && (!message || message === 'Connecting...') ? <PlayerLoading message="Connecting to Night City..." /> : message}</section> : null}
 
       </div>
       {diagnosticsOpen && <div className="player-logs-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) goBack(); }}>

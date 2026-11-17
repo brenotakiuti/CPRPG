@@ -4,6 +4,7 @@ import { CyberwareArtworkZoom } from './CyberwareArtworkZoom';
 import type { PlayerCyberwareData, InstalledCyberware } from './usePlayerCyberware';
 import './PlayerStats.css';
 import { anatomicalPositions } from './anatomicalPositions';
+import PlayerLoading from './PlayerLoading';
 
 
 
@@ -42,7 +43,7 @@ export default function PlayerStats({onBack,cyberware,view,selectedPosition,onNa
      </div>{active&&<button type="button" className="ps-zoom-back" onClick={onBack}><ArrowLeft size={13}/> FULL BODY</button>}</div>
      <div className="ps-scan-label">{active?'FOCUSED SCAN // '+active.label:'ANATOMICAL SCAN'}</div>
     </div>}
-    <div className="ps-slots">{installedLoading?<p>Loading implants…</p>:installedError?<p role="alert">{installedError}</p>:installed.length===0?<p>No cyberware installed.</p>:anatomicalPositions.filter(s=>implantsAt(s.id).length>0).map(s=><div key={s.id} className="ps-slot-entry">
+    <div className="ps-slots">{installedLoading?<PlayerLoading message="Retrieving installed cyberware..." />:installedError?<p role="alert">{installedError}</p>:installed.length===0?<p>No cyberware installed.</p>:anatomicalPositions.filter(s=>implantsAt(s.id).length>0).map(s=><div key={s.id} className="ps-slot-entry">
      <button type="button" aria-pressed={(view==='map'?mapSelected:listSelected)===s.id} className={(view==='map'?mapSelected:listSelected)===s.id?'selected':''} onClick={()=>onNavigate(view,selectedPosition===s.id?null:s.id)}><span>{s.id} // {s.label.toUpperCase()}</span><strong>{implantsAt(s.id).length ? implantsAt(s.id).map(i=>i.name).join(', ') : 'No cyberware installed'}</strong></button>
      {(view==='map'?mapSelected:listSelected)===s.id&&<div className="ps-inline-detail" aria-live="polite">
       {implantsAt(s.id).length===0?<p>No cyberware installed at this position.</p>:implantsAt(s.id).map(i=><div key={i.id} className="ps-position-implant"><strong>{i.name}</strong>{i.item_id === null && <span style={{ marginLeft: 8, color: '#d5a5ff', fontSize: 10, fontWeight: 700 }}>CUSTOM MADE</span>}<div className="ps-installed-detail">{i.image_url&&<div style={{position:'relative',width:'100%',maxWidth:240}}><img src={i.image_url} alt={i.name+' artwork'}/><CyberwareArtworkZoom src={i.image_url} alt={i.name}/></div>}<p>{i.description||'No description available.'}</p></div></div>)}
