@@ -2,3 +2,6 @@
 .gm-phone-nav-icon{position:relative;display:inline-flex;align-items:center;justify-content:center}
 .gm-phone-nav-badge{position:absolute;top:-10px;right:-13px;min-width:17px;height:17px;border-radius:12px;background:#e34f64;color:#fff;padding:0 4px;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1}
 .gm-ghost-unread{flex-shrink:0;align-self:center;background:#d77aff;color:#111524;border-radius:12px;min-width:18px;padding:3px 6px;font-size:10px;text-align:center}
+
+/* Incoming unread messages glow until read, with a 600ms minimum visible cue. */
+.gm-ghost-bubble.in.gm-ghost-unread-glow{border-color:#c38aff;box-shadow:0 0 0 1px #b879f488,0 0 17px 3px #a45cf080;background:#38294f;transition:box-shadow 240ms ease-out,border-color 240ms ease-out,background 240ms ease-out}

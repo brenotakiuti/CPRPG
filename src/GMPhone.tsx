@@ -26,9 +26,25 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [glowingMessageIds, setGlowingMessageIds] = useState<string[]>([]);
+  const glowStartedAt = useRef(new Map<string, number>());
+  const glowTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const lastGlowingConversation = useRef('');
   const historyRef = useRef<HTMLDivElement | null>(null);
   const historyPrevious = useRef({ conversation: '', lastMessage: '' });
   const markReadInFlight = useRef(new Set<string>());
+  const clearReadGlow = useCallback(() => {
+    const now = Date.now();
+    for (const [id, started] of glowStartedAt.current) {
+      const remaining = Math.max(0, 600 - (now - started));
+      const timer = setTimeout(() => {
+        glowStartedAt.current.delete(id);
+        setGlowingMessageIds(current => current.filter(value => value !== id));
+      }, remaining);
+      glowTimers.current.push(timer);
+    }
+  }, []);
+  useEffect(() => () => glowTimers.current.forEach(clearTimeout), []);
   const selectedConversationRef = useRef('');
   const tabRef = useRef<Tab>('messages');
   selectedConversationRef.current = selectedConversation;
@@ -40,6 +56,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
       const marked = await supabase.rpc('phone_gm_mark_read', { p_conversation_id: conversationId });
       if (marked.error) throw marked.error;
       onRead?.();
+      clearReadGlow();
       const updated = await supabase.rpc('phone_gm_threads', { p_campaign_id: campaignId });
       if (updated.error) throw updated.error;
       setThreads((updated.data || []) as Thread[]);
@@ -48,7 +65,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     } finally {
       markReadInFlight.current.delete(conversationId);
     }
-  }, [campaignId, onRead]);
+  }, [campaignId, onRead, clearReadGlow]);
   const handleHistoryScroll = useCallback(() => {
     const node = historyRef.current;
     if (!node || !selectedConversationRef.current || tabRef.current !== 'messages') return;
@@ -56,6 +73,27 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
       void markConversationRead(selectedConversationRef.current);
     }
   }, [markConversationRead]);
+  useEffect(() => {
+    if (!selectedConversation || tab !== 'messages') return;
+    if (lastGlowingConversation.current !== selectedConversation) {
+      lastGlowingConversation.current = selectedConversation;
+      glowStartedAt.current.clear();
+      setGlowingMessageIds([]);
+    }
+    const thread = threads.find(t => t.conversation_id === selectedConversation);
+    const unread = Number(thread?.unread_count || 0);
+    if (!unread || !messages.length) return;
+    const incoming = messages.filter(m => m.sender_identity_id !== thread?.npc_identity_id);
+    const ids = incoming.slice(-unread).map(m => m.message_id);
+    const now = Date.now();
+    ids.forEach(id => {
+      if (!glowStartedAt.current.has(id)) glowStartedAt.current.set(id, now);
+    });
+    setGlowingMessageIds(current => {
+      const merged = [...new Set([...current, ...ids])];
+      return merged.length === current.length ? current : merged;
+    });
+  }, [selectedConversation, tab, threads, messages]);
   useLayoutEffect(() => {
     const node = historyRef.current;
     if (!node || !selectedConversation || tab !== 'messages') return;
@@ -139,7 +177,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
         {!shown.length && <p className="gm-ghost-muted">No conversations for this identity yet.</p>}
       </aside>
       <main className="gm-ghost-chat">{selected ? <><div className="gm-ghost-chat-header"><div><strong>{selected.player_name} ↔ {selected.npc_internal_name}</strong><small>Sending as: {selected.npc_public_label}</small></div><span className="gm-ghost-tag">{selected.npc_public_label === 'Unknown Number' ? 'ANONYMOUS' : 'NPC IDENTITY'}</span></div>
-        <div className="gm-ghost-history" ref={historyRef} onScroll={handleHistoryScroll}>{messages.map(message => <div key={message.message_id} className={'gm-ghost-bubble ' + (message.sender_identity_id === selected.npc_identity_id ? 'out' : 'in')}><div>{message.body}</div><small>{message.sender_identity_id === selected.npc_identity_id ? selected.npc_internal_name : selected.player_name} · {time(message.created_at)}</small></div>)}{!messages.length && <p className="gm-ghost-muted">No messages loaded.</p>}</div>
+        <div className="gm-ghost-history" ref={historyRef} onScroll={handleHistoryScroll}>{messages.map(message => <div key={message.message_id} className={'gm-ghost-bubble ' + (message.sender_identity_id === selected.npc_identity_id ? 'out' : 'in') + (glowingMessageIds.includes(message.message_id) ? ' gm-ghost-unread-glow' : '')}><div>{message.body}</div><small>{message.sender_identity_id === selected.npc_identity_id ? selected.npc_internal_name : selected.player_name} · {time(message.created_at)}</small></div>)}{!messages.length && <p className="gm-ghost-muted">No messages loaded.</p>}</div>
         <form className="gm-ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input aria-label="NPC message" maxLength={4000} value={draft} onChange={e => setDraft(e.target.value)} placeholder={'Send as ' + selected.npc_internal_name + '...'} /><button disabled={!draft.trim() || busy} type="submit"><Send size={15}/> SEND</button></form>
       </> : <div className="gm-ghost-empty">Select a conversation to begin messaging.</div>}</main>
     </div> : <div className="gm-ghost-future"><h3>{tabs.find(t => t.id === tab)?.label}</h3><div className="gm-ghost-feature-grid">{(tab === 'contacts' ? ['Player Directory', 'Grant NPC Contact', 'Revoke NPC Contact'] : tab === 'identities' ? ['Existing NPC Identities', 'Create NPC Identity', 'Reveal Anonymous Identity'] : tab === 'calls' ? ['Place Call', 'Incoming Calls', 'Active Call'] : ['Campaign Network', 'Notification Controls', 'Connection Diagnostics']).map(label => <div key={label} className="gm-ghost-feature"><strong>{label}</strong><small>COMING LATER</small></div>)}</div></div>}
