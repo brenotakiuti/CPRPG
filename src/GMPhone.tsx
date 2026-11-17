@@ -19,6 +19,12 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
   const [tab, setTab] = useState<Tab>('messages');
   const [threads, setThreads] = useState<Thread[]>([]);
   const [identities, setIdentities] = useState<Identity[]>([]);
+  const [players, setPlayers] = useState<{id:string;name:string}[]>([]);
+  const [creatingIdentity, setCreatingIdentity] = useState(false);
+  const [internalName, setInternalName] = useState('The Observer');
+  const [publicName, setPublicName] = useState('Unknown Number');
+  const [anonymous, setAnonymous] = useState(true);
+  const [identityBusy, setIdentityBusy] = useState(false);
   const [selectedIdentity, setSelectedIdentity] = useState('');
   const [selectedConversation, setSelectedConversation] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -138,15 +144,18 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
   }, [selectedConversation, tab, messages, markConversationRead, clearReadGlow]);
 
   const refresh = useCallback(async () => {
-    const [t, n] = await Promise.all([
+    const [t, n, p] = await Promise.all([
       supabase.rpc('phone_gm_threads', { p_campaign_id: campaignId }),
       supabase.from('phone_identities').select('id,internal_name,display_name,anonymous').eq('campaign_id', campaignId).eq('kind', 'npc'),
+      supabase.from('characters').select('id,name').eq('campaign_id', campaignId).order('name'),
     ]);
     if (t.error) throw t.error;
     // Identity listing may be restricted by RLS; conversation list still works.
     const next = (t.data || []) as Thread[];
     setThreads(next);
     if (!n.error) setIdentities((n.data || []) as Identity[]);
+    if (!p.error) setPlayers((p.data || []) as {id:string;name:string}[]);
+    else setError(p.error.message);
     setSelectedIdentity(current => current || next[0]?.npc_identity_id || (!n.error ? (n.data?.[0]?.id ?? '') : ''));
     setSelectedConversation(current => current && next.some(row => row.conversation_id === current) ? current : '');
   }, [campaignId]);
@@ -179,6 +188,28 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
   const selected = threads.find(t => t.conversation_id === selectedConversation);
   const allIdentities = identities.length ? identities : Array.from(new Map(threads.map(t => [t.npc_identity_id, { id: t.npc_identity_id, internal_name: t.npc_internal_name, display_name: t.npc_public_label, anonymous: t.npc_public_label === 'Unknown Number' }])).values());
   const shown = threads.filter(t => !selectedIdentity || t.npc_identity_id === selectedIdentity);
+  const createIdentity = async () => {
+    const internal = internalName.trim();
+    const display = publicName.trim();
+    if (!internal || (!anonymous && !display)) { setError('Enter the required identity names.'); return; }
+    if (allIdentities.some(identity => identity.internal_name.toLowerCase() === internal.toLowerCase())) {
+      setError('An NPC identity with that internal name already exists.'); return;
+    }
+    setIdentityBusy(true); setError('');
+    try {
+      const result = await supabase.rpc('phone_create_npc', {
+        p_campaign_id: campaignId, p_internal_name: internal,
+        p_display_name: anonymous ? 'Unknown Number' : display, p_anonymous: anonymous,
+      });
+      if (result.error) throw result.error;
+      await refresh();
+      const createdId = typeof result.data === 'string' ? result.data : result.data?.id;
+      if (createdId) setSelectedIdentity(createdId);
+      setSelectedConversation('');
+      setCreatingIdentity(false);
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setIdentityBusy(false); }
+  };
   const send = async () => {
     if (!selected || !draft.trim() || busy) return;
     setBusy(true); setError('');
@@ -196,7 +227,14 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     {tab === 'messages' ? <div className="gm-ghost-workstation">
       <aside className="gm-ghost-identities"><div className="gm-ghost-section-title">NPC IDENTITIES <span>{allIdentities.length}</span></div>
         {allIdentities.map(identity => <button key={identity.id} className={'gm-ghost-entry ' + (selectedIdentity === identity.id ? 'active' : '')} onClick={() => { setSelectedIdentity(identity.id); setSelectedConversation(''); }}><span className="gm-ghost-avatar">?</span><span><strong>{identity.internal_name || identity.display_name}</strong><small>{identity.anonymous ? 'Anonymous' : identity.display_name}</small></span>{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0) > 0 && <b className="gm-ghost-unread">{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0)}</b>}</button>)}
-        <div className="gm-ghost-placeholder">+ New Identity <small>Coming later</small></div>
+        <button type="button" className="gm-ghost-create-trigger" onClick={() => { setCreatingIdentity(v => !v); setError(''); }}>+ New Identity</button>
+        {creatingIdentity && <form className="gm-ghost-create-form" onSubmit={e => { e.preventDefault(); void createIdentity(); }}>
+          <strong>CREATE NPC IDENTITY</strong>
+          <label>Internal name (GM only)<input maxLength={100} value={internalName} onChange={e => setInternalName(e.target.value)}/></label>
+          <label>Public display name<input maxLength={100} value={publicName} onChange={e => setPublicName(e.target.value)} disabled={anonymous}/></label>
+          <label className="gm-ghost-check"><input type="checkbox" checked={anonymous} onChange={e => setAnonymous(e.target.checked)}/> Anonymous — players see Unknown Number</label>
+          <div className="gm-ghost-create-actions"><button type="button" onClick={() => setCreatingIdentity(false)}>Cancel</button><button type="submit" disabled={identityBusy || !internalName.trim() || (!anonymous && !publicName.trim())}>{identityBusy ? 'Creating…' : 'Create Identity'}</button></div>
+        </form>}
       </aside>
       <aside className="gm-ghost-threads"><div className="gm-ghost-section-title">CONVERSATIONS <span>{shown.length}</span></div>
         {shown.map(thread => <button key={thread.conversation_id} className={'gm-ghost-entry ' + (selectedConversation === thread.conversation_id ? 'active' : '')} onClick={() => { setSelectedConversation(thread.conversation_id); setDraft(''); void read(thread.conversation_id).catch(e => setError(e instanceof Error ? e.message : String(e))); }}><span className="gm-ghost-avatar player">{thread.player_name.slice(0,1).toUpperCase()}</span><span><strong>{thread.player_name}</strong><small>{thread.npc_internal_name} → {thread.player_name}</small><small className="gm-ghost-preview">{thread.last_message || 'New conversation'}</small></span>{Number(thread.unread_count) > 0 && <b className="gm-ghost-unread">{thread.unread_count}</b>}</button>)}
@@ -206,7 +244,12 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
         <div className="gm-ghost-history" ref={historyRef} onScroll={handleHistoryScroll}>{messages.map(message => <div key={message.message_id} className={'gm-ghost-bubble ' + (message.sender_identity_id === selected.npc_identity_id ? 'out' : 'in') + (glowingMessageIds.includes(message.message_id) ? ' gm-ghost-unread-glow' : '')}><div>{message.body}</div><small>{message.sender_identity_id === selected.npc_identity_id ? selected.npc_internal_name : selected.player_name} · {time(message.created_at)}</small></div>)}{!messages.length && <p className="gm-ghost-muted">No messages loaded.</p>}</div>
         <form className="gm-ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input aria-label="NPC message" maxLength={4000} value={draft} onChange={e => setDraft(e.target.value)} placeholder={'Send as ' + selected.npc_internal_name + '...'} /><button disabled={!draft.trim() || busy} type="submit"><Send size={15}/> SEND</button></form>
       </> : <div className="gm-ghost-empty">Select a conversation to begin messaging.</div>}</main>
-    </div> : <div className="gm-ghost-future"><h3>{tabs.find(t => t.id === tab)?.label}</h3><div className="gm-ghost-feature-grid">{(tab === 'contacts' ? ['Player Directory', 'Grant NPC Contact', 'Revoke NPC Contact'] : tab === 'identities' ? ['Existing NPC Identities', 'Create NPC Identity', 'Reveal Anonymous Identity'] : tab === 'calls' ? ['Place Call', 'Incoming Calls', 'Active Call'] : ['Campaign Network', 'Notification Controls', 'Connection Diagnostics']).map(label => <div key={label} className="gm-ghost-feature"><strong>{label}</strong><small>COMING LATER</small></div>)}</div></div>}
+    </div> : tab === 'contacts' ? <section className="gm-ghost-player-directory">
+      <h3>PLAYER CHARACTER DIRECTORY <span>{players.length}</span></h3>
+      <p>All characters in this campaign. NPC identities are managed separately.</p>
+      <div className="gm-ghost-player-list">{players.map(player => <div key={player.id} className="gm-ghost-player-row"><span className="gm-ghost-avatar player">{player.name.slice(0,1).toUpperCase()}</span><span><strong>{player.name}</strong><small>Player character</small></span></div>)}</div>
+      {!players.length && <p>No player characters found in this campaign.</p>}
+    </section> : <div className="gm-ghost-future"><h3>{tabs.find(t => t.id === tab)?.label}</h3><div className="gm-ghost-feature-grid">{(tab === 'contacts' ? ['Player Directory', 'Grant NPC Contact', 'Revoke NPC Contact'] : tab === 'identities' ? ['Existing NPC Identities', 'Create NPC Identity', 'Reveal Anonymous Identity'] : tab === 'calls' ? ['Place Call', 'Incoming Calls', 'Active Call'] : ['Campaign Network', 'Notification Controls', 'Connection Diagnostics']).map(label => <div key={label} className="gm-ghost-feature"><strong>{label}</strong><small>COMING LATER</small></div>)}</div></div>}
     {loading && <p className="gm-ghost-muted">Connecting to Ghost//Link...</p>}
     {error && <p className="gm-ghost-error" role="alert">{error} <button onClick={() => { setError(''); void refresh().catch(e => setError(String(e))); }}><RefreshCw size={14}/> Retry</button></p>}
     <footer className="gm-ghost-footer">● GHOST//LINK NETWORK <span>DESKTOP / TABLET TERMINAL</span></footer>
