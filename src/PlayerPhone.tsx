@@ -11,6 +11,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const [selfId, setSelfId] = useState('');
   const [threads, setThreads] = useState<Thread[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [revealedIdentities, setRevealedIdentities] = useState<Record<string,string>>({});
   const [selected, setSelected] = useState<{ id: string; label: string; conversationId?: string } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [directory, setDirectory] = useState(false);
@@ -56,11 +57,13 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const pulseTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => { pulseTimers.current.forEach(clearTimeout); }, []);
   const refresh = useCallback(async () => {
-    const [t, d] = await Promise.all([
+    const [t, d, r] = await Promise.all([
       supabase.rpc('phone_threads', { p_character_id: characterId }),
       supabase.rpc('phone_directory', { p_character_id: characterId }),
+      supabase.rpc('phone_player_reveals', { p_character_id: characterId }),
     ]);
-    if (t.error || d.error) throw new Error(t.error?.message || d.error?.message);
+    if (t.error || d.error || r.error) throw new Error(t.error?.message || d.error?.message || r.error?.message);
+    setRevealedIdentities(Object.fromEntries(((r.data || []) as {identity_id:string;revealed_name:string}[]).map(x => [x.identity_id,x.revealed_name])));
     setThreads((t.data || []) as Thread[]);
     setContacts((d.data || []) as Contact[]);
   }, [characterId]);
@@ -126,12 +129,15 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
       }).subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [characterId, refresh, read]);
-  const openThread = (t: Thread) => { setError(''); setDirectory(false); setSelected({ id: t.other_identity_id, label: t.other_label, conversationId: t.conversation_id }); };
+  const labelFor = (id: string, fallback: string) => revealedIdentities[id] || fallback;
+  const openThread = (t: Thread) => { setError(''); setDirectory(false); setSelected({ id: t.other_identity_id, label: labelFor(t.other_identity_id,t.other_label), conversationId: t.conversation_id }); };
   const openContact = (c: Contact) => {
     const existing = threads.find(t => t.other_identity_id === c.identity_id);
     setError(''); setDirectory(false);
-    setSelected({ id: c.identity_id, label: c.label, conversationId: existing?.conversation_id });
+    setSelected({ id: c.identity_id, label: labelFor(c.identity_id,c.label), conversationId: existing?.conversation_id });
   };
+  const selectedLabel = selected ? labelFor(selected.id,selected.label) : '';
+  const selectedMasked = !!selected && selectedLabel === 'Unknown Number';
   const send = async () => {
     if (!selected || !selfId || !draft.trim() || busy) return;
     setBusy(true); setError('');
@@ -157,12 +163,12 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
       {loading && <p className="ghost-muted">Connecting to network...</p>}
       {!loading && (directory ? contacts.length === 0 : threads.length === 0) && <p className="ghost-muted">{directory ? 'No contacts available.' : 'No conversations yet. Select the message icon to find contacts.'}</p>}
       <div className="ghost-list">
-        {directory ? contacts.filter(c => c.can_message).map(c => <button key={c.identity_id} className="ghost-contact" onClick={() => openContact(c)}><UserRound size={24}/><span><strong>{c.label}</strong><small>{c.anonymous ? 'MASKED IDENTITY' : c.kind === 'player' ? 'PLAYER CONTACT' : 'REGISTERED CONTACT'}</small></span></button>)
-          : threads.map(t => <button key={t.conversation_id} className={"ghost-contact" + (pulsingThreads.includes(t.conversation_id) ? " ghost-contact-pulse" : "")} onClick={() => openThread(t)}><UserRound size={24}/><span><strong>{t.other_label}</strong><small>{t.last_message || 'New conversation'}</small></span>{Number(t.unread_count) > 0 && <b className="ghost-unread">{t.unread_count}</b>}</button>)}
+        {directory ? contacts.filter(c => c.can_message).map(c => <button key={c.identity_id} className="ghost-contact" onClick={() => openContact(c)}><UserRound size={24}/><span><strong>{labelFor(c.identity_id,c.label)}</strong><small>{c.anonymous && !revealedIdentities[c.identity_id] ? 'MASKED IDENTITY' : c.kind === 'player' ? 'PLAYER CONTACT' : 'REGISTERED CONTACT'}</small></span></button>)
+          : threads.map(t => <button key={t.conversation_id} className={"ghost-contact" + (pulsingThreads.includes(t.conversation_id) ? " ghost-contact-pulse" : "")} onClick={() => openThread(t)}><UserRound size={24}/><span><strong>{labelFor(t.other_identity_id,t.other_label)}</strong><small>{t.last_message || 'New conversation'}</small></span>{Number(t.unread_count) > 0 && <b className="ghost-unread">{t.unread_count}</b>}</button>)}
       </div>
     </> : <>
-      <div className="ghost-heading"><button onClick={() => { setSelected(null); void refresh().catch(() => {}); }} aria-label="Back to inbox"><ArrowLeft size={20}/></button><UserRound size={27}/><div><h2>{selected.label}</h2><small>{contacts.find(c => c.identity_id === selected.id)?.anonymous || selected.label === 'Unknown Number' ? 'IDENTITY MASKED' : 'SECURE CONNECTION'}</small></div></div>
-      <div className="ghost-status"><ShieldAlert size={15}/> {selected.label === 'Unknown Number' ? 'UNREGISTERED SIGNAL' : 'PRIVATE COMMUNICATION'}</div>
+      <div className="ghost-heading"><button onClick={() => { setSelected(null); void refresh().catch(() => {}); }} aria-label="Back to inbox"><ArrowLeft size={20}/></button><UserRound size={27}/><div><h2>{selectedLabel}</h2><small>{selectedMasked ? 'IDENTITY MASKED' : 'SECURE CONNECTION'}</small></div></div>
+      <div className="ghost-status"><ShieldAlert size={15}/> {selectedMasked ? 'UNREGISTERED SIGNAL' : 'PRIVATE COMMUNICATION'}</div>
       <div className="ghost-messages" ref={historyRef} onScroll={handleHistoryScroll}>{messages.length === 0 && <p className="ghost-muted">No messages yet.</p>}{messages.map(m => <div key={m.message_id} className={'ghost-bubble ' + (m.sender_identity_id === selfId ? 'outgoing' : 'incoming')}><span>{m.body}</span><small>{time(m.created_at)}</small></div>)}</div>
       <form className="ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input value={draft} onChange={e => setDraft(e.target.value)} maxLength={4000} placeholder="Transmit message..." aria-label="Message"/><button type="submit" disabled={busy || !draft.trim()} aria-label="Send message"><Send size={19}/></button></form>
     </>}

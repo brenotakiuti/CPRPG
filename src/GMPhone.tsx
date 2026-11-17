@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { MessageSquare, Users, VenetianMask, Phone, Settings2, Send, RefreshCw } from 'lucide-react';
+import { MessageSquare, Users, Phone, Settings2, Send, RefreshCw, Eye } from 'lucide-react';
 import { supabase } from './supabase';
 import './GMPhone.css';
 
 type Thread = { conversation_id: string; npc_identity_id: string; npc_internal_name: string; npc_public_label: string; player_identity_id: string; player_name: string; last_message_at: string | null; last_message: string | null; unread_count: number };
 type Message = { message_id: string; sender_identity_id: string; body: string; created_at: string };
 type Identity = { id: string; internal_name: string; display_name: string; anonymous: boolean };
-type Tab = 'messages' | 'contacts' | 'identities' | 'calls' | 'settings';
+type Tab = 'messages' | 'contacts' | 'calls' | 'settings';
 const tabs: { id: Tab; label: string; icon: typeof MessageSquare }[] = [
   { id: 'messages', label: 'Messages', icon: MessageSquare },
   { id: 'contacts', label: 'Contacts & Access', icon: Users },
-  { id: 'identities', label: 'NPC Identities', icon: VenetianMask },
   { id: 'calls', label: 'Call Control', icon: Phone },
   { id: 'settings', label: 'Settings', icon: Settings2 },
 ];
@@ -18,6 +17,9 @@ const time = (value: string) => new Date(value).toLocaleTimeString([], { hour: '
 export default function GMPhone({ campaignId, campaignName, onRead }: { campaignId: string; campaignName: string; onRead?: () => void }) {
   const [tab, setTab] = useState<Tab>('messages');
   const [threads, setThreads] = useState<Thread[]>([]);
+  const [revealedConversations, setRevealedConversations] = useState<string[]>([]);
+  const [confirmReveal, setConfirmReveal] = useState(false);
+  const [revealing, setRevealing] = useState(false);
   const [identities, setIdentities] = useState<Identity[]>([]);
   const [players, setPlayers] = useState<{id:string;name:string}[]>([]);
   const [creatingIdentity, setCreatingIdentity] = useState(false);
@@ -148,15 +150,18 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
   }, [selectedConversation, tab, messages, markConversationRead, clearReadGlow]);
 
   const refresh = useCallback(async () => {
-    const [t, n, p] = await Promise.all([
+    const [t, n, p, reveals] = await Promise.all([
       supabase.rpc('phone_gm_threads', { p_campaign_id: campaignId }),
       supabase.rpc('phone_gm_identities', { p_campaign_id: campaignId }),
       supabase.from('characters').select('id,name').eq('campaign_id', campaignId).order('name'),
+      supabase.rpc('phone_gm_reveals', { p_campaign_id: campaignId }),
     ]);
     if (t.error) throw t.error;
     // The GM-only RPC returns identities even when they have no conversations.
     const next = (t.data || []) as Thread[];
     setThreads(next);
+    if (reveals.error) throw reveals.error;
+    setRevealedConversations(((reveals.data || []) as {conversation_id:string}[]).map(r => r.conversation_id));
     if (n.error) throw n.error;
     setIdentities((n.data || []) as Identity[]);
     if (!p.error) setPlayers((p.data || []) as {id:string;name:string}[]);
@@ -191,6 +196,20 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     return () => { void supabase.removeChannel(channel); };
   }, [campaignId, refresh, read]);
   const selected = threads.find(t => t.conversation_id === selectedConversation);
+  const selectedRevealed = !!selected && revealedConversations.includes(selected.conversation_id);
+  const selectedAnonymous = !!selected && identities.some(i => i.id === selected.npc_identity_id && i.anonymous);
+  const selectedPublicLabel = selectedRevealed ? selected?.npc_internal_name : selected?.npc_public_label;
+  const revealIdentity = async () => {
+    if (!selected || !selectedAnonymous || selectedRevealed || revealing) return;
+    setRevealing(true); setError('');
+    try {
+      const result = await supabase.rpc('phone_reveal_conversation_identity', { p_conversation_id: selected.conversation_id });
+      if (result.error) throw result.error;
+      await refresh();
+      setConfirmReveal(false);
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setRevealing(false); }
+  };
   const allIdentities = identities.length ? identities : Array.from(new Map(threads.map(t => [t.npc_identity_id, { id: t.npc_identity_id, internal_name: t.npc_internal_name, display_name: t.npc_public_label, anonymous: t.npc_public_label === 'Unknown Number' }])).values());
   const shown = threads.filter(t => !selectedIdentity || t.npc_identity_id === selectedIdentity);
   const createIdentity = async () => {
@@ -260,7 +279,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     <nav className="gm-ghost-tabs" aria-label="Ghost Link tools">{tabs.map(item => <button key={item.id} type="button" className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}><item.icon size={15}/>{item.label}</button>)}</nav>
     {tab === 'messages' ? <div className="gm-ghost-workstation">
       <aside className="gm-ghost-identities"><div className="gm-ghost-section-title">NPC IDENTITIES <span>{allIdentities.length}</span></div>
-        {allIdentities.map(identity => <button key={identity.id} className={'gm-ghost-entry ' + (selectedIdentity === identity.id ? 'active' : '')} onClick={() => { setSelectedIdentity(identity.id); setSelectedConversation(''); setNewChat(false); setRecipientPickerOpen(false); setNewChatRecipient(''); }}><span className="gm-ghost-avatar">?</span><span><strong>{identity.internal_name || identity.display_name}</strong><small>{identity.anonymous ? 'Anonymous' : identity.display_name}</small></span>{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0) > 0 && <b className="gm-ghost-unread">{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0)}</b>}</button>)}
+        {allIdentities.map(identity => <button key={identity.id} className={'gm-ghost-entry ' + (selectedIdentity === identity.id ? 'active' : '')} onClick={() => { setSelectedIdentity(identity.id); setConfirmReveal(false); setSelectedConversation(''); setNewChat(false); setRecipientPickerOpen(false); setNewChatRecipient(''); }}><span className="gm-ghost-avatar">?</span><span><strong>{identity.internal_name || identity.display_name}</strong><small>{identity.anonymous ? 'Anonymous' : identity.display_name}</small></span>{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0) > 0 && <b className="gm-ghost-unread">{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0)}</b>}</button>)}
         <button type="button" className="gm-ghost-create-trigger" onClick={() => { setCreatingIdentity(v => !v); setError(''); }}>+ New Identity</button>
         {creatingIdentity && <form className="gm-ghost-create-form" onSubmit={e => { e.preventDefault(); void createIdentity(); }}>
           <strong>CREATE NPC IDENTITY</strong>
@@ -273,10 +292,10 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
       <aside className="gm-ghost-threads"><div className="gm-ghost-section-title">CONVERSATIONS <span>{shown.length}</span></div>
         <button type="button" className="gm-ghost-create-trigger" aria-expanded={recipientPickerOpen} disabled={!selectedIdentity || busy} onClick={() => { if (recipientPickerOpen) setRecipientPickerOpen(false); else void startNewChat(); }}>{recipientPickerOpen ? "− New Chat" : "+ New Chat"}</button>
         {recipientPickerOpen && <div className="gm-ghost-recipient-picker"><strong>SELECT CHARACTER</strong>{!playerIdentities.length && <p className="gm-ghost-muted">No player characters available.</p>}{playerIdentities.map(p => <button type="button" key={p.identity_id} className="gm-ghost-recipient-option" onClick={() => { const existing = threads.find(t => t.npc_identity_id === selectedIdentity && t.player_identity_id === p.identity_id); setRecipientPickerOpen(false); setNewChatRecipient(p.identity_id); setDraft(""); if (existing) { setNewChat(false); setSelectedConversation(existing.conversation_id); } else { setNewChat(true); setSelectedConversation(""); } }}><span className="gm-ghost-avatar player">{p.player_name.slice(0,1).toUpperCase()}</span><span>{p.player_name}</span></button>)}</div>}
-        {shown.map(thread => <button key={thread.conversation_id} className={'gm-ghost-entry ' + (selectedConversation === thread.conversation_id ? 'active' : '')} onClick={() => { setNewChat(false); setRecipientPickerOpen(false); setSelectedConversation(thread.conversation_id); setDraft(''); void read(thread.conversation_id).catch(e => setError(e instanceof Error ? e.message : String(e))); }}><span className="gm-ghost-avatar player">{thread.player_name.slice(0,1).toUpperCase()}</span><span><strong>{thread.player_name}</strong><small>{thread.npc_internal_name} → {thread.player_name}</small><small className="gm-ghost-preview">{thread.last_message || 'New conversation'}</small></span>{Number(thread.unread_count) > 0 && <b className="gm-ghost-unread">{thread.unread_count}</b>}</button>)}
+        {shown.map(thread => <button key={thread.conversation_id} className={'gm-ghost-entry ' + (selectedConversation === thread.conversation_id ? 'active' : '')} onClick={() => { setNewChat(false); setRecipientPickerOpen(false); setSelectedConversation(thread.conversation_id); setConfirmReveal(false); setDraft(''); void read(thread.conversation_id).catch(e => setError(e instanceof Error ? e.message : String(e))); }}><span className="gm-ghost-avatar player">{thread.player_name.slice(0,1).toUpperCase()}</span><span><strong>{thread.player_name}</strong><small>{thread.npc_internal_name} → {thread.player_name}</small><small className="gm-ghost-preview">{thread.last_message || 'New conversation'}</small></span>{Number(thread.unread_count) > 0 && <b className="gm-ghost-unread">{thread.unread_count}</b>}</button>)}
         {!shown.length && <p className="gm-ghost-muted">No conversations for this identity yet.</p>}
       </aside>
-      <main className="gm-ghost-chat">{newChat ? <><div className="gm-ghost-chat-header"><div><strong>NEW CONVERSATION</strong><small>Sending as: {allIdentities.find(i => i.id === selectedIdentity)?.internal_name || 'NPC'}</small></div><button type="button" className="gm-ghost-cancel-chat" onClick={() => { setNewChat(false); setNewChatRecipient(""); setDraft(""); }}>Cancel</button></div><div className="gm-ghost-new-chat"><p>To: {playerIdentities.find(p => p.identity_id === newChatRecipient)?.player_name || "Player"}</p><p>The conversation will appear when you send the first message.</p></div><form className="gm-ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input aria-label="First NPC message" maxLength={4000} value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write the first message..."/><button disabled={!newChatRecipient || !draft.trim() || busy} type="submit"><Send size={15}/> SEND</button></form></> : selected ? <><div className="gm-ghost-chat-header"><div><strong>{selected.player_name} ↔ {selected.npc_internal_name}</strong><small>Sending as: {selected.npc_public_label}</small></div><span className="gm-ghost-tag">{selected.npc_public_label === 'Unknown Number' ? 'ANONYMOUS' : 'NPC IDENTITY'}</span></div>
+      <main className="gm-ghost-chat">{newChat ? <><div className="gm-ghost-chat-header"><div><strong>NEW CONVERSATION</strong><small>Sending as: {allIdentities.find(i => i.id === selectedIdentity)?.internal_name || 'NPC'}</small></div><button type="button" className="gm-ghost-cancel-chat" onClick={() => { setNewChat(false); setNewChatRecipient(""); setDraft(""); }}>Cancel</button></div><div className="gm-ghost-new-chat"><p>To: {playerIdentities.find(p => p.identity_id === newChatRecipient)?.player_name || "Player"}</p><p>The conversation will appear when you send the first message.</p></div><form className="gm-ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input aria-label="First NPC message" maxLength={4000} value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write the first message..."/><button disabled={!newChatRecipient || !draft.trim() || busy} type="submit"><Send size={15}/> SEND</button></form></> : selected ? <><div className="gm-ghost-chat-header"><div><strong>{selected.player_name} ↔ {selected.npc_internal_name}</strong><small>Sending as: {selectedPublicLabel}</small></div>{selectedAnonymous && !selectedRevealed ? <button type="button" className="gm-ghost-tag gm-ghost-tag-action" title={'Reveal identity to ' + selected.player_name} aria-label={'Reveal identity to ' + selected.player_name} onClick={() => setConfirmReveal(true)}>ANONYMOUS <Eye size={12} aria-hidden="true" /></button> : <span className="gm-ghost-tag">{selectedRevealed ? 'IDENTIFIED' : 'NPC IDENTITY'}</span>}</div>{confirmReveal && <div className="gm-ghost-reveal-confirm" role="group" aria-label="Confirm identity reveal"><strong>Reveal identity?</strong><p>Reveal <b>{selected.npc_internal_name}</b> to <b>{selected.player_name}</b>? Only this player will see the NPC's name, including in earlier messages.</p><small>This action is permanent.</small><div><button type="button" onClick={() => setConfirmReveal(false)} disabled={revealing}>Cancel</button><button type="button" onClick={() => void revealIdentity()} disabled={revealing}>{revealing ? 'Revealing…' : 'Reveal Identity'}</button></div></div>
         <div className="gm-ghost-history" ref={historyRef} onScroll={handleHistoryScroll}>{messages.map(message => <div key={message.message_id} className={'gm-ghost-bubble ' + (message.sender_identity_id === selected.npc_identity_id ? 'out' : 'in') + (glowingMessageIds.includes(message.message_id) ? ' gm-ghost-unread-glow' : '')}><div>{message.body}</div><small>{message.sender_identity_id === selected.npc_identity_id ? selected.npc_internal_name : selected.player_name} · {time(message.created_at)}</small></div>)}{!messages.length && <p className="gm-ghost-muted">No messages loaded.</p>}</div>
         <form className="gm-ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input aria-label="NPC message" maxLength={4000} value={draft} onChange={e => setDraft(e.target.value)} placeholder={'Send as ' + selected.npc_internal_name + '...'} /><button disabled={!draft.trim() || busy} type="submit"><Send size={15}/> SEND</button></form>
       </> : <div className="gm-ghost-empty">Select a conversation to begin messaging.</div>}</main>
@@ -285,7 +304,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
       <p>All characters in this campaign. NPC identities are managed separately.</p>
       <div className="gm-ghost-player-list">{players.map(player => <div key={player.id} className="gm-ghost-player-row"><span className="gm-ghost-avatar player">{player.name.slice(0,1).toUpperCase()}</span><span><strong>{player.name}</strong><small>Player character</small></span></div>)}</div>
       {!players.length && <p>No player characters found in this campaign.</p>}
-    </section> : <div className="gm-ghost-future"><h3>{tabs.find(t => t.id === tab)?.label}</h3><div className="gm-ghost-feature-grid">{(tab === 'identities' ? ['Existing NPC Identities', 'Create NPC Identity', 'Reveal Anonymous Identity'] : tab === 'calls' ? ['Place Call', 'Incoming Calls', 'Active Call'] : ['Campaign Network', 'Notification Controls', 'Connection Diagnostics']).map(label => <div key={label} className="gm-ghost-feature"><strong>{label}</strong><small>COMING LATER</small></div>)}</div></div>}
+    </section> : <div className="gm-ghost-future"><h3>{tabs.find(t => t.id === tab)?.label}</h3><div className="gm-ghost-feature-grid">{(tab === 'calls' ? ['Place Call', 'Incoming Calls', 'Active Call'] : ['Campaign Network', 'Notification Controls', 'Connection Diagnostics']).map(label => <div key={label} className="gm-ghost-feature"><strong>{label}</strong><small>COMING LATER</small></div>)}</div></div>}
     {loading && <p className="gm-ghost-muted">Connecting to Ghost//Link...</p>}
     {error && <p className="gm-ghost-error" role="alert">{error} <button onClick={() => { setError(''); void refresh().catch(e => setError(String(e))); }}><RefreshCw size={14}/> Retry</button></p>}
     <footer className="gm-ghost-footer">● GHOST//LINK NETWORK <span>DESKTOP / TABLET TERMINAL</span></footer>
