@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MessageSquare, Users, VenetianMask, Phone, Settings2, Send, RefreshCw } from 'lucide-react';
 import { supabase } from './supabase';
 import './GMPhone.css';
@@ -26,6 +26,33 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const historyRef = useRef<HTMLDivElement | null>(null);
+  const historyNearBottom = useRef(true);
+  const historyPrevious = useRef({ conversation: '', lastMessage: '' });
+  const handleHistoryScroll = useCallback(() => {
+    const node = historyRef.current;
+    if (!node) return;
+    historyNearBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80;
+  }, []);
+  useLayoutEffect(() => {
+    const node = historyRef.current;
+    const conversation = selectedConversation;
+    if (!node || !conversation) return;
+    const lastMessage = messages[messages.length - 1]?.message_id || '';
+    const previous = historyPrevious.current;
+    const changedConversation = previous.conversation !== conversation;
+    const changedLastMessage = previous.lastMessage !== lastMessage;
+    if (changedConversation || changedLastMessage) {
+      const shouldScroll = changedConversation || historyNearBottom.current ||
+        (messages.length > 0 && messages[messages.length - 1].sender_identity_id === threads.find(t => t.conversation_id === selectedConversation)?.npc_identity_id);
+      if (shouldScroll) {
+        node.scrollTo({ top: node.scrollHeight, behavior: changedConversation ? 'instant' : 'smooth' });
+        historyNearBottom.current = true;
+      }
+      historyPrevious.current = { conversation, lastMessage };
+    }
+  }, [selectedConversation, messages, threads]);
+
   const selectedConversationRef = useRef('');
   const tabRef = useRef<Tab>('messages');
   selectedConversationRef.current = selectedConversation;
@@ -102,7 +129,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
         {!shown.length && <p className="gm-ghost-muted">No conversations for this identity yet.</p>}
       </aside>
       <main className="gm-ghost-chat">{selected ? <><div className="gm-ghost-chat-header"><div><strong>{selected.player_name} ↔ {selected.npc_internal_name}</strong><small>Sending as: {selected.npc_public_label}</small></div><span className="gm-ghost-tag">{selected.npc_public_label === 'Unknown Number' ? 'ANONYMOUS' : 'NPC IDENTITY'}</span></div>
-        <div className="gm-ghost-history">{messages.map(message => <div key={message.message_id} className={'gm-ghost-bubble ' + (message.sender_identity_id === selected.npc_identity_id ? 'out' : 'in')}><div>{message.body}</div><small>{message.sender_identity_id === selected.npc_identity_id ? selected.npc_internal_name : selected.player_name} · {time(message.created_at)}</small></div>)}{!messages.length && <p className="gm-ghost-muted">No messages loaded.</p>}</div>
+        <div className="gm-ghost-history" ref={historyRef} onScroll={handleHistoryScroll}>{messages.map(message => <div key={message.message_id} className={'gm-ghost-bubble ' + (message.sender_identity_id === selected.npc_identity_id ? 'out' : 'in')}><div>{message.body}</div><small>{message.sender_identity_id === selected.npc_identity_id ? selected.npc_internal_name : selected.player_name} · {time(message.created_at)}</small></div>)}{!messages.length && <p className="gm-ghost-muted">No messages loaded.</p>}</div>
         <form className="gm-ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input aria-label="NPC message" maxLength={4000} value={draft} onChange={e => setDraft(e.target.value)} placeholder={'Send as ' + selected.npc_internal_name + '...'} /><button disabled={!draft.trim() || busy} type="submit"><Send size={15}/> SEND</button></form>
       </> : <div className="gm-ghost-empty">Select a conversation to begin messaging.</div>}</main>
     </div> : <div className="gm-ghost-future"><h3>{tabs.find(t => t.id === tab)?.label}</h3><div className="gm-ghost-feature-grid">{(tab === 'contacts' ? ['Player Directory', 'Grant NPC Contact', 'Revoke NPC Contact'] : tab === 'identities' ? ['Existing NPC Identities', 'Create NPC Identity', 'Reveal Anonymous Identity'] : tab === 'calls' ? ['Place Call', 'Incoming Calls', 'Active Call'] : ['Campaign Network', 'Notification Controls', 'Connection Diagnostics']).map(label => <div key={label} className="gm-ghost-feature"><strong>{label}</strong><small>COMING LATER</small></div>)}</div></div>}

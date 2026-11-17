@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft, LockKeyhole, MessageSquare, Send, ShieldAlert, UserRound } from 'lucide-react';
 import { supabase } from './supabase';
 import './PlayerPhone.css';
@@ -18,6 +18,33 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const historyRef = useRef<HTMLDivElement | null>(null);
+  const historyNearBottom = useRef(true);
+  const historyPrevious = useRef({ conversation: '', lastMessage: '' });
+  const handleHistoryScroll = useCallback(() => {
+    const node = historyRef.current;
+    if (!node) return;
+    historyNearBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80;
+  }, []);
+  useLayoutEffect(() => {
+    const node = historyRef.current;
+    const conversation = selected?.conversationId || selected?.id;
+    if (!node || !conversation) return;
+    const lastMessage = messages[messages.length - 1]?.message_id || '';
+    const previous = historyPrevious.current;
+    const changedConversation = previous.conversation !== conversation;
+    const changedLastMessage = previous.lastMessage !== lastMessage;
+    if (changedConversation || changedLastMessage) {
+      const shouldScroll = changedConversation || historyNearBottom.current ||
+        (messages.length > 0 && messages[messages.length - 1].sender_identity_id === selfId);
+      if (shouldScroll) {
+        node.scrollTo({ top: node.scrollHeight, behavior: changedConversation ? 'instant' : 'smooth' });
+        historyNearBottom.current = true;
+      }
+      historyPrevious.current = { conversation, lastMessage };
+    }
+  }, [selected?.conversationId, selected?.id, messages, selfId]);
+
   const [animatedMessageIds, setAnimatedMessageIds] = useState<string[]>([]);
   const [pulsingThreads, setPulsingThreads] = useState<string[]>([]);
   const [signalPulse, setSignalPulse] = useState(false);
@@ -139,7 +166,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     </> : <>
       <div className="ghost-heading"><button onClick={() => { setSelected(null); void refresh().catch(() => {}); }} aria-label="Back to inbox"><ArrowLeft size={20}/></button><UserRound size={27}/><div><h2>{selected.label}</h2><small>{contacts.find(c => c.identity_id === selected.id)?.anonymous || selected.label === 'Unknown Number' ? 'IDENTITY MASKED' : 'SECURE CONNECTION'}</small></div></div>
       <div className="ghost-status"><ShieldAlert size={15}/> {selected.label === 'Unknown Number' ? 'UNREGISTERED SIGNAL' : 'PRIVATE COMMUNICATION'}</div>
-      <div className="ghost-messages">{messages.length === 0 && <p className="ghost-muted">No messages yet.</p>}{messages.map(m => <div key={m.message_id} className={'ghost-bubble ' + (m.sender_identity_id === selfId ? 'outgoing' : 'incoming') + (animatedMessageIds.includes(m.message_id) ? ' ghost-quick-pop' : '')}><span>{m.body}</span><small>{time(m.created_at)}</small></div>)}</div>
+      <div className="ghost-messages" ref={historyRef} onScroll={handleHistoryScroll}>{messages.length === 0 && <p className="ghost-muted">No messages yet.</p>}{messages.map(m => <div key={m.message_id} className={'ghost-bubble ' + (m.sender_identity_id === selfId ? 'outgoing' : 'incoming') + (animatedMessageIds.includes(m.message_id) ? ' ghost-quick-pop' : '')}><span>{m.body}</span><small>{time(m.created_at)}</small></div>)}</div>
       <form className="ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input value={draft} onChange={e => setDraft(e.target.value)} maxLength={4000} placeholder="Transmit message..." aria-label="Message"/><button type="submit" disabled={busy || !draft.trim()} aria-label="Send message"><Send size={19}/></button></form>
     </>}
     {error && <p className="ghost-error" role="alert">{error}</p>}
