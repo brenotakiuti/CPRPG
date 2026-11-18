@@ -956,8 +956,19 @@ export default function PlayerView({ token }: PlayerViewProps) {
   return (
     <main className="player-terminal">
       {hudMessage && <div className="player-toast-stack" role="status" aria-live="polite">
-        {Array.from({ length: Math.min(3, hudPending) }, (_, index) => <div key={index} className="player-toast-back" style={{ top: -(index + 1) * 7, left: (index + 1) * 7, right: -(index + 1) * 7, opacity: 1 - index * .18 }} aria-hidden="true" />)}
-        <div className={"player-hud-feed" + (hudDismissing ? " player-hud-dismissing" : "")} key={hudMessage.id} style={{ transform: `translateX(${hudOffset}px)` }} onPointerDown={hudPointerDown} onPointerMove={hudPointerMove} onPointerUp={hudPointerUp} onPointerCancel={hudPointerCancel} onTransitionEnd={finishHudDismiss}><HudNotification notice={hudMessage} queued={hudPending} /></div>
+        {hudQueue.current.slice(0, 2).map((notice, index) => {
+          const advance = hudDismissing ? 1 : Math.min(1, Math.abs(hudOffset) / 110);
+          const depth = index + 1 - advance;
+          return <div key={notice.id} className="player-toast-layer player-toast-queued"
+            style={{ transform: `translate(${depth * 8}px, ${-depth * 10}px)`, zIndex: 2 - index,
+              filter: `brightness(${1 - depth * .13})` }}
+            aria-hidden="true"><HudNotification notice={notice} queued={Math.max(0, hudPending - index - 1)} /></div>;
+        })}
+        <div className={"player-hud-feed" + (hudDismissing ? " player-hud-dismissing" : "")}
+          key={hudMessage.id} style={{ transform: `translateX(${hudOffset}px)` }}
+          onPointerDown={hudPointerDown} onPointerMove={hudPointerMove}
+          onPointerUp={hudPointerUp} onPointerCancel={hudPointerCancel}
+          onTransitionEnd={finishHudDismiss}><HudNotification notice={hudMessage} queued={hudPending} /></div>
       </div>}
       <div className="player-shell">
         <header className="player-card player-header">
