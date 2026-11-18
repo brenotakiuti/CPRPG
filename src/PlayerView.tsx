@@ -410,11 +410,6 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const [hudOffset, setHudOffset] = useState(0);
   const [hudDismissing, setHudDismissing] = useState(false);
   const hudGesture = useRef<{ startX: number; pointerId: number } | null>(null);
-  const dismissHud = () => {
-    if (!hudActive.current || hudDismissing) return;
-    setHudDismissing(true);
-    setHudOffset(hudOffset < 0 ? -window.innerWidth : window.innerWidth);
-  };
   const hudPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (hudDismissing) return;
     hudGesture.current = { startX: event.clientX, pointerId: event.pointerId };
