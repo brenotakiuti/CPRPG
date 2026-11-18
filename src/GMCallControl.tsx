@@ -40,7 +40,7 @@ export default function GMCallControl({campaignId,identities,players}:{campaignI
   const identity=(id:string)=>identities.find(i=>i.id===id);
   const character=(id:string)=>players.find(p=>p.id===id)?.name||'Unknown character';
   return <section className="gl-gm-calls">
-    <header className="gl-call-heading"><RadioTower size={18}/><div><strong>GHOST//LINK // CALL CONTROL</strong><small>SIMULATED ENCRYPTED TRANSMISSIONS</small></div></header>
+    <header className="gl-call-heading"><RadioTower size={18}/><div><strong>GHOST//LINK // CALLS</strong><small>SIMULATED ENCRYPTED TRANSMISSIONS</small></div></header>
     <div className="gl-gm-fields">
       <label>Calling as<select value={identityId} disabled={!!active||busy} onChange={e=>setIdentityId(e.target.value)}><option value="">Select NPC...</option>{identities.map(i=><option key={i.id} value={i.id}>{i.internal_name} ({i.anonymous?'Unknown Number':i.display_name})</option>)}</select></label>
       <label>Call recipient<select value={characterId} disabled={!!active||busy} onChange={e=>setCharacterId(e.target.value)}><option value="">Select player...</option>{players.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>

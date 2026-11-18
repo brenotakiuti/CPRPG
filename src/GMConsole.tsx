@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useGMArtworkCache } from './useGMArtworkCache';
 import { QRCodeSVG } from 'qrcode.react';
-import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, MessageSquare, Shield, Users, Wrench, Zap, Slice } from 'lucide-react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Shield, Users, Wrench, Zap, Slice } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
@@ -464,7 +464,7 @@ export default function GMConsole({
     { id: 'characters', label: 'Characters', icon: Users },
     { id: 'bank', label: 'Bank', icon: Landmark },
     { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'phone', label: 'Ghost//Link', icon: MessageSquare },
+    { id: 'phone', label: 'Ghost//Link', icon: null },
     { id: 'ripperdoc', label: 'Ripperdoc', icon: Slice },
     { id: 'factions', label: 'Factions', icon: Shield },
     { id: 'logs', label: 'Logs', icon: ScrollText },
@@ -534,7 +534,7 @@ export default function GMConsole({
         {navigation.map((item) => (
           <button key={item.id} type="button" className={page === item.id ? 'gm-tab active' : 'gm-tab'}
             aria-current={page === item.id ? 'page' : undefined} onClick={() => openPage(item.id)}>
-            <span className="gm-phone-nav-icon"><item.icon size={19} strokeWidth={1.9} aria-hidden="true" />{item.id === "phone" && phoneUnread > 0 && <b className="gm-phone-nav-badge">{phoneUnread > 99 ? "99+" : phoneUnread}</b>}</span>
+            <span className="gm-phone-nav-icon">{item.id === "phone" ? <img src="/ghost-link-icon.svg" width={22} height={22} alt="" aria-hidden="true" /> : item.icon ? <item.icon size={19} strokeWidth={1.9} aria-hidden="true" /> : null}{item.id === "phone" && phoneUnread > 0 && <b className="gm-phone-nav-badge">{phoneUnread > 99 ? "99+" : phoneUnread}</b>}</span>
             <span className="gm-sr-only">{item.label}</span>
           </button>
         ))}

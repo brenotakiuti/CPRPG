@@ -12,7 +12,7 @@ type Tab = 'messages' | 'contacts' | 'calls' | 'settings';
 const tabs: { id: Tab; label: string; icon: typeof MessageSquare }[] = [
   { id: 'messages', label: 'Messages', icon: MessageSquare },
   { id: 'contacts', label: 'Identities & Contacts', icon: Users },
-  { id: 'calls', label: 'Call Control', icon: Phone },
+  { id: 'calls', label: 'Calls', icon: Phone },
   { id: 'settings', label: 'Settings', icon: Settings2 },
 ];
 const time = (value: string) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -394,7 +394,22 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
       </>}
       {!identities.length && <p>Create an NPC identity above to begin sharing contacts.</p>}
       {!players.length && <p>No player characters found in this campaign.</p>}
-    </section> : tab === 'calls' ? <GMCallControl campaignId={campaignId} identities={allIdentities} players={players} /> : <div className="gm-ghost-future"><h3>{tabs.find(t => t.id === tab)?.label}</h3><div className="gm-ghost-feature-grid">{['Campaign Network', 'Notification Controls', 'Connection Diagnostics'].map(label => <div key={label} className="gm-ghost-feature"><strong>{label}</strong><small>COMING LATER</small></div>)}</div></div>}
+    </section> : tab === 'calls' ? <GMCallControl campaignId={campaignId} identities={allIdentities} players={players} /> : <section className="gm-ghost-future" aria-label="Ghost Link future capabilities">
+      <h3>GHOST//LINK — SETTINGS</h3>
+      <p>FUTURE SYSTEM CAPABILITIES · CONCEPTS ONLY</p>
+      <p>Ghost//Link is more than a messaging application. Future updates may allow the GM to manipulate the campaign's communication network, creating opportunities for deception, surveillance, interference, and narrative events.</p>
+      <div className="gm-ghost-feature-grid">
+        {[
+          ['Network Control', 'Simulate network outages, communication blackouts, restricted zones, signal jamming, and temporary disruptions affecting individual characters or the entire campaign.'],
+          ['Communication & Identity', 'Introduce spoofed caller identities, intercepted messages, anonymous transmissions, suspicious contacts, and calls originating from compromised devices.'],
+          ['Surveillance & Netrunning', 'Allow netrunners to trace calls, intercept communications, discover hidden identities, and potentially compromise a communication channel. Network security and cyberware could influence these interactions.'],
+          ['Notifications & Immersion', 'Configure how calls and messages reach players. Future possibilities include emergency transmissions, priority alerts, corrupted messages, signal interference, and deliberately misleading notifications.'],
+          ['Automated Events', 'Schedule messages, calls, and other transmissions to occur after delays or when specific campaign conditions are met, allowing the GM to prepare narrative sequences in advance.'],
+          ['Network Diagnostics', 'Monitor player connectivity, message delivery, and synchronization. Provide tools for identifying communication failures and restoring a player\'s connection without interrupting the session.'],
+        ].map(([heading, description]) => <div key={heading} className="gm-ghost-feature"><strong>{heading}</strong><p>{description}</p></div>)}
+      </div>
+      <p>These are potential future features, not currently active settings. Their implementation will depend on the development of the communication and campaign-event systems.</p>
+    </section>}
     {loading && <p className="gm-ghost-muted">Connecting to Ghost//Link...</p>}
     {error && <p className="gm-ghost-error" role="alert">{error} <button onClick={() => { setError(''); void refresh().catch(e => setError(String(e))); }}><RefreshCw size={14}/> Retry</button></p>}
     <footer className="gm-ghost-footer">● GHOST//LINK NETWORK <span>DESKTOP / TABLET TERMINAL</span></footer>
