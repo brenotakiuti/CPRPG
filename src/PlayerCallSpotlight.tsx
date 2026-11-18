@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { LockKeyhole, Phone, PhoneOff, UserRound, RadioTower } from 'lucide-react';
+import { LockKeyhole, Phone, PhoneOff, UserRound } from 'lucide-react';
 import { supabase } from './supabase';
 import './GhostCall.css';
 
