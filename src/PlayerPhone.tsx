@@ -195,7 +195,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
       {!loading && (directory ? contacts.length === 0 : threads.length === 0) && <p className="ghost-muted">{directory ? 'No contacts available.' : 'No conversations yet. Select the message icon to find contacts.'}</p>}
       {!directory && <div className="ghost-notice-toolbar"><button type="button" onClick={() => setShowNotices(v => !v)}>CONTACT NOTIFICATIONS {contactNotices.some(n => !readNoticeIds.includes(n.id)) ? '(' + contactNotices.filter(n => !readNoticeIds.includes(n.id)).length + ' NEW)' : ''}</button></div>}
       {!directory && showNotices && <div className="ghost-contact-notices">
-        <div className="ghost-notices-header"><strong>CONTACT DELIVERY HISTORY</strong><button type="button" onClick={markNoticesRead} disabled={!contactNotices.some(n => !n.read_at)}>Mark all read</button></div>
+        <div className="ghost-notices-header"><strong>CONTACT DELIVERY HISTORY</strong><button type="button" onClick={markNoticesRead} disabled={!contactNotices.some(n => !readNoticeIds.includes(n.id))}>Mark all read</button></div>
         {contactNotices.length===0 && <p className="ghost-muted">No contact deliveries yet.</p>}
         {contactNotices.map(n => <div key={n.id} className={'ghost-contact-notice' + (!readNoticeIds.includes(n.id) ? ' unread' : '')}>
           <strong>GHOST//LINK · NEW CONTACT RECEIVED</strong>
