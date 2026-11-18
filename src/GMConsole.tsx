@@ -542,7 +542,7 @@ export default function GMConsole({
       {page !== 'phone' && <h2 className="gm-page-title">
         {(() => {
           const current = navigation.find((item) => item.id === page)!;
-          return <><current.icon size={19} strokeWidth={1.9} aria-hidden="true" />{current.label}</>;
+          return <>{current.icon ? <current.icon size={19} strokeWidth={1.9} aria-hidden="true" /> : null}{current.label}</>;
         })()}
       </h2>}
       {page === 'live' ? null : page === 'characters' ? (
