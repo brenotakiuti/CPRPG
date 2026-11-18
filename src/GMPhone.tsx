@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { MessageSquare, Users, Phone, Settings2, Send, RefreshCw, Eye } from 'lucide-react';
 import { supabase } from './supabase';
 import './GMPhone.css';
+import GMCallControl from './GMCallControl';
 
 type Thread = { conversation_id: string; npc_identity_id: string; npc_internal_name: string; npc_public_label: string; player_identity_id: string; player_name: string; last_message_at: string | null; last_message: string | null; unread_count: number };
 type Message = { message_id: string; sender_identity_id: string; body: string; created_at: string };
@@ -393,7 +394,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
       </>}
       {!identities.length && <p>Create an NPC identity above to begin sharing contacts.</p>}
       {!players.length && <p>No player characters found in this campaign.</p>}
-    </section> : <div className="gm-ghost-future"><h3>{tabs.find(t => t.id === tab)?.label}</h3><div className="gm-ghost-feature-grid">{(tab === 'calls' ? ['Place Call', 'Incoming Calls', 'Active Call'] : ['Campaign Network', 'Notification Controls', 'Connection Diagnostics']).map(label => <div key={label} className="gm-ghost-feature"><strong>{label}</strong><small>COMING LATER</small></div>)}</div></div>}
+    </section> : tab === 'calls' ? <GMCallControl campaignId={campaignId} identities={allIdentities} players={players} /> : <div className="gm-ghost-future"><h3>{tabs.find(t => t.id === tab)?.label}</h3><div className="gm-ghost-feature-grid">{['Campaign Network', 'Notification Controls', 'Connection Diagnostics'].map(label => <div key={label} className="gm-ghost-feature"><strong>{label}</strong><small>COMING LATER</small></div>)}</div></div>}
     {loading && <p className="gm-ghost-muted">Connecting to Ghost//Link...</p>}
     {error && <p className="gm-ghost-error" role="alert">{error} <button onClick={() => { setError(''); void refresh().catch(e => setError(String(e))); }}><RefreshCw size={14}/> Retry</button></p>}
     <footer className="gm-ghost-footer">● GHOST//LINK NETWORK <span>DESKTOP / TABLET TERMINAL</span></footer>

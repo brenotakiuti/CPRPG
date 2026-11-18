@@ -10,6 +10,7 @@ import PlayerStats from './PlayerStats';
 import PlayerTransfers from './PlayerTransfers';
 import PlayerLoading from './PlayerLoading';
 import PlayerPhone from './PlayerPhone';
+import PlayerCallSpotlight from './PlayerCallSpotlight';
 import HudNotification, { type HudNotice } from './HudNotification';
 import { usePlayerCyberware } from './usePlayerCyberware';
 
@@ -1056,6 +1057,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       </div>}
       {diceOpen && character && !diagnosticsOpen && <DiceSpotlight characterId={character.id} campaignId={feedCampaignId} onClose={() => setDiceOpen(false)} />}
       {!diagnosticsOpen && character && feedCampaignId && <PlayerSpotlights campaignId={feedCampaignId} characterId={character.id} />}
+      {character && feedCampaignId && <PlayerCallSpotlight characterId={character.id} />}
       {!diagnosticsOpen && logsVisited && character && feedCampaignId && <div style={{ display: logsOpen ? undefined : 'none' }}><PlayerLogs campaignId={feedCampaignId} characterId={character.id} onClose={goBack} /></div>}
     </main>
   );
