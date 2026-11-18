@@ -403,6 +403,8 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const [hudMessage, setHudMessage] = useState<HudNotice | null>(null);
   const hudQueue = useRef<HudNotice[]>([]);
   const [hudPending, setHudPending] = useState(0);
+  const hudVisibleIds = useRef(new Set<string>());
+  const hudStackInitialized = useRef(false);
   const [phoneUnread, setPhoneUnread] = useState(0);
   const phoneOpenRef = useRef(false);
   const phoneKnown = useRef(new Set<string>());
@@ -494,6 +496,8 @@ export default function PlayerView({ token }: PlayerViewProps) {
     let alive = true;
     hudStorageRef.current = hudStorageKey;
     hudQueue.current = [];
+    hudVisibleIds.current.clear();
+    hudStackInitialized.current = false;
     hudSeen.current = new Set();
     hudCurrent.current = null;
     hudActive.current = false;
@@ -607,6 +611,14 @@ export default function PlayerView({ token }: PlayerViewProps) {
       void supabase.removeChannel(channel);
     };
   }, [feedCampaignId, character?.id, hudStorageKey]);
+  // Track cards already shown so only newly exposed rear cards slide into the stack.
+  useEffect(() => {
+    if (!hudMessage) return;
+    hudVisibleIds.current.add(hudMessage.id);
+    hudQueue.current.slice(0, 2).forEach(notice => hudVisibleIds.current.add(notice.id));
+    hudStackInitialized.current = true;
+  }, [hudMessage, hudPending]);
+
   // Keep phone notifications separate from campaign_events while sharing the HUD queue.
   useEffect(() => {
     if (!character?.id || !feedCampaignId) return;
@@ -959,7 +971,9 @@ export default function PlayerView({ token }: PlayerViewProps) {
         {hudQueue.current.slice(0, 2).map((notice, index) => {
           const advance = hudDismissing ? 1 : Math.min(1, Math.abs(hudOffset) / 110);
           const depth = index + 1 - advance;
-          return <div key={notice.id} className="player-toast-layer player-toast-queued"
+          const entering = index === 1 && hudStackInitialized.current && !hudVisibleIds.current.has(notice.id);
+          return <div key={notice.id}
+            className={"player-toast-layer player-toast-queued" + (entering ? " player-toast-back-enter" : "")}
             style={{ transform: `translate(${depth * 8}px, ${-depth * 10}px)`, zIndex: 2 - index,
               filter: `brightness(${1 - depth * .13})` }}
             aria-hidden="true"><HudNotification notice={notice} queued={Math.max(0, hudPending - index - 1)} /></div>;
