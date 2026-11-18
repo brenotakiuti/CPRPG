@@ -526,6 +526,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       (event.category === 'system' || event.category === 'text') &&
       typeof event.message === 'string' && !!event.message.trim() &&
       !/^(?:(?:TAROT REVEALED|TAROT CARD|FORTUNE REVEALED):|HEALTH [+-]\\d+ HP$)/i.test(event.message.trim()) &&
+      !/^GHOST\/\/LINK CALL:/i.test(event.message.trim()) &&
       !/\\[UNAPPROVED\\]/i.test(event.message);
 
     const recover = async () => {

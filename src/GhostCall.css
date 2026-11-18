@@ -20,7 +20,7 @@
 .gl-call-history small{color:#aeb8cb}
 .gl-spotlight{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;isolation:isolate}
 .gl-spotlight-backdrop{position:absolute;inset:0;background:rgba(4,7,15,.86);backdrop-filter:blur(7px)}
-.gl-spotlight-panel{position:relative;width:min(100%,420px);max-height:calc(100dvh - 36px);overflow:auto;box-sizing:border-box;border:1px solid #ad83e8;background:linear-gradient(150deg,#1e1931,#101927 58%,#131629);box-shadow:0 0 40px #a77ae13b,0 0 90px #000c;color:#f5f6fc;padding:22px 20px 26px;text-align:center;clip-path:polygon(0 14px,14px 0,calc(100% - 14px) 0,100% 14px,100% calc(100% - 14px),calc(100% - 14px) 100%,14px 100%,0 calc(100% - 14px))}
+.gl-spotlight-panel{position:relative;width:min(100%,420px);max-height:calc(100dvh - 36px);overflow:auto;box-sizing:border-box;border:1px solid #ad83e8;background:linear-gradient(150deg,#1e1931,#101927 58%,#131629);box-shadow:0 0 40px #a77ae13b,0 0 90px #000c;color:#f5f6fc;padding:22px 20px 26px;text-align:center;border-radius:14px}
 .gl-spotlight-panel header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:30px}
 .gl-spotlight-panel header strong{color:#5ce5ea;letter-spacing:1px;font-size:13px}
 .gl-spotlight-panel header span{color:#b68be9;font-size:10px;display:flex;align-items:center;gap:5px}
