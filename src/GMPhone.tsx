@@ -353,8 +353,6 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
         <form className="gm-ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input aria-label="NPC message" maxLength={4000} value={draft} onChange={e => setDraft(e.target.value)} placeholder={'Send as ' + selected.npc_internal_name + '...'} /><button disabled={!draft.trim() || busy} type="submit"><Send size={15}/> SEND</button></form>
       </> : <div className="gm-ghost-empty">Select a conversation to begin messaging.</div>}</main>
     </div> : tab === 'contacts' ? <section className="gm-ghost-player-directory">
-      <h3>NPC IDENTITIES</h3>
-      <p>Create an identity here, then grant its contact access without switching tabs. Internal names are visible only to the GM.</p>
       <div className="gm-ghost-identity-directory">
         {allIdentities.map(identity => <button type="button" key={identity.id}
           className={'gm-ghost-identity-choice' + (contactNpcId === identity.id ? ' active' : '')}
@@ -372,22 +370,8 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
           <div className="gm-ghost-create-actions"><button type="button" onClick={() => setCreatingIdentity(false)}>Cancel</button><button type="submit" disabled={identityBusy || !internalName.trim() || (!anonymous && !publicName.trim())}>{identityBusy ? 'Creating…' : 'Create Identity'}</button></div>
         </form>}
 
-      {contactNpcId && <div className="gm-ghost-identity-summary">
-        <strong>{allIdentities.find(i => i.id === contactNpcId)?.internal_name}</strong>
-        <span>Player sees: {allIdentities.find(i => i.id === contactNpcId)?.anonymous ? 'Unknown Number' : allIdentities.find(i => i.id === contactNpcId)?.display_name}</span>
-        <small>{contactGrants.filter(g => g.npc_identity_id === contactNpcId).length} character(s) have access</small>
-      </div>}
       <h3>CONTACT ACCESS</h3>
-      <p>Select an NPC and recipients, then review before sending. Players can already contact one another. Sharing an anonymous NPC does not reveal its real name.</p>
-      <label className="gm-ghost-contact-picker">NPC identity
-        <select value={contactNpcId} disabled={contactBusy} onChange={e => { setContactNpcId(e.target.value); setContactRecipients([]); setContactReview(false); setContactResult(''); }}>
-          <option value="">Select NPC identity...</option>
-          {identities.map(identity => <option key={identity.id} value={identity.id}>{identity.internal_name}{identity.anonymous ? ' (masked)' : ''}</option>)}
-        </select>
-      </label>
       {contactNpcId && <>
-        <h3>RECIPIENTS</h3>
-        <p>Choose characters who do not already have this contact.</p>
         <div className="gm-ghost-player-list">{players.map(player => {
           const allowed = contactGrants.some(grant => grant.npc_identity_id === contactNpcId && grant.character_id === player.id);
           return <div key={player.id} className="gm-ghost-player-row gm-ghost-contact-row">
