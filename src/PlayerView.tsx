@@ -849,7 +849,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       {hudMessage && <div className="player-toast-stack" role="status" aria-live="polite">
         {Array.from({ length: Math.min(3, hudPending) }, (_, index) => <div key={index} className="player-toast-back" style={{ top: -(index + 1) * 7, left: (index + 1) * 7, right: -(index + 1) * 7, opacity: 1 - index * .18 }} aria-hidden="true" />)}
         <div className={"player-hud-feed" + (hudDismissing ? " player-hud-dismissing" : "")} key={hudMessage.id} style={{ transform: `translateX(${hudOffset}px)` }} onPointerDown={hudPointerDown} onPointerMove={hudPointerMove} onPointerUp={hudPointerUp} onPointerCancel={hudPointerCancel} onTransitionEnd={finishHudDismiss}><HudNotification notice={hudMessage} queued={hudPending} /></div>
-      </div>
+      </div>}
       <div className="player-shell">
         <header className="player-card player-header">
           <div className="player-header-top"><span>NIGHT CITY // 2077</span><div className="player-header-actions"><RadioTower size={16} aria-hidden="true" /><button type="button" className="player-logs-trigger" aria-label="Open personal logs" title="Personal logs" disabled={!character || !feedCampaignId} onClick={() => { if (character && feedCampaignId) navigate({ ...navRef.current, logs: true, diagnostics: false }); }}><History size={19} aria-hidden="true" /></button><button type="button" className="player-logs-trigger" aria-label="Open diagnostics" title="Diagnostics" onClick={() => { if (!navRef.current.diagnostics) navigate({ inventory: false, selected: null, logs: false, diagnostics: true }); }}><Bug size={19} aria-hidden="true" /></button></div></div>
