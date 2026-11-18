@@ -8,6 +8,17 @@ type ContactNotice = { id: string; message: string; created_at: string };
 type Thread = { conversation_id: string; other_identity_id: string; other_label: string; other_anonymous: boolean; last_message_at: string | null; last_message: string | null; unread_count: number };
 type Message = { message_id: string; sender_identity_id: string; body: string; created_at: string };
 const REVEAL_EVENT_PREFIX = '[GHOST//LINK IDENTITY REVEALED] ';
+const phoneErrorMessage = (error: unknown): string => {
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object') {
+    const e = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown };
+    const parts = [e.message, e.details, e.hint].filter((value): value is string => typeof value === 'string' && value.length > 0);
+    if (parts.length) return [e.code ? String(e.code) : '', ...parts].filter(Boolean).join(' — ');
+    try { return JSON.stringify(error); } catch { /* Fall through. */ }
+  }
+  return String(error);
+};
+
 
 export default function PlayerPhone({ characterId, onBack }: { characterId: string; onBack: () => void }) {
   const [selfId, setSelfId] = useState('');
@@ -97,7 +108,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
         if (cancelled) return;
         setSelfId(identity.data as string);
         await refresh();
-      } catch (e) { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); }
+      } catch (e) { if (!cancelled) setError(phoneErrorMessage(e)); }
       finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
@@ -123,7 +134,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   useEffect(() => {
     if (!selected?.conversationId) { setMessages([]); return; }
     let cancelled = false;
-    read(selected.conversationId).catch(e => { if (!cancelled) setError(String(e.message || e)); });
+    read(selected.conversationId).catch(e => { if (!cancelled) setError(phoneErrorMessage(e)); });
     return () => { cancelled = true; };
   }, [selected?.conversationId, read]);
   useEffect(() => {
@@ -183,7 +194,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
       if (result.error) throw result.error;
       const thread = ((result.data || []) as Thread[]).find(t => t.other_identity_id === selected.id);
       if (thread) { setSelected(s => s ? { ...s, conversationId: thread.conversation_id } : s); await read(thread.conversation_id); }
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { setError(phoneErrorMessage(e)); }
     finally { setBusy(false); }
   };
   const time = (date: string) => new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
