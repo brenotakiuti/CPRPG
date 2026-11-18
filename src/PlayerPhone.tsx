@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 import './PlayerPhone.css';
 
 type Contact = { identity_id: string; kind: string; label: string; anonymous: boolean; can_message: boolean; can_call: boolean; has_conversation: boolean };
-type ContactNotice = { id: string; npc_identity_id: string; label: string; created_at: string; read_at: string | null };
+type ContactNotice = { id: string; message: string; created_at: string };
 type Thread = { conversation_id: string; other_identity_id: string; other_label: string; other_anonymous: boolean; last_message_at: string | null; last_message: string | null; unread_count: number };
 type Message = { message_id: string; sender_identity_id: string; body: string; created_at: string };
 const REVEAL_EVENT_PREFIX = '[GHOST//LINK IDENTITY REVEALED] ';
@@ -14,6 +14,11 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const [threads, setThreads] = useState<Thread[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactNotices, setContactNotices] = useState<ContactNotice[]>([]);
+  const noticeStorageKey = 'ghost-link-contact-notices-read-' + characterId;
+  const [readNoticeIds, setReadNoticeIds] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('ghost-link-contact-notices-read-' + characterId) || '[]') as string[]; }
+    catch { return []; }
+  });
   const [showNotices, setShowNotices] = useState(false);
   const [revealedIdentities, setRevealedIdentities] = useState<Record<string,string>>({});
   const [selected, setSelected] = useState<{ id: string; label: string; conversationId?: string } | null>(null);
@@ -66,7 +71,12 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
       supabase.rpc('phone_directory', { p_character_id: characterId }),
       supabase.rpc('phone_player_reveals', { p_character_id: characterId }),
       supabase.rpc('phone_player_shared_contacts', { p_character_id: characterId }),
-      supabase.rpc('phone_player_contact_notifications', { p_character_id: characterId }),
+      supabase.from('campaign_events')
+        .select('id,message,created_at')
+        .eq('character_id',characterId).eq('audience','character')
+        .eq('category','system')
+        .like('message','[GHOST//LINK CONTACT RECEIVED] %')
+        .order('created_at',{ascending:false}).limit(100),
     ]);
     if (t.error || d.error || r.error || shared.error || notices.error) throw new Error(t.error?.message || d.error?.message || r.error?.message || shared.error?.message || notices.error?.message);
     setRevealedIdentities(Object.fromEntries(((r.data || []) as {identity_id:string;revealed_name:string}[]).map(x => [x.identity_id,x.revealed_name])));
@@ -138,16 +148,17 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
         void refresh().catch(() => {});
         if (current?.conversationId) void read(current.conversationId).catch(() => {});
       })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'phone_contact_notifications', filter: 'character_id=eq.' + characterId }, () => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'campaign_events', filter: 'character_id=eq.' + characterId }, () => {
         setSignalPulse(true);
         void refresh().catch(() => {});
       }).subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [characterId, refresh, read]);
-  const markNoticesRead = async () => {
-    const result = await supabase.rpc('phone_player_mark_contact_notifications_read', { p_character_id: characterId });
-    if (result.error) { setError(result.error.message); return; }
-    await refresh().catch(e => setError(String(e)));
+  const markNoticesRead = () => {
+    const ids = [...new Set([...readNoticeIds,...contactNotices.map(n=>n.id)])];
+    try { localStorage.setItem(noticeStorageKey,JSON.stringify(ids)); }
+    catch { /* History remains available even if local storage is blocked. */ }
+    setReadNoticeIds(ids);
   };
   const labelFor = (id: string, fallback: string) => revealedIdentities[id] || fallback;
   const openThread = (t: Thread) => { setError(''); setDirectory(false); setSelected({ id: t.other_identity_id, label: labelFor(t.other_identity_id,t.other_label), conversationId: t.conversation_id }); };
@@ -182,13 +193,13 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
       <div className="ghost-heading"><button onClick={onBack} aria-label="Return to dashboard"><ArrowLeft size={20}/></button><div><h2>{directory ? 'CONTACTS' : 'SIGNAL INBOX'}</h2><small>PRIVATE COMMUNICATION NETWORK</small></div><button onClick={() => setDirectory(!directory)} aria-label={directory ? 'Show inbox' : 'New conversation'}><MessageSquare size={21}/></button></div>
       {loading && <p className="ghost-muted">Connecting to network...</p>}
       {!loading && (directory ? contacts.length === 0 : threads.length === 0) && <p className="ghost-muted">{directory ? 'No contacts available.' : 'No conversations yet. Select the message icon to find contacts.'}</p>}
-      {!directory && <div className="ghost-notice-toolbar"><button type="button" onClick={() => setShowNotices(v => !v)}>CONTACT NOTIFICATIONS {contactNotices.some(n => !n.read_at) ? '(' + contactNotices.filter(n => !n.read_at).length + ' NEW)' : ''}</button></div>}
+      {!directory && <div className="ghost-notice-toolbar"><button type="button" onClick={() => setShowNotices(v => !v)}>CONTACT NOTIFICATIONS {contactNotices.some(n => !readNoticeIds.includes(n.id)) ? '(' + contactNotices.filter(n => !readNoticeIds.includes(n.id)).length + ' NEW)' : ''}</button></div>}
       {!directory && showNotices && <div className="ghost-contact-notices">
-        <div className="ghost-notices-header"><strong>CONTACT DELIVERY HISTORY</strong><button type="button" onClick={() => void markNoticesRead()} disabled={!contactNotices.some(n => !n.read_at)}>Mark all read</button></div>
+        <div className="ghost-notices-header"><strong>CONTACT DELIVERY HISTORY</strong><button type="button" onClick={markNoticesRead} disabled={!contactNotices.some(n => !n.read_at)}>Mark all read</button></div>
         {contactNotices.length===0 && <p className="ghost-muted">No contact deliveries yet.</p>}
-        {contactNotices.map(n => <div key={n.id} className={'ghost-contact-notice' + (!n.read_at ? ' unread' : '')}>
+        {contactNotices.map(n => <div key={n.id} className={'ghost-contact-notice' + (!readNoticeIds.includes(n.id) ? ' unread' : '')}>
           <strong>GHOST//LINK · NEW CONTACT RECEIVED</strong>
-          <span>{labelFor(n.npc_identity_id,n.label)} added to your directory.</span>
+          <span>{n.message.slice('[GHOST//LINK CONTACT RECEIVED] '.length)} added to your directory.</span>
           <small>{new Date(n.created_at).toLocaleString()}</small>
         </div>)}
       </div>}
