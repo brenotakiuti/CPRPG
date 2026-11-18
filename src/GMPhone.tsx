@@ -39,6 +39,9 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
   const [revealing, setRevealing] = useState(false);
   const [identities, setIdentities] = useState<Identity[]>([]);
   const [players, setPlayers] = useState<{id:string;name:string}[]>([]);
+  const [contactNpcId, setContactNpcId] = useState('');
+  const [contactGrants, setContactGrants] = useState<{npc_identity_id:string;character_id:string}[]>([]);
+  const [contactBusy, setContactBusy] = useState(false);
   const [creatingIdentity, setCreatingIdentity] = useState(false);
   const [internalName, setInternalName] = useState('The Observer');
   const [publicName, setPublicName] = useState('Unknown Number');
@@ -227,6 +230,28 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     } catch (e) { setError(describePhoneError(e)); }
     finally { setRevealing(false); }
   };
+  const loadContactGrants = useCallback(async () => {
+    const result = await supabase.rpc('phone_gm_contact_grants', { p_campaign_id: campaignId });
+    if (result.error) throw result.error;
+    setContactGrants((result.data || []) as {npc_identity_id:string;character_id:string}[]);
+  }, [campaignId]);
+  useEffect(() => {
+    if (tab !== 'contacts') return;
+    void loadContactGrants().catch(e => setError(describePhoneError(e)));
+  }, [tab, loadContactGrants]);
+  const setContactAccess = async (characterId: string, allowed: boolean) => {
+    if (!contactNpcId || contactBusy) return;
+    setContactBusy(true); setError('');
+    try {
+      const result = await supabase.rpc('phone_gm_set_contact_access', {
+        p_campaign_id: campaignId, p_npc_identity_id: contactNpcId,
+        p_character_id: characterId, p_allowed: allowed,
+      });
+      if (result.error) throw result.error;
+      await loadContactGrants();
+    } catch (e) { setError(describePhoneError(e)); }
+    finally { setContactBusy(false); }
+  };
   const allIdentities = identities.length ? identities : Array.from(new Map(threads.map(t => [t.npc_identity_id, { id: t.npc_identity_id, internal_name: t.npc_internal_name, display_name: t.npc_public_label, anonymous: t.npc_public_label === 'Unknown Number' }])).values());
   const shown = threads.filter(t => !selectedIdentity || t.npc_identity_id === selectedIdentity);
   const createIdentity = async () => {
@@ -317,9 +342,20 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
         <form className="gm-ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input aria-label="NPC message" maxLength={4000} value={draft} onChange={e => setDraft(e.target.value)} placeholder={'Send as ' + selected.npc_internal_name + '...'} /><button disabled={!draft.trim() || busy} type="submit"><Send size={15}/> SEND</button></form>
       </> : <div className="gm-ghost-empty">Select a conversation to begin messaging.</div>}</main>
     </div> : tab === 'contacts' ? <section className="gm-ghost-player-directory">
-      <h3>PLAYER CHARACTER DIRECTORY <span>{players.length}</span></h3>
-      <p>All characters in this campaign. NPC identities are managed separately.</p>
-      <div className="gm-ghost-player-list">{players.map(player => <div key={player.id} className="gm-ghost-player-row"><span className="gm-ghost-avatar player">{player.name.slice(0,1).toUpperCase()}</span><span><strong>{player.name}</strong><small>Player character</small></span></div>)}</div>
+      <h3>NPC CONTACT DISTRIBUTION</h3>
+      <p>Choose an NPC identity and give individual players permission to initiate messages. Existing player-to-player contacts are unaffected. Calling will use the same contact access when available.</p>
+      <label className="gm-ghost-contact-picker">NPC identity
+        <select value={contactNpcId} onChange={e => setContactNpcId(e.target.value)}>
+          <option value="">Select NPC identity...</option>
+          {identities.map(identity => <option key={identity.id} value={identity.id}>{identity.internal_name}{identity.anonymous ? ' (masked)' : ''}</option>)}
+        </select>
+      </label>
+      {contactNpcId && <><p>Granting contact access does not reveal an anonymous NPC's true name. Existing identity revelations remain independent.</p>
+      <div className="gm-ghost-player-list">{players.map(player => {
+        const allowed = contactGrants.some(grant => grant.npc_identity_id === contactNpcId && grant.character_id === player.id);
+        return <label key={player.id} className="gm-ghost-player-row gm-ghost-contact-row"><span className="gm-ghost-avatar player">{player.name.slice(0,1).toUpperCase()}</span><span><strong>{player.name}</strong><small>{allowed ? 'Contact shared' : 'Not shared'}</small></span><input type="checkbox" checked={allowed} disabled={contactBusy} onChange={e => void setContactAccess(player.id,e.target.checked)} aria-label={'Share NPC contact with ' + player.name}/></label>;
+      })}</div></>}
+      {!identities.length && <p>Create an NPC identity in Messages first.</p>}
       {!players.length && <p>No player characters found in this campaign.</p>}
     </section> : <div className="gm-ghost-future"><h3>{tabs.find(t => t.id === tab)?.label}</h3><div className="gm-ghost-feature-grid">{(tab === 'calls' ? ['Place Call', 'Incoming Calls', 'Active Call'] : ['Campaign Network', 'Notification Controls', 'Connection Diagnostics']).map(label => <div key={label} className="gm-ghost-feature"><strong>{label}</strong><small>COMING LATER</small></div>)}</div></div>}
     {loading && <p className="gm-ghost-muted">Connecting to Ghost//Link...</p>}

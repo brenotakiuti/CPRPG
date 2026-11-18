@@ -58,15 +58,20 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const pulseTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => { pulseTimers.current.forEach(clearTimeout); }, []);
   const refresh = useCallback(async () => {
-    const [t, d, r] = await Promise.all([
+    const [t, d, r, shared] = await Promise.all([
       supabase.rpc('phone_threads', { p_character_id: characterId }),
       supabase.rpc('phone_directory', { p_character_id: characterId }),
       supabase.rpc('phone_player_reveals', { p_character_id: characterId }),
+      supabase.rpc('phone_player_shared_contacts', { p_character_id: characterId }),
     ]);
-    if (t.error || d.error || r.error) throw new Error(t.error?.message || d.error?.message || r.error?.message);
+    if (t.error || d.error || r.error || shared.error) throw new Error(t.error?.message || d.error?.message || r.error?.message || shared.error?.message);
     setRevealedIdentities(Object.fromEntries(((r.data || []) as {identity_id:string;revealed_name:string}[]).map(x => [x.identity_id,x.revealed_name])));
     setThreads((t.data || []) as Thread[]);
-    setContacts((d.data || []) as Contact[]);
+    const directory = (d.data || []) as Contact[];
+    const granted = (shared.data || []) as Contact[];
+    const byId = new Map(directory.map(c => [c.identity_id, c]));
+    granted.forEach(c => byId.set(c.identity_id, { ...byId.get(c.identity_id), ...c, can_message: true }));
+    setContacts(Array.from(byId.values()));
   }, [characterId]);
   useEffect(() => {
     let cancelled = false;
