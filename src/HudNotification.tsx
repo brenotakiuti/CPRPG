@@ -8,7 +8,7 @@ function content(notice: HudNotice) {
   if (/^\[GHOST\/\/LINK CONTACT RECEIVED\]\s*/i.test(message)) return { category: 'ghostlink', title: 'GHOST//LINK', subtitle: 'CONTACT RECEIVED', source: message.replace(/^\[GHOST\/\/LINK CONTACT RECEIVED\]\s*/i, ''), detail: 'Added to your contacts', icon: UserRoundPlus };
   if (/^\[GHOST\/\/LINK.*(?:MISSED CALL|CALL MISSED)/i.test(message)) return { category: 'ghostlink', title: 'GHOST//LINK', subtitle: 'MISSED CALL', source: message.replace(/^\[GHOST\/\/LINK[^\]]*\]\s*/i, '') || 'Unknown Number', detail: 'Unanswered call', icon: PhoneMissed };
   const dice = message.match(/^(.*?)\s+ROLLED\s+(\d*D\d+)\s*(?:→|->|:)\s*(.+)$/i);
-  if (dice) return { category: 'dice', title: 'DICE ROLL', subtitle: dice[1].trim() || 'GM', source: dice[2].toUpperCase(), detail: dice[3], icon: Dices };
+  if (dice) return { category: 'dice', title: 'DICE ROLL', subtitle: dice[1].trim() || 'GM', source: dice[3], detail: dice[2].toUpperCase(), icon: Dices };
   const money = message.match(/^(RECEIVED|SENT|DEDUCTED)\s+([\d.,]+)\s*E\$?(?:\s+(FROM|TO)\s+(.+))?$/i);
   if (money) return { category: 'money', title: money[1].toUpperCase() === 'RECEIVED' ? 'FUNDS RECEIVED' : money[1].toUpperCase() === 'SENT' ? 'FUNDS SENT' : 'FUNDS DEDUCTED', subtitle: money[3] ? money[3].toUpperCase() + ': ' + money[4] : 'GM / SYSTEM', source: money[2] + ' E$', detail: '', icon: Wallet };
   if (/\b(?:ITEM|REWARD)\b/i.test(message)) return { category: 'item', title: /REWARD/i.test(message) ? 'REWARD RECEIVED' : 'ITEM UPDATE', subtitle: 'INVENTORY', source: message, detail: '', icon: Package };

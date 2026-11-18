@@ -79,6 +79,7 @@
 .player-toast-heading span{color:#a9b9c8;font-size:10px;font-weight:700;letter-spacing:.4px}
 .player-toast-source{font-size:17px;font-weight:800;color:#f0f3f7}
 .player-toast-dice .player-toast-source,.player-toast-money .player-toast-source{color:#e8bd4a;font-size:23px}
+.player-toast-dice .player-toast-detail{color:#aeb8c6;font-size:12px;font-weight:700;letter-spacing:.5px}
 .player-toast-detail{font-size:12px;color:#dce5ee;line-height:1.35}
 .player-toast-corner{position:absolute;right:8px;top:6px;color:var(--toast-accent);display:flex;gap:3px;align-items:center;font-size:10px;font-weight:800}
 @media(max-width:380px){.player-toast-card{gap:8px;padding:10px 23px 10px 8px}.player-toast-icon{flex-basis:44px;width:44px;height:44px}.player-toast-source{font-size:15px}}
