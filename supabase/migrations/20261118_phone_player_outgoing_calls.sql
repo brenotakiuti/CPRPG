@@ -114,3 +114,26 @@ begin
  'GHOST//LINK CALL: '||v_action||' — '||coalesce(v_label,'Unknown Number'));
  return new;
 end;$$;
+
+-- Players may answer GM-originated calls only; they may cancel their own
+-- outgoing ringing calls, or end any connected call they participate in.
+create or replace function public.phone_player_call_action(p_character_id uuid,p_call_id uuid,p_action text)
+returns void language plpgsql security definer set search_path = ''
+as $$
+begin
+ if not exists(select 1 from public.characters ch where ch.id=p_character_id and ch.player_id=auth.uid())
+ then raise exception 'Not authorized for character'; end if;
+ if p_action='answer' then
+  update public.phone_calls pc set status='connected',answered_at=now()
+  where pc.id=p_call_id and pc.character_id=p_character_id and pc.direction='gm'
+  and pc.status='ringing' and pc.created_at>=now()-interval '45 seconds';
+ elsif p_action='decline' then
+  update public.phone_calls pc set status=case when pc.direction='player' then 'cancelled' else 'declined' end,ended_at=now()
+  where pc.id=p_call_id and pc.character_id=p_character_id and pc.status='ringing';
+ elsif p_action='end' then
+  update public.phone_calls pc set status='ended',ended_at=now()
+  where pc.id=p_call_id and pc.character_id=p_character_id and pc.status='connected';
+ else raise exception 'Invalid call action';
+ end if;
+ if not found then raise exception 'Call already changed or no longer available'; end if;
+end;$$;
