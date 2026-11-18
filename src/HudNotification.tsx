@@ -1,4 +1,4 @@
-import { Dices, Gift, Megaphone, MessageSquare, Package, PhoneMissed, UserRoundPlus, Wallet, RadioTower } from 'lucide-react';
+import { Dices, Megaphone, MessageSquare, Package, PhoneMissed, UserRoundPlus, Wallet, RadioTower } from 'lucide-react';
 
 export type HudNotice = { id: string; text: string; kind?: 'ghostlink'; sender?: string; artworkUrl?: string };
 
