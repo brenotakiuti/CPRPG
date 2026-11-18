@@ -5,7 +5,7 @@ import './GhostCall.css';
 
 type Identity = { id:string; internal_name:string; display_name:string; anonymous:boolean };
 type Player = { id:string; name:string };
-type Call = { id:string; npc_identity_id:string; character_id:string; status:string; created_at:string; answered_at:string|null; ended_at:string|null };
+type Call = { id:string; npc_identity_id:string; character_id:string; direction:'gm'|'player'; status:string; created_at:string; answered_at:string|null; ended_at:string|null };
 const terminal = ['declined','missed','cancelled','ended'];
 export default function GMCallControl({campaignId,identities,players}:{campaignId:string;identities:Identity[];players:Player[]}) {
   const [identityId,setIdentityId]=useState('');
@@ -46,13 +46,14 @@ export default function GMCallControl({campaignId,identities,players}:{campaignI
       <label>Call recipient<select value={characterId} disabled={!!active||busy} onChange={e=>setCharacterId(e.target.value)}><option value="">Select player...</option>{players.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
     </div>
     {active?<div className="gl-gm-active">
-      <span className="gl-call-state">{active.status==='ringing'?'CALLING...':'CHANNEL ESTABLISHED'}</span>
-      <strong>{identity(active.npc_identity_id)?.internal_name||'NPC'} → {character(active.character_id)}</strong>
+      <span className="gl-call-state">{active.status==='ringing'?(active.direction==='player'?'INCOMING PLAYER CALL':'CALLING...'):'CHANNEL ESTABLISHED'}</span>
+      <strong>{active.direction==='player' ? character(active.character_id)+' → '+(identity(active.npc_identity_id)?.internal_name||'NPC') : (identity(active.npc_identity_id)?.internal_name||'NPC')+' → '+character(active.character_id)}</strong>
       <div className="gl-signal" aria-hidden="true">{Array.from({length:15},(_,i)=><i key={i} style={{animationDelay:(-i*.13)+'s'}}/>)}</div>
-      <button className="gl-call-stop" disabled={busy} onClick={()=>void action('phone_gm_end_call',{p_call_id:active.id})}><PhoneOff size={17}/>{active.status==='ringing'?'Cancel Call':'Hang Up'}</button>
+      {active.direction === 'player' && active.status === 'ringing' && <button className="gl-call-start" disabled={busy} onClick={() => void action('phone_gm_answer_call',{p_call_id:active.id})}><Phone size={17}/>Answer</button>}
+      <button className="gl-call-stop" disabled={busy} onClick={()=>void action('phone_gm_end_call',{p_call_id:active.id})}><PhoneOff size={17}/>{active.direction==='player' && active.status==='ringing'?'Decline':active.status==='ringing'?'Cancel Call':'Hang Up'}</button>
     </div>:<button className="gl-call-start" disabled={busy||!identityId||!characterId||!ready} onClick={()=>void action('phone_gm_start_call',{p_campaign_id:campaignId,p_npc_identity_id:identityId,p_character_id:characterId})}><Phone size={17}/>Place Call</button>}
     {error&&<p className="gl-call-error" role="alert">{error}</p>}
     <h3>RECENT CALLS</h3>
-    <div className="gl-call-history">{calls.filter(c=>terminal.includes(c.status)).slice(0,15).map(c=><div key={c.id}><span>{identity(c.npc_identity_id)?.internal_name||'NPC'} → {character(c.character_id)}</span><small>{c.status.toUpperCase()} · {new Date(c.created_at).toLocaleString()}</small></div>)}{ready&&!calls.some(c=>terminal.includes(c.status))&&<p>No previous calls.</p>}</div>
+    <div className="gl-call-history">{calls.filter(c=>terminal.includes(c.status)).slice(0,15).map(c=><div key={c.id}><span>{c.direction === 'player' ? character(c.character_id)+' → '+(identity(c.npc_identity_id)?.internal_name||'NPC') : (identity(c.npc_identity_id)?.internal_name||'NPC')+' → '+character(c.character_id)}</span><small>{c.status.toUpperCase()} · {new Date(c.created_at).toLocaleString()}</small></div>)}{ready&&!calls.some(c=>terminal.includes(c.status))&&<p>No previous calls.</p>}</div>
   </section>;
 }

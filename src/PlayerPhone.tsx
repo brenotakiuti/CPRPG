@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowLeft, LockKeyhole, MessageSquare, Send, ShieldAlert, UserRound } from 'lucide-react';
+import { ArrowLeft, ChevronDown, LockKeyhole, Mail, MessageSquare, Send, ShieldAlert, Smartphone, UserRound } from 'lucide-react';
 import { supabase } from './supabase';
 import './PlayerPhone.css';
 
@@ -35,6 +35,8 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const [selected, setSelected] = useState<{ id: string; label: string; conversationId?: string } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [directory, setDirectory] = useState(false);
+  const [expandedContact, setExpandedContact] = useState<string | null>(null);
+  const [calling, setCalling] = useState(false);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -95,7 +97,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     const directory = (d.data || []) as Contact[];
     const granted = (shared.data || []) as Contact[];
     const byId = new Map(directory.map(c => [c.identity_id, c]));
-    granted.forEach(c => byId.set(c.identity_id, { ...byId.get(c.identity_id), ...c, can_message: true }));
+    granted.forEach(c => byId.set(c.identity_id, { ...byId.get(c.identity_id), ...c, can_message: true, can_call: true }));
     setContacts(Array.from(byId.values()));
     setContactNotices((notices.data || []) as ContactNotice[]);
   }, [characterId]);
@@ -178,6 +180,15 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     setError(''); setDirectory(false);
     setSelected({ id: c.identity_id, label: labelFor(c.identity_id,c.label), conversationId: existing?.conversation_id });
   };
+  const callContact = async (c: Contact) => {
+    if (calling || c.kind !== 'npc' || !c.can_call) return;
+    setCalling(true); setError('');
+    try {
+      const result = await supabase.rpc('phone_player_start_call', { p_character_id: characterId, p_npc_identity_id: c.identity_id });
+      if (result.error) throw result.error;
+    } catch (e) { setError(phoneErrorMessage(e)); }
+    finally { setCalling(false); }
+  };
   const selectedLabel = selected ? labelFor(selected.id,selected.label) : '';
   const selectedMasked = !!selected && selectedLabel === 'Unknown Number';
   const send = async () => {
@@ -215,7 +226,15 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
         </div>)}
       </div>}
       <div className="ghost-list">
-        {directory ? contacts.filter(c => c.can_message).map(c => <button key={c.identity_id} className="ghost-contact" onClick={() => openContact(c)}><UserRound size={24}/><span><strong>{labelFor(c.identity_id,c.label)}</strong><small>{c.anonymous && !revealedIdentities[c.identity_id] ? 'MASKED IDENTITY' : c.kind === 'player' ? 'PLAYER CONTACT' : 'REGISTERED CONTACT'}</small></span></button>)
+        {directory ? contacts.filter(c => c.kind === 'npc' && c.can_message).map(c => <div key={c.identity_id} className="ghost-contact-expand">
+          <button type="button" className="ghost-contact" aria-expanded={expandedContact === c.identity_id} onClick={() => setExpandedContact(current => current === c.identity_id ? null : c.identity_id)}>
+            <UserRound size={24}/><span><strong>{labelFor(c.identity_id,c.label)}</strong><small>{c.anonymous && !revealedIdentities[c.identity_id] ? 'MASKED IDENTITY' : 'REGISTERED CONTACT'}</small></span><ChevronDown size={18} className={expandedContact === c.identity_id ? 'ghost-contact-chevron expanded' : 'ghost-contact-chevron'}/>
+          </button>
+          {expandedContact === c.identity_id && <div className="ghost-contact-actions">
+            <button type="button" onClick={() => openContact(c)}><Mail size={19}/> Message</button>
+            <button type="button" disabled={calling || !c.can_call} onClick={() => void callContact(c)}><Smartphone size={19}/> {calling ? 'Calling…' : 'Call'}</button>
+          </div>}
+        </div>)
           : threads.map(t => <button key={t.conversation_id} className={"ghost-contact" + (pulsingThreads.includes(t.conversation_id) ? " ghost-contact-pulse" : "")} onClick={() => openThread(t)}><UserRound size={24}/><span><strong>{labelFor(t.other_identity_id,t.other_label)}</strong><small>{t.last_message || 'New conversation'}</small></span>{Number(t.unread_count) > 0 && <b className="ghost-unread">{t.unread_count}</b>}</button>)}
       </div>
     </> : <>

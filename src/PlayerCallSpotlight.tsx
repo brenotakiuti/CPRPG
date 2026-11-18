@@ -3,7 +3,7 @@ import { LockKeyhole, Phone, PhoneOff, UserRound } from 'lucide-react';
 import { supabase } from './supabase';
 import './GhostCall.css';
 
-type Call = { id:string; status:string; caller_label:string; created_at:string; answered_at:string|null; ended_at:string|null };
+type Call = { id:string; direction:'gm'|'player'; status:string; caller_label:string; created_at:string; answered_at:string|null; ended_at:string|null };
 export default function PlayerCallSpotlight({characterId}:{characterId:string}){
   const [call,setCall]=useState<Call|null>(null);
   const [busy,setBusy]=useState(false);
@@ -46,16 +46,16 @@ export default function PlayerCallSpotlight({characterId}:{characterId:string}){
     finally{setBusy(false);}
   };
   if(!call)return null;
-  const ringing=call.status==='ringing',connected=call.status==='connected';
+  const ringing=call.status==='ringing',connected=call.status==='connected',outgoing=call.direction==='player';
   return <div className="gl-spotlight" role="dialog" aria-modal="true" aria-label="Ghost Link call">
     <div className="gl-spotlight-backdrop"/>
     <section className={'gl-spotlight-panel'+(closing?' gl-closing':'')}>
       <header><strong>GHOST//LINK</strong><span><LockKeyhole size={13}/> ENCRYPTED</span></header>
       <div className="gl-caller-avatar"><UserRound size={40}/></div>
       <h2>{call.caller_label||'Unknown Number'}</h2>
-      <p className="gl-call-state">{ringing?'INCOMING TRANSMISSION':connected?'CHANNEL ESTABLISHED':'CONNECTION TERMINATED'}</p>
+      <p className="gl-call-state">{ringing?(outgoing?'CALLING...':'INCOMING TRANSMISSION'):connected?'CHANNEL ESTABLISHED':'CONNECTION TERMINATED'}</p>
       <div className={'gl-signal'+(closing?' gl-signal-ended':'')+(ringing?' gl-signal-ringing':'')} aria-label={ringing?'Ringing signal':connected?'Active encrypted signal':'Signal disconnected'}>{Array.from({length:15},(_,i)=><i key={i} style={{animationDelay:(-i*.11)+'s'}}/>)}</div>
-      {ringing?<div className="gl-call-actions"><button disabled={busy} className="gl-call-stop" onClick={()=>void respond('decline')}><PhoneOff size={19}/>Decline</button><button disabled={busy} className="gl-call-start" onClick={()=>void respond('answer')}><Phone size={19}/>Answer</button></div>:connected?<div className="gl-call-actions"><button disabled={busy} className="gl-call-stop" onClick={()=>void respond('end')}><PhoneOff size={19}/>Hang Up</button></div>:null}
+      {ringing?<div className="gl-call-actions"><button disabled={busy} className="gl-call-stop" onClick={()=>void respond('decline')}><PhoneOff size={19}/>{outgoing?'Cancel':'Decline'}</button>{!outgoing&&<button disabled={busy} className="gl-call-start" onClick={()=>void respond('answer')}><Phone size={19}/>Answer</button>}</div>:connected?<div className="gl-call-actions"><button disabled={busy} className="gl-call-stop" onClick={()=>void respond('end')}><PhoneOff size={19}/>Hang Up</button></div>:null}
       {error&&<p className="gl-call-error" role="alert">{error}</p>}
     </section>
   </div>;
