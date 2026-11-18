@@ -36,10 +36,27 @@
 
 .player-footer span.player-offline{color:#d84d59}
 
-/* HUD Feed: wide, single-line notification; FIFO timing includes both animations. */
-.player-hud-feed{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:9999;width:88%;max-width:calc(100vw - 24px);box-sizing:border-box;min-height:36px;display:flex;align-items:center;justify-content:center;overflow-wrap:anywhere;white-space:normal;text-align:center;pointer-events:auto;touch-action:pan-y;user-select:none;cursor:grab;padding:0 12px;border-left:3px solid #e8bd4a;background:#302b2b;color:#e8bd4a;font-size:13px;font-weight:700;letter-spacing:.4px;box-shadow:0 4px 20px #0008;animation:hud-feed-enter .22s ease-out both;transition:transform .22s ease-out,opacity .22s ease-out}
+/* Persistent notification stack: only the front card exposes content. */
+.player-toast-stack{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:9999;width:min(90vw,520px);max-width:calc(100vw - 42px)}
+.player-toast-back{position:absolute;height:100%;border:1px solid #d4a83b;border-left:3px solid #d4a83b;background:#172331;clip-path:polygon(0 0,97% 0,100% 14px,100% 100%,3% 100%,0 calc(100% - 14px));box-shadow:0 0 9px #e8bd4a22;pointer-events:none}
+.player-hud-feed{position:relative;width:100%;min-height:88px;touch-action:pan-y;user-select:none;cursor:grab;animation:hud-feed-enter .2s ease-out both;transition:transform .22s ease-out,opacity .22s ease-out}
 @keyframes hud-feed-enter{from{opacity:0}to{opacity:1}}
 .player-hud-feed.player-hud-dismissing{opacity:0;pointer-events:none}
+.player-toast-card{--toast-accent:#e8bd4a;display:flex;align-items:center;gap:12px;min-height:88px;padding:12px 28px 12px 12px;background:#101a26;border:1px solid var(--toast-accent);border-left:4px solid var(--toast-accent);color:#e6edf5;box-shadow:0 9px 30px #000b;clip-path:polygon(0 0,97% 0,100% 13px,100% 100%,3% 100%,0 calc(100% - 13px))}
+.player-toast-ghostlink{--toast-accent:#ae7ce8;background:#181728}
+.player-toast-icon{flex:0 0 56px;width:56px;height:56px;display:flex;align-items:center;justify-content:center;border:1px solid color-mix(in srgb,var(--toast-accent) 60%,transparent);background:#202e3e;color:var(--toast-accent);overflow:hidden}
+.player-toast-ghostlink .player-toast-icon{color:#54e8ed;background:#211c35}
+.player-toast-icon img{width:100%;height:100%;object-fit:contain}
+.player-toast-body{min-width:0;flex:1;display:flex;flex-direction:column;gap:4px;overflow-wrap:anywhere}
+.player-toast-heading{display:flex;flex-wrap:wrap;gap:5px 9px;align-items:center}
+.player-toast-heading strong{color:var(--toast-accent);font-size:12px;letter-spacing:.8px}
+.player-toast-ghostlink .player-toast-heading strong{color:#54e8ed}
+.player-toast-heading span{color:#a9b9c8;font-size:10px;font-weight:700;letter-spacing:.4px}
+.player-toast-source{font-size:17px;font-weight:800;color:#f0f3f7}
+.player-toast-dice .player-toast-source,.player-toast-money .player-toast-source{color:#e8bd4a;font-size:23px}
+.player-toast-detail{font-size:12px;color:#dce5ee;line-height:1.35}
+.player-toast-corner{position:absolute;right:8px;top:6px;color:var(--toast-accent);display:flex;gap:3px;align-items:center;font-size:10px;font-weight:800}
+@media(max-width:380px){.player-toast-card{gap:8px;padding:10px 23px 10px 8px}.player-toast-icon{flex-basis:44px;width:44px;height:44px}.player-toast-source{font-size:15px}}
 
 /* Delivery failures remain visible above the interactive spotlight. */
 .player-spotlight-error{position:fixed;z-index:1100;left:50%;top:14px;transform:translateX(-50%);max-width:calc(100vw - 24px);background:#401e24;border:1px solid #d84d59;border-radius:7px;padding:10px 14px;color:#ffe4e4;font-size:12px;text-align:center;box-shadow:0 8px 30px #0009}
@@ -50,11 +67,5 @@
 .player-diagnostics-icon:hover,.player-diagnostics-icon:focus-visible{background:#344756;border-color:#e9c04c}
 .player-diagnostics-clear{color:#ff9b9b}
 
-/* Ghost//Link uses the existing HUD animation and queue, with its own visual identity. */
-.player-hud-feed.player-hud-ghostlink{justify-content:flex-start;gap:10px;text-align:left;border-left:3px solid #d77aff;background:#211a37;color:#eaf6ff;box-shadow:0 4px 20px #0009,0 0 14px #d77aff33;padding:8px 12px}
-.player-hud-ghostlink img{flex-shrink:0;object-fit:contain}
-.player-hud-ghostlink-copy{display:flex;flex-direction:column;gap:3px;min-width:0;overflow-wrap:anywhere}
-.player-hud-ghostlink-copy strong{font-size:10px;color:#54e8ed;letter-spacing:.7px}
-.player-hud-ghostlink-copy span{font-size:12px;color:#e8dff7;font-weight:500}
 .player-phone-icon{position:relative;display:inline-flex}
 .player-phone-unread{position:absolute;top:-9px;right:-12px;min-width:17px;height:17px;padding:0 4px;border-radius:12px;background:#d77aff;color:#111524;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;box-shadow:0 0 9px #d77aff77}

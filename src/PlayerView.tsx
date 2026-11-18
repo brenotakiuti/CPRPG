@@ -10,6 +10,7 @@ import PlayerStats from './PlayerStats';
 import PlayerTransfers from './PlayerTransfers';
 import PlayerLoading from './PlayerLoading';
 import PlayerPhone from './PlayerPhone';
+import HudNotification, { type HudNotice } from './HudNotification';
 import { usePlayerCyberware } from './usePlayerCyberware';
 
 type PlayerCharacter = {
@@ -399,9 +400,9 @@ export default function PlayerView({ token }: PlayerViewProps) {
     };
   }, [recordDiagnostic]);
   const [feedCampaignId, setFeedCampaignId] = useState<string | null>(null);
-  type HudNotice = { id: string; text: string; kind?: 'ghostlink'; sender?: string };
   const [hudMessage, setHudMessage] = useState<HudNotice | null>(null);
   const hudQueue = useRef<HudNotice[]>([]);
+  const [hudPending, setHudPending] = useState(0);
   const [phoneUnread, setPhoneUnread] = useState(0);
   const phoneOpenRef = useRef(false);
   const phoneKnown = useRef(new Set<string>());
@@ -441,6 +442,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
   // One notification stays visible until the player swipes it away.
   function showNextHudMessage() {
     const next = hudQueue.current.shift();
+    setHudPending(hudQueue.current.length);
     if (!next) {
       hudActive.current = false;
       setHudMessage(null);
@@ -475,6 +477,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           id: typeof event.id === 'string' ? event.id : crypto.randomUUID(),
           text,
         });
+        setHudPending(hudQueue.current.length);
         if (!hudActive.current) showNextHudMessage();
       })
       .subscribe((status, error) => {
@@ -484,6 +487,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       });
     return () => {
       hudQueue.current = [];
+      setHudPending(0);
       hudActive.current = false;
       setHudMessage(null);
       setHudOffset(0);
@@ -520,6 +524,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           if (!thread || phoneOpenRef.current) return;
           const body = typeof message.body === 'string' ? message.body.trim().replace(/\\s+/g, ' ') : '';
           hudQueue.current.push({ id: message.id, kind: 'ghostlink', sender: thread.other_label, text: body.slice(0, 110) });
+          setHudPending(hudQueue.current.length);
           if (!hudActive.current) showNextHudMessage();
         }).subscribe();
       return channel;
@@ -841,7 +846,10 @@ export default function PlayerView({ token }: PlayerViewProps) {
 
   return (
     <main className="player-terminal">
-      {hudMessage && <div className={"player-hud-feed" + (hudMessage.kind === "ghostlink" ? " player-hud-ghostlink" : "") + (hudDismissing ? " player-hud-dismissing" : "")} role="status" key={hudMessage.id} style={{ transform: `translateX(calc(-50% + ${hudOffset}px))` }} onPointerDown={hudPointerDown} onPointerMove={hudPointerMove} onPointerUp={hudPointerUp} onPointerCancel={hudPointerCancel} onTransitionEnd={finishHudDismiss}>{hudMessage.kind === "ghostlink" ? <><img src="/ghost-link-icon.svg" width={30} height={30} alt="" aria-hidden="true" /><span className="player-hud-ghostlink-copy"><strong>GHOST//LINK · {hudMessage.sender}</strong><span>{hudMessage.text}</span></span></> : hudMessage.text}</div>}
+      {hudMessage && <div className="player-toast-stack" role="status" aria-live="polite">
+        {Array.from({ length: Math.min(3, hudPending) }, (_, index) => <div key={index} className="player-toast-back" style={{ top: -(index + 1) * 7, left: (index + 1) * 7, right: -(index + 1) * 7, opacity: 1 - index * .18 }} aria-hidden="true" />)}
+        <div className={"player-hud-feed" + (hudDismissing ? " player-hud-dismissing" : "")} key={hudMessage.id} style={{ transform: `translateX(${hudOffset}px)` }} onPointerDown={hudPointerDown} onPointerMove={hudPointerMove} onPointerUp={hudPointerUp} onPointerCancel={hudPointerCancel} onTransitionEnd={finishHudDismiss}><HudNotification notice={hudMessage} queued={hudPending} /></div>
+      </div>
       <div className="player-shell">
         <header className="player-card player-header">
           <div className="player-header-top"><span>NIGHT CITY // 2077</span><div className="player-header-actions"><RadioTower size={16} aria-hidden="true" /><button type="button" className="player-logs-trigger" aria-label="Open personal logs" title="Personal logs" disabled={!character || !feedCampaignId} onClick={() => { if (character && feedCampaignId) navigate({ ...navRef.current, logs: true, diagnostics: false }); }}><History size={19} aria-hidden="true" /></button><button type="button" className="player-logs-trigger" aria-label="Open diagnostics" title="Diagnostics" onClick={() => { if (!navRef.current.diagnostics) navigate({ inventory: false, selected: null, logs: false, diagnostics: true }); }}><Bug size={19} aria-hidden="true" /></button></div></div>
