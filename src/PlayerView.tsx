@@ -399,18 +399,51 @@ export default function PlayerView({ token }: PlayerViewProps) {
     };
   }, [recordDiagnostic]);
   const [feedCampaignId, setFeedCampaignId] = useState<string | null>(null);
-  type HudNotice = { id: string; text: string; duration: number; kind?: 'ghostlink'; sender?: string };
+  type HudNotice = { id: string; text: string; kind?: 'ghostlink'; sender?: string };
   const [hudMessage, setHudMessage] = useState<HudNotice | null>(null);
   const hudQueue = useRef<HudNotice[]>([]);
   const [phoneUnread, setPhoneUnread] = useState(0);
   const phoneOpenRef = useRef(false);
   const phoneKnown = useRef(new Set<string>());
 
-  const hudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hudActive = useRef(false);
+  const [hudOffset, setHudOffset] = useState(0);
+  const [hudDismissing, setHudDismissing] = useState(false);
+  const hudGesture = useRef<{ startX: number; pointerId: number } | null>(null);
+  const dismissHud = () => {
+    if (!hudActive.current || hudDismissing) return;
+    setHudDismissing(true);
+    setHudOffset(hudOffset < 0 ? -window.innerWidth : window.innerWidth);
+  };
+  const hudPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (hudDismissing) return;
+    hudGesture.current = { startX: event.clientX, pointerId: event.pointerId };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const hudPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (hudGesture.current?.pointerId !== event.pointerId || hudDismissing) return;
+    setHudOffset(event.clientX - hudGesture.current.startX);
+  };
+  const hudPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (hudGesture.current?.pointerId !== event.pointerId) return;
+    const delta = event.clientX - hudGesture.current.startX;
+    hudGesture.current = null;
+    if (Math.abs(delta) >= 65) {
+      setHudOffset(delta);
+      setHudDismissing(true);
+      requestAnimationFrame(() => setHudOffset(delta < 0 ? -window.innerWidth : window.innerWidth));
+    } else setHudOffset(0);
+  };
+  const hudPointerCancel = () => { hudGesture.current = null; if (!hudDismissing) setHudOffset(0); };
+  const finishHudDismiss = (event: React.TransitionEvent<HTMLDivElement>) => {
+    if (event.propertyName !== 'transform' || !hudDismissing) return;
+    setHudOffset(0);
+    setHudDismissing(false);
+    showNextHudMessage();
+  };
 
   // The HUD consumes persisted events, independent of their producing system.
-  // One message finishes its full animation before the next starts.
+  // One notification stays visible until the player swipes it away.
   function showNextHudMessage() {
     const next = hudQueue.current.shift();
     if (!next) {
@@ -420,7 +453,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
     }
     hudActive.current = true;
     setHudMessage(next);
-    hudTimer.current = setTimeout(showNextHudMessage, next.duration);
+
   }
 
   useEffect(() => {
@@ -447,7 +480,6 @@ export default function PlayerView({ token }: PlayerViewProps) {
         hudQueue.current.push({
           id: typeof event.id === 'string' ? event.id : crypto.randomUUID(),
           text,
-          duration: event.category === 'text' ? 2500 : 2000,
         });
         if (!hudActive.current) showNextHudMessage();
       })
@@ -457,11 +489,12 @@ export default function PlayerView({ token }: PlayerViewProps) {
         }
       });
     return () => {
-      if (hudTimer.current) clearTimeout(hudTimer.current);
-      hudTimer.current = null;
       hudQueue.current = [];
       hudActive.current = false;
       setHudMessage(null);
+      setHudOffset(0);
+      setHudDismissing(false);
+      hudGesture.current = null;
       void supabase.removeChannel(channel);
     };
   }, [feedCampaignId, character?.id]);
@@ -492,7 +525,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           const thread = threads.find(row => row.conversation_id === message.conversation_id);
           if (!thread || phoneOpenRef.current) return;
           const body = typeof message.body === 'string' ? message.body.trim().replace(/\\s+/g, ' ') : '';
-          hudQueue.current.push({ id: message.id, kind: 'ghostlink', sender: thread.other_label, text: body.slice(0, 110), duration: 2500 });
+          hudQueue.current.push({ id: message.id, kind: 'ghostlink', sender: thread.other_label, text: body.slice(0, 110) });
           if (!hudActive.current) showNextHudMessage();
         }).subscribe();
       return channel;
@@ -814,7 +847,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
 
   return (
     <main className="player-terminal">
-      {hudMessage && <div className={"player-hud-feed" + (hudMessage.kind === "ghostlink" ? " player-hud-ghostlink" : "")} role="status" key={hudMessage.id} style={{ animationDuration: `${hudMessage.duration}ms` }}>{hudMessage.kind === "ghostlink" ? <><img src="/ghost-link-icon.svg" width={30} height={30} alt="" aria-hidden="true" /><span className="player-hud-ghostlink-copy"><strong>GHOST//LINK · {hudMessage.sender}</strong><span>{hudMessage.text}</span></span></> : hudMessage.text}</div>}
+      {hudMessage && <div className={"player-hud-feed" + (hudMessage.kind === "ghostlink" ? " player-hud-ghostlink" : "") + (hudDismissing ? " player-hud-dismissing" : "")} role="status" key={hudMessage.id} style={{ transform: `translateX(calc(-50% + ${hudOffset}px))` }} onPointerDown={hudPointerDown} onPointerMove={hudPointerMove} onPointerUp={hudPointerUp} onPointerCancel={hudPointerCancel} onTransitionEnd={finishHudDismiss}>{hudMessage.kind === "ghostlink" ? <><img src="/ghost-link-icon.svg" width={30} height={30} alt="" aria-hidden="true" /><span className="player-hud-ghostlink-copy"><strong>GHOST//LINK · {hudMessage.sender}</strong><span>{hudMessage.text}</span></span></> : hudMessage.text}</div>}
       <div className="player-shell">
         <header className="player-card player-header">
           <div className="player-header-top"><span>NIGHT CITY // 2077</span><div className="player-header-actions"><RadioTower size={16} aria-hidden="true" /><button type="button" className="player-logs-trigger" aria-label="Open personal logs" title="Personal logs" disabled={!character || !feedCampaignId} onClick={() => { if (character && feedCampaignId) navigate({ ...navRef.current, logs: true, diagnostics: false }); }}><History size={19} aria-hidden="true" /></button><button type="button" className="player-logs-trigger" aria-label="Open diagnostics" title="Diagnostics" onClick={() => { if (!navRef.current.diagnostics) navigate({ inventory: false, selected: null, logs: false, diagnostics: true }); }}><Bug size={19} aria-hidden="true" /></button></div></div>
