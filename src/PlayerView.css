@@ -41,8 +41,7 @@
 .player-toast-layer{position:absolute;inset:0;pointer-events:none;transition:transform .25s cubic-bezier(.2,.8,.2,1),filter .25s ease}
 .player-toast-queued{opacity:1}
 .player-toast-queued .player-toast-card{height:100%;box-shadow:none}
-.player-hud-feed{position:relative;z-index:4;width:100%;min-height:88px;touch-action:pan-y;user-select:none;cursor:grab;animation:hud-feed-enter .2s ease-out both;transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .25s ease-out}
-@keyframes hud-feed-enter{from{opacity:0}to{opacity:1}}
+.player-hud-feed{position:relative;z-index:4;width:100%;min-height:88px;touch-action:pan-y;user-select:none;cursor:grab;transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .25s ease-out}
 .player-hud-feed.player-hud-dismissing{opacity:0;pointer-events:none}
 .player-toast-card{
   --toast-accent:#e8bd4a;
