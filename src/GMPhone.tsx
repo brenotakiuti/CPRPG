@@ -42,6 +42,9 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
   const [contactNpcId, setContactNpcId] = useState('');
   const [contactGrants, setContactGrants] = useState<{npc_identity_id:string;character_id:string}[]>([]);
   const [contactBusy, setContactBusy] = useState(false);
+  const [contactRecipients, setContactRecipients] = useState<string[]>([]);
+  const [contactReview, setContactReview] = useState(false);
+  const [contactResult, setContactResult] = useState('');
   const [creatingIdentity, setCreatingIdentity] = useState(false);
   const [internalName, setInternalName] = useState('The Observer');
   const [publicName, setPublicName] = useState('Unknown Number');
@@ -239,6 +242,21 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     if (tab !== 'contacts') return;
     void loadContactGrants().catch(e => setError(describePhoneError(e)));
   }, [tab, loadContactGrants]);
+  const sendContacts = async () => {
+    if (!contactNpcId || !contactRecipients.length || contactBusy) return;
+    setContactBusy(true); setError('');
+    try {
+      const result = await supabase.rpc('phone_gm_distribute_contact', {
+        p_campaign_id: campaignId, p_npc_identity_id: contactNpcId,
+        p_character_ids: contactRecipients,
+      });
+      if (result.error) throw result.error;
+      await loadContactGrants();
+      setContactResult('Contact delivered to ' + String(result.data ?? 0) + ' new recipient(s).');
+      setContactRecipients([]); setContactReview(false);
+    } catch (e) { setError(describePhoneError(e)); }
+    finally { setContactBusy(false); }
+  };
   const setContactAccess = async (characterId: string, allowed: boolean) => {
     if (!contactNpcId || contactBusy) return;
     setContactBusy(true); setError('');
@@ -343,18 +361,35 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
       </> : <div className="gm-ghost-empty">Select a conversation to begin messaging.</div>}</main>
     </div> : tab === 'contacts' ? <section className="gm-ghost-player-directory">
       <h3>NPC CONTACT DISTRIBUTION</h3>
-      <p>Choose an NPC identity and give individual players permission to initiate messages. Existing player-to-player contacts are unaffected. Calling will use the same contact access when available.</p>
+      <p>Select an NPC and recipients, then review before sending. Players can already contact one another. Sharing an anonymous NPC does not reveal its real name.</p>
       <label className="gm-ghost-contact-picker">NPC identity
-        <select value={contactNpcId} onChange={e => setContactNpcId(e.target.value)}>
+        <select value={contactNpcId} disabled={contactBusy} onChange={e => { setContactNpcId(e.target.value); setContactRecipients([]); setContactReview(false); setContactResult(''); }}>
           <option value="">Select NPC identity...</option>
           {identities.map(identity => <option key={identity.id} value={identity.id}>{identity.internal_name}{identity.anonymous ? ' (masked)' : ''}</option>)}
         </select>
       </label>
-      {contactNpcId && <><p>Granting contact access does not reveal an anonymous NPC's true name. Existing identity revelations remain independent.</p>
-      <div className="gm-ghost-player-list">{players.map(player => {
-        const allowed = contactGrants.some(grant => grant.npc_identity_id === contactNpcId && grant.character_id === player.id);
-        return <label key={player.id} className="gm-ghost-player-row gm-ghost-contact-row"><span className="gm-ghost-avatar player">{player.name.slice(0,1).toUpperCase()}</span><span><strong>{player.name}</strong><small>{allowed ? 'Contact shared' : 'Not shared'}</small></span><input type="checkbox" checked={allowed} disabled={contactBusy} onChange={e => void setContactAccess(player.id,e.target.checked)} aria-label={'Share NPC contact with ' + player.name}/></label>;
-      })}</div></>}
+      {contactNpcId && <>
+        <h3>RECIPIENTS</h3>
+        <p>Choose characters who do not already have this contact.</p>
+        <div className="gm-ghost-player-list">{players.map(player => {
+          const allowed = contactGrants.some(grant => grant.npc_identity_id === contactNpcId && grant.character_id === player.id);
+          return <div key={player.id} className="gm-ghost-player-row gm-ghost-contact-row">
+            <span className="gm-ghost-avatar player">{player.name.slice(0,1).toUpperCase()}</span>
+            <span><strong>{player.name}</strong><small>{allowed ? 'Already shared' : 'Not shared'}</small></span>
+            {allowed ? <button type="button" className="gm-ghost-contact-revoke" disabled={contactBusy} onClick={() => void setContactAccess(player.id,false)}>Revoke</button>
+              : <input type="checkbox" checked={contactRecipients.includes(player.id)} disabled={contactBusy || contactReview} onChange={e => setContactRecipients(current => e.target.checked ? [...current,player.id] : current.filter(id => id !== player.id))} aria-label={'Send contact to ' + player.name}/>}
+          </div>;
+        })}</div>
+        {contactReview ? <div className="gm-ghost-contact-review" role="group" aria-label="Review contact distribution">
+          <strong>REVIEW DISTRIBUTION</strong>
+          <p>NPC: {identities.find(i => i.id === contactNpcId)?.internal_name}</p>
+          <p>Player sees: {identities.find(i => i.id === contactNpcId)?.anonymous ? 'Unknown Number' : identities.find(i => i.id === contactNpcId)?.display_name}</p>
+          <p>Recipients: {players.filter(p => contactRecipients.includes(p.id)).map(p => p.name).join(', ')}</p>
+          <p>Each new recipient receives a persistent Ghost//Link notification.</p>
+          <div className="gm-ghost-contact-actions"><button type="button" disabled={contactBusy} onClick={() => setContactReview(false)}>Back</button><button type="button" disabled={contactBusy} onClick={() => void sendContacts()}>{contactBusy ? 'Sending…' : 'Confirm & Send'}</button></div>
+        </div> : <div className="gm-ghost-contact-actions"><button type="button" disabled={contactBusy || contactRecipients.length===0} onClick={() => setContactReview(true)}>Review Distribution ({contactRecipients.length})</button></div>}
+        {contactResult && <p className="gm-ghost-contact-success" role="status">{contactResult}</p>}
+      </>}
       {!identities.length && <p>Create an NPC identity in Messages first.</p>}
       {!players.length && <p>No player characters found in this campaign.</p>}
     </section> : <div className="gm-ghost-future"><h3>{tabs.find(t => t.id === tab)?.label}</h3><div className="gm-ghost-feature-grid">{(tab === 'calls' ? ['Place Call', 'Incoming Calls', 'Active Call'] : ['Campaign Network', 'Notification Controls', 'Connection Diagnostics']).map(label => <div key={label} className="gm-ghost-feature"><strong>{label}</strong><small>COMING LATER</small></div>)}</div></div>}
