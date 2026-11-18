@@ -10,7 +10,7 @@ type Identity = { id: string; internal_name: string; display_name: string; anony
 type Tab = 'messages' | 'contacts' | 'calls' | 'settings';
 const tabs: { id: Tab; label: string; icon: typeof MessageSquare }[] = [
   { id: 'messages', label: 'Messages', icon: MessageSquare },
-  { id: 'contacts', label: 'Contacts & Access', icon: Users },
+  { id: 'contacts', label: 'Identities & Contacts', icon: Users },
   { id: 'calls', label: 'Call Control', icon: Phone },
   { id: 'settings', label: 'Settings', icon: Settings2 },
 ];
@@ -288,7 +288,8 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
       if (result.error) throw result.error;
       await refresh();
       const createdId = typeof result.data === 'string' ? result.data : result.data?.id;
-      if (createdId) setSelectedIdentity(createdId);
+      if (createdId) { setSelectedIdentity(createdId); setContactNpcId(createdId); }
+      setContactRecipients([]); setContactReview(false); setContactResult('');
       setSelectedConversation('');
       setCreatingIdentity(false);
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
@@ -340,14 +341,6 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     {tab === 'messages' ? <div className="gm-ghost-workstation">
       <aside className="gm-ghost-identities"><div className="gm-ghost-section-title">NPC IDENTITIES <span>{allIdentities.length}</span></div>
         {allIdentities.map(identity => <button key={identity.id} className={'gm-ghost-entry ' + (selectedIdentity === identity.id ? 'active' : '')} onClick={() => { setSelectedIdentity(identity.id); setConfirmReveal(false); setSelectedConversation(''); setNewChat(false); setRecipientPickerOpen(false); setNewChatRecipient(''); }}><span className="gm-ghost-avatar">?</span><span><strong>{identity.internal_name || identity.display_name}</strong><small>{identity.anonymous ? 'Anonymous' : identity.display_name}</small></span>{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0) > 0 && <b className="gm-ghost-unread">{threads.filter(t => t.npc_identity_id === identity.id).reduce((n,t) => n + Number(t.unread_count || 0),0)}</b>}</button>)}
-        <button type="button" className="gm-ghost-create-trigger" onClick={() => { setCreatingIdentity(v => !v); setError(''); }}>+ New Identity</button>
-        {creatingIdentity && <form className="gm-ghost-create-form" onSubmit={e => { e.preventDefault(); void createIdentity(); }}>
-          <strong>CREATE NPC IDENTITY</strong>
-          <label>Internal name (GM only)<input maxLength={100} value={internalName} onChange={e => setInternalName(e.target.value)}/></label>
-          <label>Public display name<input maxLength={100} value={publicName} onChange={e => setPublicName(e.target.value)} disabled={anonymous}/></label>
-          <label className="gm-ghost-check"><input type="checkbox" checked={anonymous} onChange={e => setAnonymous(e.target.checked)}/> Anonymous — players see Unknown Number</label>
-          <div className="gm-ghost-create-actions"><button type="button" onClick={() => setCreatingIdentity(false)}>Cancel</button><button type="submit" disabled={identityBusy || !internalName.trim() || (!anonymous && !publicName.trim())}>{identityBusy ? 'Creating…' : 'Create Identity'}</button></div>
-        </form>}
       </aside>
       <aside className="gm-ghost-threads"><div className="gm-ghost-section-title">CONVERSATIONS <span>{shown.length}</span></div>
         <button type="button" className="gm-ghost-create-trigger" aria-expanded={recipientPickerOpen} disabled={!selectedIdentity || busy} onClick={() => { if (recipientPickerOpen) setRecipientPickerOpen(false); else void startNewChat(); }}>{recipientPickerOpen ? "− New Chat" : "+ New Chat"}</button>
@@ -360,7 +353,31 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
         <form className="gm-ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input aria-label="NPC message" maxLength={4000} value={draft} onChange={e => setDraft(e.target.value)} placeholder={'Send as ' + selected.npc_internal_name + '...'} /><button disabled={!draft.trim() || busy} type="submit"><Send size={15}/> SEND</button></form>
       </> : <div className="gm-ghost-empty">Select a conversation to begin messaging.</div>}</main>
     </div> : tab === 'contacts' ? <section className="gm-ghost-player-directory">
-      <h3>NPC CONTACT DISTRIBUTION</h3>
+      <h3>NPC IDENTITIES</h3>
+      <p>Create an identity here, then grant its contact access without switching tabs. Internal names are visible only to the GM.</p>
+      <div className="gm-ghost-identity-directory">
+        {allIdentities.map(identity => <button type="button" key={identity.id}
+          className={'gm-ghost-identity-choice' + (contactNpcId === identity.id ? ' active' : '')}
+          onClick={() => { setContactNpcId(identity.id); setContactRecipients([]); setContactReview(false); setContactResult(''); }}>
+          <strong>{identity.internal_name}</strong>
+          <small>{identity.anonymous ? 'Anonymous · Unknown Number' : 'Public · ' + identity.display_name}</small>
+        </button>)}
+      </div>
+        <button type="button" className="gm-ghost-create-trigger" onClick={() => { setCreatingIdentity(v => !v); setError(''); }}>+ New Identity</button>
+        {creatingIdentity && <form className="gm-ghost-create-form" onSubmit={e => { e.preventDefault(); void createIdentity(); }}>
+          <strong>CREATE NPC IDENTITY</strong>
+          <label>Internal name (GM only)<input maxLength={100} value={internalName} onChange={e => setInternalName(e.target.value)}/></label>
+          <label>Public display name<input maxLength={100} value={publicName} onChange={e => setPublicName(e.target.value)} disabled={anonymous}/></label>
+          <label className="gm-ghost-check"><input type="checkbox" checked={anonymous} onChange={e => setAnonymous(e.target.checked)}/> Anonymous — players see Unknown Number</label>
+          <div className="gm-ghost-create-actions"><button type="button" onClick={() => setCreatingIdentity(false)}>Cancel</button><button type="submit" disabled={identityBusy || !internalName.trim() || (!anonymous && !publicName.trim())}>{identityBusy ? 'Creating…' : 'Create Identity'}</button></div>
+        </form>}
+
+      {contactNpcId && <div className="gm-ghost-identity-summary">
+        <strong>{allIdentities.find(i => i.id === contactNpcId)?.internal_name}</strong>
+        <span>Player sees: {allIdentities.find(i => i.id === contactNpcId)?.anonymous ? 'Unknown Number' : allIdentities.find(i => i.id === contactNpcId)?.display_name}</span>
+        <small>{contactGrants.filter(g => g.npc_identity_id === contactNpcId).length} character(s) have access</small>
+      </div>}
+      <h3>CONTACT ACCESS</h3>
       <p>Select an NPC and recipients, then review before sending. Players can already contact one another. Sharing an anonymous NPC does not reveal its real name.</p>
       <label className="gm-ghost-contact-picker">NPC identity
         <select value={contactNpcId} disabled={contactBusy} onChange={e => { setContactNpcId(e.target.value); setContactRecipients([]); setContactReview(false); setContactResult(''); }}>
@@ -390,7 +407,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
         </div> : <div className="gm-ghost-contact-actions"><button type="button" disabled={contactBusy || contactRecipients.length===0} onClick={() => setContactReview(true)}>Review Distribution ({contactRecipients.length})</button></div>}
         {contactResult && <p className="gm-ghost-contact-success" role="status">{contactResult}</p>}
       </>}
-      {!identities.length && <p>Create an NPC identity in Messages first.</p>}
+      {!identities.length && <p>Create an NPC identity above to begin sharing contacts.</p>}
       {!players.length && <p>No player characters found in this campaign.</p>}
     </section> : <div className="gm-ghost-future"><h3>{tabs.find(t => t.id === tab)?.label}</h3><div className="gm-ghost-feature-grid">{(tab === 'calls' ? ['Place Call', 'Incoming Calls', 'Active Call'] : ['Campaign Network', 'Notification Controls', 'Connection Diagnostics']).map(label => <div key={label} className="gm-ghost-feature"><strong>{label}</strong><small>COMING LATER</small></div>)}</div></div>}
     {loading && <p className="gm-ghost-muted">Connecting to Ghost//Link...</p>}
