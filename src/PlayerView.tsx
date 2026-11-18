@@ -406,6 +406,37 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const [phoneUnread, setPhoneUnread] = useState(0);
   const phoneOpenRef = useRef(false);
   const phoneKnown = useRef(new Set<string>());
+  const hudSeen = useRef(new Set<string>());
+  const hudSince = useRef('');
+  const hudStorageKey = feedCampaignId && character ? `player-hud-v1-${feedCampaignId}-${character.id}` : '';
+  const hudStorageRef = useRef('');
+  const hudCurrent = useRef<HudNotice | null>(null);
+  const hudRecovering = useRef(false);
+  const hudWrite = () => {
+    if (!hudStorageRef.current) return;
+    try {
+      localStorage.setItem(hudStorageRef.current, JSON.stringify({
+        since: hudSince.current,
+        current: hudCurrent.current,
+        queue: hudQueue.current,
+        seen: [...hudSeen.current].slice(-2000),
+      }));
+    } catch { /* Storage can be unavailable or full; campaign logs remain authoritative. */ }
+  };
+  const enqueueHud = (notices: Array<HudNotice & { created_at?: string }>) => {
+    const fresh = notices.filter(notice => {
+      if (hudSeen.current.has(notice.id)) return false;
+      hudSeen.current.add(notice.id);
+      return true;
+    });
+    if (!fresh.length) return;
+    // Only the pending cards are reordered; the visible card never jumps.
+    hudQueue.current.push(...fresh.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || '')));
+    hudQueue.current.sort((a, b) => ((a as HudNotice & { created_at?: string }).created_at || '').localeCompare((b as HudNotice & { created_at?: string }).created_at || ''));
+    setHudPending(hudQueue.current.length);
+    if (!hudActive.current) showNextHudMessage();
+    hudWrite();
+  };
 
   const hudActive = useRef(false);
   const [hudOffset, setHudOffset] = useState(0);
@@ -436,6 +467,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
     setHudOffset(0);
     setHudDismissing(false);
     showNextHudMessage();
+    hudWrite();
   };
 
   // The HUD consumes persisted events, independent of their producing system.
@@ -446,56 +478,135 @@ export default function PlayerView({ token }: PlayerViewProps) {
     if (!next) {
       hudActive.current = false;
       setHudMessage(null);
+      hudCurrent.current = null;
+      hudWrite();
       return;
     }
     hudActive.current = true;
+    hudCurrent.current = next;
     setHudMessage(next);
+    hudWrite();
 
   }
 
   useEffect(() => {
-    if (!feedCampaignId || !character) return;
+    if (!feedCampaignId || !character || !hudStorageKey) return;
+    let alive = true;
+    hudStorageRef.current = hudStorageKey;
+    hudQueue.current = [];
+    hudSeen.current = new Set();
+    hudCurrent.current = null;
+    hudActive.current = false;
+    setHudMessage(null);
+    setHudPending(0);
+    const initialSince = new Date().toISOString();
+    hudSince.current = initialSince;
+    try {
+      const saved = JSON.parse(localStorage.getItem(hudStorageKey) || 'null') as {
+        since?: string; current?: HudNotice; queue?: HudNotice[]; seen?: string[];
+      } | null;
+      if (saved && typeof saved.since === 'string' && !Number.isNaN(Date.parse(saved.since))) {
+        hudSince.current = saved.since;
+        hudSeen.current = new Set(Array.isArray(saved.seen) ? saved.seen.filter(id => typeof id === 'string') : []);
+        const pending = [saved.current, ...(Array.isArray(saved.queue) ? saved.queue : [])]
+          .filter((item): item is HudNotice => !!item && typeof item.id === 'string' && typeof item.text === 'string');
+        hudQueue.current = pending;
+        showNextHudMessage();
+      }
+    } catch { /* Invalid storage is treated as a fresh device. */ }
+    hudWrite();
+
+    const validEvent = (event: { audience?: string; character_id?: string | null; category?: string; message?: string }) =>
+      (event.audience === 'campaign' || (event.audience === 'character' && event.character_id === character.id)) &&
+      (event.category === 'system' || event.category === 'text') &&
+      typeof event.message === 'string' && !!event.message.trim() &&
+      !/^(?:(?:TAROT REVEALED|TAROT CARD|FORTUNE REVEALED):|HEALTH [+-]\\d+ HP$)/i.test(event.message.trim()) &&
+      !/\\[UNAPPROVED\\]/i.test(event.message);
+
+    const recover = async () => {
+      if (!alive || hudRecovering.current) return;
+      hudRecovering.current = true;
+      try {
+        // Read forward from the device's first HUD activation, not the whole campaign.
+        // A bounded page loop avoids silently dropping busy periods.
+        let cursor = hudSince.current;
+        for (let page = 0; page < 30 && alive; page++) {
+          const { data, error } = await supabase.from('campaign_events')
+            .select('id,character_id,audience,category,message,created_at')
+            .eq('campaign_id', feedCampaignId)
+            .or(`audience.eq.campaign,and(audience.eq.character,character_id.eq.${character.id})`)
+            .gte('created_at', cursor)
+            .order('created_at', { ascending: true })
+            .order('id', { ascending: true })
+            .limit(500);
+          if (error) { console.warn('[Campaign HUD] Recovery:', error.message); break; }
+          const rows = data || [];
+          enqueueHud(rows.filter(validEvent).map(row => ({
+            id: row.id, text: row.message.trim().replace(/\\s+/g, ' '), created_at: row.created_at,
+          })));
+          if (rows.length < 500) break;
+          const last = rows[rows.length - 1];
+          // Avoid skipping events sharing a timestamp; deduplication handles overlap.
+          if (last.created_at === cursor) break;
+          cursor = last.created_at;
+        }
+        // Ghost//Link history is accessed through the same authorized RPCs as the phone UI.
+        const identity = await supabase.rpc('phone_ensure_player_identity', { p_character_id: character.id });
+        if (!alive || identity.error) return;
+        const threads = await supabase.rpc('phone_threads', { p_character_id: character.id });
+        if (!alive || threads.error) return;
+        const recovered: Array<HudNotice & { created_at: string }> = [];
+        for (const thread of (threads.data || []) as Array<{ conversation_id: string; other_label: string }>) {
+          if (!alive) return;
+          const result = await supabase.rpc('phone_read_messages', { p_conversation_id: thread.conversation_id, p_limit: 100 });
+          if (result.error) continue;
+          for (const msg of (result.data || []) as Array<{ message_id: string; sender_identity_id: string; body: string; created_at: string }>) {
+            if (msg.sender_identity_id === identity.data || msg.created_at < hudSince.current) continue;
+            recovered.push({ id: 'phone:' + msg.message_id, kind: 'ghostlink', sender: thread.other_label,
+              text: msg.body.trim().replace(/\\s+/g, ' ').slice(0, 110), created_at: msg.created_at });
+          }
+        }
+        if (alive) enqueueHud(recovered);
+        // A small overlap protects events written while recovery was running.
+        if (alive) { hudSince.current = new Date(Date.now() - 60000).toISOString(); hudWrite(); }
+      } finally { hudRecovering.current = false; }
+    };
     const channel = supabase.channel('campaign-events-' + feedCampaignId + '-' + character.id)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'campaign_events',
-        filter: 'campaign_id=eq.' + feedCampaignId,
-      }, ({ new: event }) => {
-        if (event.audience === 'gm') return;
-        if (event.audience === 'character' && event.character_id !== character.id) return;
-        if (event.audience !== 'campaign' && event.audience !== 'character') return;
-        if (typeof event.message !== 'string' || !event.message.trim()) return;
-        if (event.category !== 'system' && event.category !== 'text') return;
-        // Tarot and fortune results are already displayed in interactive spotlights.
-        // Keep them in campaign logs without duplicating them in the HUD.
-        if (/^(?:(?:TAROT REVEALED|TAROT CARD|FORTUNE REVEALED):|HEALTH [+-]\\d+ HP$)/i.test(event.message.trim())) return;
-        // Unapproved player rolls stay in history; GM dice broadcasts reach the HUD.
-        if (/\[UNAPPROVED\]/i.test(event.message)) return;
-        const text = event.message.trim().replace(/\s+/g, ' ');
-        hudQueue.current.push({
-          id: typeof event.id === 'string' ? event.id : crypto.randomUUID(),
-          text,
-        });
-        setHudPending(hudQueue.current.length);
-        if (!hudActive.current) showNextHudMessage();
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'campaign_events',
+        filter: 'campaign_id=eq.' + feedCampaignId }, ({ new: event }) => {
+        if (!alive || !validEvent(event)) return;
+        enqueueHud([{ id: typeof event.id === 'string' ? event.id : crypto.randomUUID(),
+          text: (event.message as string).trim().replace(/\\s+/g, ' '), created_at: event.created_at as string }]);
       })
       .subscribe((status, error) => {
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        if (status === 'SUBSCRIBED') void recover();
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT')
           console.warn('[Campaign HUD] Event subscription problem:', error ?? status);
-        }
       });
+    const onReturn = () => { if (document.visibilityState === 'visible') void recover(); };
+    const onOnline = () => { void recover(); };
+    document.addEventListener('visibilitychange', onReturn);
+    window.addEventListener('focus', onReturn);
+    window.addEventListener('online', onOnline);
     return () => {
+      alive = false;
+      hudWrite();
+      hudStorageRef.current = '';
       hudQueue.current = [];
-      setHudPending(0);
       hudActive.current = false;
+      hudCurrent.current = null;
+      hudRecovering.current = false;
       setHudMessage(null);
+      setHudPending(0);
       setHudOffset(0);
       setHudDismissing(false);
       hudGesture.current = null;
+      document.removeEventListener('visibilitychange', onReturn);
+      window.removeEventListener('focus', onReturn);
+      window.removeEventListener('online', onOnline);
       void supabase.removeChannel(channel);
     };
-  }, [feedCampaignId, character?.id]);
+  }, [feedCampaignId, character?.id, hudStorageKey]);
   // Keep phone notifications separate from campaign_events while sharing the HUD queue.
   useEffect(() => {
     if (!character?.id || !feedCampaignId) return;
@@ -523,9 +634,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           const thread = threads.find(row => row.conversation_id === message.conversation_id);
           if (!thread || phoneOpenRef.current) return;
           const body = typeof message.body === 'string' ? message.body.trim().replace(/\\s+/g, ' ') : '';
-          hudQueue.current.push({ id: message.id, kind: 'ghostlink', sender: thread.other_label, text: body.slice(0, 110) });
-          setHudPending(hudQueue.current.length);
-          if (!hudActive.current) showNextHudMessage();
+          enqueueHud([{ id: 'phone:' + message.id, kind: 'ghostlink', sender: thread.other_label, text: body.slice(0, 110), created_at: message.created_at as string }]);
         }).subscribe();
       return channel;
     };
