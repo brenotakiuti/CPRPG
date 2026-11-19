@@ -75,3 +75,20 @@
 .ghost-carousel .ghost-compose{padding:10px 0 3px;flex-shrink:0}
 .ghost-carousel .ghost-error{flex-shrink:0}
 @media(prefers-reduced-motion:reduce){.ghost-carousel-track{transition:none}}
+
+
+/* Compact unread badges and brief arrival feedback, independent of carousel motion. */
+.ghost-carousel{position:relative}
+.ghost-carousel-dots{gap:13px}
+.ghost-carousel-indicator{position:relative;display:grid;place-items:center;width:21px;height:27px;flex-shrink:0}
+.ghost-carousel-indicator-mark{height:6px;width:6px;background:#536c7c;border-radius:8px;transition:width .2s,background .2s}
+.ghost-carousel-indicator.active .ghost-carousel-indicator-mark{width:17px;background:#54e8ed}
+.ghost-carousel-indicator-count{position:absolute;top:-3px;right:-8px;min-width:17px;height:17px;display:grid;place-items:center;padding:0 3px;border-radius:10px;background:#d77aff;color:#101524;font-size:10px;font-weight:800}
+.ghost-carousel-indicator.pulse .ghost-carousel-indicator-count{animation:ghostAttentionPulse .5s ease-out}
+@keyframes ghostAttentionPulse{0%,100%{transform:scale(1);box-shadow:none}40%{transform:scale(1.5);box-shadow:0 0 12px #d77affaa}}
+.ghost-carousel-toast{position:absolute;z-index:8;top:60px;left:12px;right:12px;padding:12px;background:#292039;border:1px solid #a978d5;border-radius:7px;color:#f1e6ff;font-size:11px;box-shadow:0 8px 20px #0009;pointer-events:none;animation:ghostToastIn .22s ease-out}
+@keyframes ghostToastIn{from{opacity:0;transform:translateY(-9px)}to{opacity:1;transform:translateY(0)}}
+.ghost-carousel .ghost-footer{min-height:39px;align-items:center;padding:0 15px}
+.ghost-carousel .ghost-footer button{color:#7792ad;padding:5px}
+.ghost-carousel .ghost-footer span{color:#54e8ed;font-size:10px}
+@media(prefers-reduced-motion:reduce){.ghost-carousel-indicator.pulse .ghost-carousel-indicator-count,.ghost-carousel-toast{animation:none}}
