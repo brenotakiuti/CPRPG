@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, LockKeyhole, Mail, Send, ShieldAlert, Smartphone, UserRound } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, LockKeyhole, Mail, Send, ShieldAlert, Smartphone, UserRound, LogOut, Wifi } from 'lucide-react';
 import { supabase } from './supabase';
 import './PlayerPhone.css';
 
@@ -31,6 +31,12 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     catch { return []; }
   });
   const [page, setPage] = useState(0);
+  const [toast, setToast] = useState('');
+  const [attentionPulse, setAttentionPulse] = useState<'messages' | 'notifications' | null>(null);
+  const attentionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialNoticesLoaded = useRef(false);
+  const knownNoticeIds = useRef(new Set<string>());
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const [revealedIdentities, setRevealedIdentities] = useState<Record<string,string>>({});
   const [selected, setSelected] = useState<{ id: string; label: string; conversationId?: string } | null>(null);
@@ -77,7 +83,19 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const knownMessages = useRef(new Set<string>());
   const initializedConversations = useRef(new Set<string>());
   const pulseTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  useEffect(() => () => { pulseTimers.current.forEach(clearTimeout); }, []);
+  useEffect(() => () => {
+    pulseTimers.current.forEach(clearTimeout);
+    if (attentionTimer.current) clearTimeout(attentionTimer.current);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+  }, []);
+  const alertIncoming = useCallback((kind: 'messages' | 'notifications', text: string) => {
+    setAttentionPulse(kind);
+    if (attentionTimer.current) clearTimeout(attentionTimer.current);
+    attentionTimer.current = setTimeout(() => setAttentionPulse(null), 600);
+    setToast(text);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(''), 2800);
+  }, []);
   const refresh = useCallback(async () => {
     const [t, r, shared, notices] = await Promise.all([
       supabase.rpc('phone_threads', { p_character_id: characterId }),
@@ -96,8 +114,15 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     // Only explicitly distributed NPC contacts belong in Contacts.
     // An unsolicited anonymous message belongs in the inbox, not the address book.
     setContacts(((shared.data || []) as Contact[]).filter(c => c.kind === 'npc'));
-    setContactNotices((notices.data || []) as ContactNotice[]);
-  }, [characterId]);
+    const nextNotices = (notices.data || []) as ContactNotice[];
+    if (initialNoticesLoaded.current) {
+      const incoming = nextNotices.find(n => !knownNoticeIds.current.has(n.id));
+      if (incoming) alertIncoming('notifications', 'NEW CONTACT RECEIVED');
+    }
+    nextNotices.forEach(n => knownNoticeIds.current.add(n.id));
+    initialNoticesLoaded.current = true;
+    setContactNotices(nextNotices);
+  }, [characterId, alertIncoming]);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -148,6 +173,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
             // Active conversation is refreshed below; no bubble animation.
           } else if (incoming.conversation_id) {
             setPulsingThreads(ids => [...new Set([...ids, incoming.conversation_id!])]);
+            alertIncoming('messages', 'NEW MESSAGE RECEIVED');
             const timer = setTimeout(() => setPulsingThreads(ids => ids.filter(id => id !== incoming.conversation_id)), 650);
             pulseTimers.current.push(timer);
           }
@@ -163,7 +189,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
         void refresh().catch(() => {});
       }).subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [characterId, refresh, read]);
+  }, [characterId, refresh, read, alertIncoming]);
   const labelFor = (id: string, fallback: string) => revealedIdentities[id] || contacts.find(c => c.identity_id === id)?.label || fallback;
   const openThread = (t: Thread) => { setError(''); setPage(1); setSelected({ id: t.other_identity_id, label: labelFor(t.other_identity_id,t.other_label), conversationId: t.conversation_id }); };
   const openContact = (c: Contact) => {
@@ -214,12 +240,14 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     }
   }, [page, contactNotices, readNoticeIds, noticeStorageKey]);
   const unreadNotices = contactNotices.filter(n => !readNoticeIds.includes(n.id)).length;
+  const unreadMessages = threads.reduce((sum, thread) => sum + Math.max(0, Number(thread.unread_count) || 0), 0);
   const time = (date: string) => new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   return <section className="ghost-link ghost-carousel" aria-label="Ghost Link messaging">
     <header className={"ghost-top" + (signalPulse ? " ghost-signal-pulse" : "")}>
       <span><img src="/ghost-link-icon.svg" width={26} height={26} alt="" aria-hidden="true"/> GHOST//LINK</span>
       <span><LockKeyhole size={13}/> PRIVATE CHANNEL</span>
     </header>
+    {toast && <div className="ghost-carousel-toast" role="status">{toast}</div>}
     <div className="ghost-carousel-stage"
       onTouchStart={e => { touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
       onTouchEnd={e => {
@@ -295,11 +323,16 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     <nav className="ghost-carousel-nav" aria-label="Ghost Link pages">
       <button type="button" onClick={() => changePage(-1)} aria-label="Previous page"><ChevronLeft size={23}/></button>
       <div className="ghost-carousel-dots" aria-label={['Ghost Link', 'Messages', 'Contacts', 'Notifications'][page]}>
-        {[0,1,2,3].map(i => <span key={i} className={i === page ? 'active' : ''} aria-hidden="true"/>)}
-        {unreadNotices > 0 && page !== 3 && <span className="ghost-carousel-notice-count" title={unreadNotices + ' unread notifications'}>{unreadNotices}</span>}
+        {[0,1,2,3].map(i => {
+          const count = i === 1 ? unreadMessages : i === 3 ? unreadNotices : 0;
+          return <span key={i} className={'ghost-carousel-indicator' + (i === page ? ' active' : '') + (attentionPulse === (i === 1 ? 'messages' : i === 3 ? 'notifications' : null) && (i === 1 || i === 3) ? ' pulse' : '')} aria-label={['Title', 'Messages', 'Contacts', 'Notifications'][i] + (count ? ': ' + count + ' unread' : '')}>
+            <span className="ghost-carousel-indicator-mark"/>
+            {count > 0 && <span className="ghost-carousel-indicator-count">{count > 99 ? '99+' : count}</span>}
+          </span>;
+        })}
       </div>
       <button type="button" onClick={() => changePage(1)} aria-label="Next page"><ChevronRight size={23}/></button>
     </nav>
-    <footer className="ghost-footer"><button type="button" onClick={onBack} aria-label="Return to dashboard"><ArrowLeft size={12}/> EXIT GHOST//LINK</button><span><LockKeyhole size={12}/> NETWORK ACTIVE</span></footer>
+    <footer className="ghost-footer"><button type="button" onClick={onBack} aria-label="Exit Ghost Link" title="Exit Ghost Link"><LogOut size={19}/></button><span title="Network active" aria-label="Network active"><Wifi size={18}/> ONLINE</span></footer>
   </section>;
 }
