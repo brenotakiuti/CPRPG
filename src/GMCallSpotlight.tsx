@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowRight, LockKeyhole, Minimize2, Maximize2, Phone, PhoneOff, RadioTower, Smartphone } from 'lucide-react';
 import { supabase } from './supabase';
 import './GhostCall.css';
@@ -20,6 +21,15 @@ export default function GMCallSpotlight({campaignId}:{campaignId:string}) {
  const [error,setError]=useState('');
  const [now,setNow]=useState(Date.now());
  const previous=useRef('');
+ const panelRef=useRef<HTMLElement|null>(null);
+ useLayoutEffect(()=>{
+  if(!call||minimized)return;
+  const previousMinHeight=document.body.style.minHeight;
+  const update=()=>{document.body.style.minHeight=Math.max(window.innerHeight,(panelRef.current?.getBoundingClientRect().height||0)+40)+'px';};
+  update();
+  window.addEventListener('resize',update);
+  return()=>{document.body.style.minHeight=previousMinHeight;window.removeEventListener('resize',update);};
+ },[call?.id,minimized]);
  const refresh=useCallback(async()=>{
   const r=await supabase.rpc('phone_gm_calls',{p_campaign_id:campaignId});
   if(r.error)throw r.error;
@@ -65,9 +75,9 @@ export default function GMCallSpotlight({campaignId}:{campaignId:string}) {
  const duration=call.answered_at?Math.max(0,Math.floor((now-new Date(call.answered_at).getTime())/1000)):0;
  const formatted=`${String(Math.floor(duration/60)).padStart(2,'0')}:${String(duration%60).padStart(2,'0')}`;
  if(minimized)return <div className="gl-gm-mini" role="status"><Smartphone size={18}/><div><strong>{ringing?'INCOMING CALL':'CONNECTED · '+formatted}</strong><span>{caller} → {npc}</span></div><button onClick={()=>setMinimized(false)} aria-label="Expand call"><Maximize2 size={18}/></button>{!ringing&&<button onClick={()=>void action('phone_gm_end_call')} disabled={busy}><PhoneOff size={18}/></button>}</div>;
- return <div className="gl-spotlight gl-gm-spotlight" role="dialog" aria-modal="true" aria-label="GM incoming call">
+ return createPortal(<div className="gl-spotlight gl-gm-spotlight" role="dialog" aria-modal="true" aria-label="GM incoming call">
   <div className="gl-spotlight-backdrop"/>
-  <section className="gl-gm-spotlight-panel">
+  <section className="gl-gm-spotlight-panel" ref={panelRef}>
    <header className="gl-gm-spotlight-header"><div><RadioTower size={21}/><span><strong>GHOST//LINK</strong><small>COMMUNICATION CONTROL</small></span></div><span className="gl-gm-call-badge">{ringing?'INCOMING':'CONNECTED'}</span></header>
    <div className="gl-gm-spotlight-title"><small>PLAYER-INITIATED TRANSMISSION</small><h2>{ringing?'INCOMING CALL':'CHANNEL ESTABLISHED'}</h2><p><LockKeyhole size={13}/> ENCRYPTED CONNECTION · NIGHT CITY NETWORK</p></div>
    <div className="gl-gm-participants">
@@ -83,5 +93,5 @@ export default function GMCallSpotlight({campaignId}:{campaignId:string}) {
    </div>
    <footer>GM-ONLY INFORMATION <span>GHOST//LINK // SECURE</span></footer>
   </section>
- </div>;
+ </div>,document.body);
 }

@@ -79,9 +79,8 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const pulseTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => { pulseTimers.current.forEach(clearTimeout); }, []);
   const refresh = useCallback(async () => {
-    const [t, d, r, shared, notices] = await Promise.all([
+    const [t, r, shared, notices] = await Promise.all([
       supabase.rpc('phone_threads', { p_character_id: characterId }),
-      supabase.rpc('phone_directory', { p_character_id: characterId }),
       supabase.rpc('phone_player_reveals', { p_character_id: characterId }),
       supabase.rpc('phone_player_shared_contacts', { p_character_id: characterId }),
       supabase.from('campaign_events')
@@ -91,14 +90,12 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
         .like('message','[GHOST//LINK CONTACT RECEIVED] %')
         .order('created_at',{ascending:false}).limit(100),
     ]);
-    if (t.error || d.error || r.error || shared.error || notices.error) throw new Error(t.error?.message || d.error?.message || r.error?.message || shared.error?.message || notices.error?.message);
+    if (t.error || r.error || shared.error || notices.error) throw new Error(t.error?.message || r.error?.message || shared.error?.message || notices.error?.message);
     setRevealedIdentities(Object.fromEntries(((r.data || []) as {identity_id:string;revealed_name:string}[]).map(x => [x.identity_id,x.revealed_name])));
     setThreads((t.data || []) as Thread[]);
-    const directory = (d.data || []) as Contact[];
-    const granted = (shared.data || []) as Contact[];
-    const byId = new Map(directory.map(c => [c.identity_id, c]));
-    granted.forEach(c => byId.set(c.identity_id, { ...byId.get(c.identity_id), ...c, can_message: true, can_call: true }));
-    setContacts(Array.from(byId.values()));
+    // Only explicitly distributed NPC contacts belong in Contacts.
+    // An unsolicited anonymous message belongs in the inbox, not the address book.
+    setContacts(((shared.data || []) as Contact[]).filter(c => c.kind === 'npc'));
     setContactNotices((notices.data || []) as ContactNotice[]);
   }, [characterId]);
   useEffect(() => {
@@ -173,7 +170,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     catch { /* History remains available even if local storage is blocked. */ }
     setReadNoticeIds(ids);
   };
-  const labelFor = (id: string, fallback: string) => revealedIdentities[id] || fallback;
+  const labelFor = (id: string, fallback: string) => revealedIdentities[id] || contacts.find(c => c.identity_id === id)?.label || fallback;
   const openThread = (t: Thread) => { setError(''); setDirectory(false); setSelected({ id: t.other_identity_id, label: labelFor(t.other_identity_id,t.other_label), conversationId: t.conversation_id }); };
   const openContact = (c: Contact) => {
     const existing = threads.find(t => t.other_identity_id === c.identity_id);
@@ -228,7 +225,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
       <div className="ghost-list">
         {directory ? contacts.filter(c => c.kind === 'npc' && c.can_message).map(c => <div key={c.identity_id} className="ghost-contact-expand">
           <button type="button" className="ghost-contact" aria-expanded={expandedContact === c.identity_id} onClick={() => setExpandedContact(current => current === c.identity_id ? null : c.identity_id)}>
-            <UserRound size={24}/><span><strong>{labelFor(c.identity_id,c.label)}</strong><small>{c.anonymous && !revealedIdentities[c.identity_id] ? 'MASKED IDENTITY' : 'REGISTERED CONTACT'}</small></span><ChevronDown size={18} className={expandedContact === c.identity_id ? 'ghost-contact-chevron expanded' : 'ghost-contact-chevron'}/>
+            <UserRound size={24}/><span><strong>{labelFor(c.identity_id,c.label)}</strong><small>{c.anonymous && !revealedIdentities[c.identity_id] ? 'CONTACT ALIAS · IDENTITY HIDDEN' : 'REGISTERED CONTACT'}</small></span><ChevronDown size={18} className={expandedContact === c.identity_id ? 'ghost-contact-chevron expanded' : 'ghost-contact-chevron'}/>
           </button>
           <div className={'ghost-contact-reveal' + (expandedContact === c.identity_id ? ' open' : '')} aria-hidden={expandedContact !== c.identity_id}><div className="ghost-contact-actions">
             <button type="button" onClick={() => openContact(c)}><Mail size={19}/> Message</button>
