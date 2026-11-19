@@ -92,3 +92,6 @@
 .ghost-carousel .ghost-footer button{color:#7792ad;padding:5px}
 .ghost-carousel .ghost-footer span{color:#54e8ed;font-size:10px}
 @media(prefers-reduced-motion:reduce){.ghost-carousel-indicator.pulse .ghost-carousel-indicator-count,.ghost-carousel-toast{animation:none}}
+
+/* Override legacy dot sizing on the new indicator containers. */
+.ghost-carousel-dots > span.ghost-carousel-indicator,.ghost-carousel-dots > span.ghost-carousel-indicator.active{width:21px;height:27px;background:transparent;border-radius:0}
