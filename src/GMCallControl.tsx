@@ -11,13 +11,16 @@ export default function GMCallControl({campaignId,identities,players}:{campaignI
   const [identityId,setIdentityId]=useState('');
   const [characterId,setCharacterId]=useState('');
   const [calls,setCalls]=useState<Call[]>([]);
+  const [endingCall,setEndingCall]=useState<Call|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [ready,setReady]=useState(false);
   const refresh=useCallback(async()=>{
     const r=await supabase.rpc('phone_gm_calls',{p_campaign_id:campaignId});
     if(r.error)throw r.error;
-    setCalls((r.data||[]) as Call[]);
+    const next=(r.data||[]) as Call[];
+    setCalls(next);
+    setEndingCall(previous=>previous&&next.some(c=>c.id===previous.id&&!terminal.includes(c.status))?null:previous);
     setReady(true);
   },[campaignId]);
   useEffect(()=>{
@@ -31,9 +34,14 @@ export default function GMCallControl({campaignId,identities,players}:{campaignI
   useEffect(()=>{if(!identities.some(i=>i.id===identityId))setIdentityId(identities[0]?.id||'');},[identities,identityId]);
   useEffect(()=>{if(!players.some(p=>p.id===characterId))setCharacterId(players[0]?.id||'');},[players,characterId]);
   const active=calls.find(c=>!terminal.includes(c.status));
+  useEffect(()=>{
+    if(!endingCall)return;
+    const timer=window.setTimeout(()=>setEndingCall(null),1300);
+    return()=>window.clearTimeout(timer);
+  },[endingCall?.id]);
   const action=async(name:string,args:Record<string,unknown>)=>{
     setBusy(true);setError('');
-    try{const r=await supabase.rpc(name,args);if(r.error)throw r.error;await refresh();}
+    try{const r=await supabase.rpc(name,args);if(r.error)throw r.error;if(name==='phone_gm_end_call'&&active)setEndingCall(active);await refresh();}
     catch(e){setError(e instanceof Error?e.message:String(e));}
     finally{setBusy(false);}
   };
@@ -45,12 +53,12 @@ export default function GMCallControl({campaignId,identities,players}:{campaignI
       <label>Calling as<select value={identityId} disabled={!!active||busy} onChange={e=>setIdentityId(e.target.value)}><option value="">Select NPC...</option>{identities.map(i=><option key={i.id} value={i.id}>{i.internal_name} ({i.anonymous?'Unknown Number':i.display_name})</option>)}</select></label>
       <label>Call recipient<select value={characterId} disabled={!!active||busy} onChange={e=>setCharacterId(e.target.value)}><option value="">Select player...</option>{players.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
     </div>
-    {active?<div className="gl-gm-active">
-      <span className="gl-call-state">{active.status==='ringing'?(active.direction==='player'?'INCOMING PLAYER CALL':'CALLING...'):'CHANNEL ESTABLISHED'}</span>
-      <strong>{active.direction==='player' ? character(active.character_id)+' → '+(identity(active.npc_identity_id)?.internal_name||'NPC') : (identity(active.npc_identity_id)?.internal_name||'NPC')+' → '+character(active.character_id)}</strong>
-      <div className={'gl-signal'+(active.status==='ringing'?' gl-signal-ringing':'')} aria-hidden="true">{Array.from({length:15},(_,i)=><i key={i} style={{animationDelay:(-i*.13)+'s'}}/>)}</div>
-      {active.direction === 'player' && active.status === 'ringing' && <button className="gl-call-start" disabled={busy} onClick={() => void action('phone_gm_answer_call',{p_call_id:active.id})}><Phone size={17}/>Answer</button>}
-      <button className="gl-call-stop" disabled={busy} onClick={()=>void action('phone_gm_end_call',{p_call_id:active.id})}><PhoneOff size={17}/>{active.direction==='player' && active.status==='ringing'?'Decline':active.status==='ringing'?'Cancel Call':'Hang Up'}</button>
+    {(active||endingCall)?<div className="gl-gm-active">
+      <span className="gl-call-state">{!active?'CONNECTION TERMINATED':active.status==='ringing'?(active.direction==='player'?'INCOMING PLAYER CALL':'CALLING...'):'CHANNEL ESTABLISHED'}</span>
+      <strong>{(active||endingCall)!.direction==='player' ? character((active||endingCall)!.character_id)+' → '+(identity((active||endingCall)!.npc_identity_id)?.internal_name||'NPC') : (identity(active.npc_identity_id)?.internal_name||'NPC')+' → '+character(active.character_id)}</strong>
+      <div className={'gl-signal'+(!active?' gl-signal-ended':active.status==='ringing'?' gl-signal-ringing':'')} aria-hidden="true">{Array.from({length:15},(_,i)=><i key={i} style={{animationDelay:(-i*.13)+'s'}}/>)}</div>
+      {active && active.direction === 'player' && active.status === 'ringing' && <button className="gl-call-start" disabled={busy} onClick={() => void action('phone_gm_answer_call',{p_call_id:active.id})}><Phone size={17}/>Answer</button>}
+      {active&&<button className="gl-call-stop" disabled={busy} onClick={()=>void action('phone_gm_end_call',{p_call_id:active.id})}><PhoneOff size={17}/>{active.direction==='player' && active.status==='ringing'?'Decline':active.status==='ringing'?'Cancel Call':'Hang Up'}</button>}
     </div>:<button className="gl-call-start" disabled={busy||!identityId||!characterId||!ready} onClick={()=>void action('phone_gm_start_call',{p_campaign_id:campaignId,p_npc_identity_id:identityId,p_character_id:characterId})}><Phone size={17}/>Place Call</button>}
     {error&&<p className="gl-call-error" role="alert">{error}</p>}
     <h3>RECENT CALLS</h3>

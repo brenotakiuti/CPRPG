@@ -64,3 +64,9 @@
 .gl-spotlight.gl-gm-spotlight{position:absolute;inset:0 0 auto;min-height:100vh;height:auto;align-items:flex-start;overflow:visible;padding:20px 18px}
 .gl-gm-spotlight .gl-spotlight-backdrop{position:fixed}
 .gl-gm-spotlight .gl-gm-spotlight-panel{max-height:none;overflow:visible;margin:0 auto}
+
+/* Three visually distinct call phases: synchronized ringing, live waveform, and collapse. */
+.gl-signal-ringing i{animation:gl-signal-ring 1.2s ease-in-out infinite;animation-delay:0s!important}
+@keyframes gl-signal-ring{0%,100%{height:5px;opacity:.25}45%,55%{height:28px;opacity:1}}
+.gl-signal-ended i{animation:none!important;height:3px!important;opacity:.25!important;transition:height .45s ease,opacity .45s ease}
+@media(prefers-reduced-motion:reduce){.gl-signal-ringing i{animation:none!important;height:14px}}
