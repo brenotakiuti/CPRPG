@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowLeft, ChevronDown, LockKeyhole, Mail, MessageSquare, Send, ShieldAlert, Smartphone, UserRound } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, LockKeyhole, Mail, MessageSquare, Send, ShieldAlert, Smartphone, UserRound } from 'lucide-react';
 import { supabase } from './supabase';
 import './PlayerPhone.css';
 
@@ -30,11 +30,11 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     try { return JSON.parse(localStorage.getItem('ghost-link-contact-notices-read-' + characterId) || '[]') as string[]; }
     catch { return []; }
   });
-  const [showNotices, setShowNotices] = useState(false);
+  const [page, setPage] = useState(0);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
   const [revealedIdentities, setRevealedIdentities] = useState<Record<string,string>>({});
   const [selected, setSelected] = useState<{ id: string; label: string; conversationId?: string } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [directory, setDirectory] = useState(false);
   const [expandedContact, setExpandedContact] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
   const [draft, setDraft] = useState('');
@@ -164,17 +164,11 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
       }).subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [characterId, refresh, read]);
-  const markNoticesRead = () => {
-    const ids = [...new Set([...readNoticeIds,...contactNotices.map(n=>n.id)])];
-    try { localStorage.setItem(noticeStorageKey,JSON.stringify(ids)); }
-    catch { /* History remains available even if local storage is blocked. */ }
-    setReadNoticeIds(ids);
-  };
   const labelFor = (id: string, fallback: string) => revealedIdentities[id] || contacts.find(c => c.identity_id === id)?.label || fallback;
-  const openThread = (t: Thread) => { setError(''); setDirectory(false); setSelected({ id: t.other_identity_id, label: labelFor(t.other_identity_id,t.other_label), conversationId: t.conversation_id }); };
+  const openThread = (t: Thread) => { setError(''); setPage(1); setSelected({ id: t.other_identity_id, label: labelFor(t.other_identity_id,t.other_label), conversationId: t.conversation_id }); };
   const openContact = (c: Contact) => {
     const existing = threads.find(t => t.other_identity_id === c.identity_id);
-    setError(''); setDirectory(false);
+    setError(''); setPage(1);
     setSelected({ id: c.identity_id, label: labelFor(c.identity_id,c.label), conversationId: existing?.conversation_id });
   };
   const callContact = async (c: Contact) => {
@@ -205,42 +199,107 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     } catch (e) { setError(phoneErrorMessage(e)); }
     finally { setBusy(false); }
   };
+  const changePage = (delta: number) => {
+    setSelected(null);
+    setExpandedContact(null);
+    setPage(current => (current + delta + 4) % 4);
+  };
+  useEffect(() => {
+    if (page === 3 && contactNotices.length) {
+      const ids = [...new Set([...readNoticeIds, ...contactNotices.map(n => n.id)])];
+      if (ids.length !== readNoticeIds.length) {
+        try { localStorage.setItem(noticeStorageKey, JSON.stringify(ids)); } catch { /* Ignore storage errors. */ }
+        setReadNoticeIds(ids);
+      }
+    }
+  }, [page, contactNotices, readNoticeIds, noticeStorageKey]);
+  const unreadNotices = contactNotices.filter(n => !readNoticeIds.includes(n.id)).length;
   const time = (date: string) => new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  return <section className="ghost-link" aria-label="Ghost Link messaging">
-    <header className={"ghost-top" + (signalPulse ? " ghost-signal-pulse" : "")}><span><img src="/ghost-link-icon.svg" width={26} height={26} alt="" aria-hidden="true"/> GHOST//LINK</span><span><LockKeyhole size={13}/> PRIVATE CHANNEL</span></header>
-    {!selected ? <>
-      <div className="ghost-heading"><button onClick={onBack} aria-label="Return to dashboard"><ArrowLeft size={20}/></button><div><h2>{directory ? 'CONTACTS' : 'SIGNAL INBOX'}</h2><small>PRIVATE COMMUNICATION NETWORK</small></div><button onClick={() => setDirectory(!directory)} aria-label={directory ? 'Show inbox' : 'New conversation'}><MessageSquare size={21}/></button></div>
-      {loading && <p className="ghost-muted">Connecting to network...</p>}
-      {!loading && (directory ? contacts.length === 0 : threads.length === 0) && <p className="ghost-muted">{directory ? 'No contacts available.' : 'No conversations yet. Select the message icon to find contacts.'}</p>}
-      {!directory && <div className="ghost-notice-toolbar"><button type="button" onClick={() => setShowNotices(v => !v)}>CONTACT NOTIFICATIONS {contactNotices.some(n => !readNoticeIds.includes(n.id)) ? '(' + contactNotices.filter(n => !readNoticeIds.includes(n.id)).length + ' NEW)' : ''}</button></div>}
-      {!directory && showNotices && <div className="ghost-contact-notices">
-        <div className="ghost-notices-header"><strong>CONTACT DELIVERY HISTORY</strong><button type="button" onClick={markNoticesRead} disabled={!contactNotices.some(n => !readNoticeIds.includes(n.id))}>Mark all read</button></div>
-        {contactNotices.length===0 && <p className="ghost-muted">No contact deliveries yet.</p>}
-        {contactNotices.map(n => <div key={n.id} className={'ghost-contact-notice' + (!readNoticeIds.includes(n.id) ? ' unread' : '')}>
-          <strong>GHOST//LINK · NEW CONTACT RECEIVED</strong>
-          <span>{n.message.slice('[GHOST//LINK CONTACT RECEIVED] '.length)} added to your directory.</span>
-          <small>{new Date(n.created_at).toLocaleString()}</small>
-        </div>)}
-      </div>}
-      <div className="ghost-list">
-        {directory ? contacts.filter(c => c.kind === 'npc' && c.can_message).map(c => <div key={c.identity_id} className="ghost-contact-expand">
-          <button type="button" className="ghost-contact" aria-expanded={expandedContact === c.identity_id} onClick={() => setExpandedContact(current => current === c.identity_id ? null : c.identity_id)}>
-            <UserRound size={24}/><span><strong>{labelFor(c.identity_id,c.label)}</strong><small>{c.anonymous && !revealedIdentities[c.identity_id] ? 'ANONYMOUS CONTACT' : 'REGISTERED CONTACT'}</small></span><ChevronDown size={18} className={expandedContact === c.identity_id ? 'ghost-contact-chevron expanded' : 'ghost-contact-chevron'}/>
-          </button>
-          <div className={'ghost-contact-reveal' + (expandedContact === c.identity_id ? ' open' : '')} aria-hidden={expandedContact !== c.identity_id}><div className="ghost-contact-actions">
-            <button type="button" onClick={() => openContact(c)}><Mail size={19}/> Message</button>
-            <button type="button" disabled={calling || !c.can_call} onClick={() => void callContact(c)}><Smartphone size={19}/> {calling ? 'Calling…' : 'Call'}</button>
-          </div></div>
-        </div>)
-          : threads.map(t => <button key={t.conversation_id} className={"ghost-contact" + (pulsingThreads.includes(t.conversation_id) ? " ghost-contact-pulse" : "")} onClick={() => openThread(t)}><UserRound size={24}/><span><strong>{labelFor(t.other_identity_id,t.other_label)}</strong><small>{t.last_message || 'New conversation'}</small></span>{Number(t.unread_count) > 0 && <b className="ghost-unread">{t.unread_count}</b>}</button>)}
+  return <section className="ghost-link ghost-carousel" aria-label="Ghost Link messaging">
+    <header className={"ghost-top" + (signalPulse ? " ghost-signal-pulse" : "")}>
+      <span><img src="/ghost-link-icon.svg" width={26} height={26} alt="" aria-hidden="true"/> GHOST//LINK</span>
+      <span><LockKeyhole size={13}/> PRIVATE CHANNEL</span>
+    </header>
+    <div className="ghost-carousel-stage"
+      onTouchStart={e => { touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
+      onTouchEnd={e => {
+        const start = touchStart.current;
+        touchStart.current = null;
+        if (!start || selected) return;
+        const dx = e.changedTouches[0].clientX - start.x;
+        const dy = e.changedTouches[0].clientY - start.y;
+        if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4) changePage(dx < 0 ? 1 : -1);
+      }}>
+      <div className="ghost-carousel-track" style={{ transform: `translateX(-${page * 25}%)` }}>
+        <section className="ghost-carousel-slide" aria-hidden={page !== 0}>
+          <div className="ghost-carousel-hero">
+            <div className="ghost-carousel-emblem"><img src="/ghost-link-icon.svg" alt="" aria-hidden="true"/></div>
+            <h1>GHOST//LINK</h1>
+            <p>PRIVATE COMMUNICATION NETWORK</p>
+            <small>● SIGNAL ESTABLISHED</small>
+          </div>
+        </section>
+        <section className="ghost-carousel-slide" aria-hidden={page !== 1}>
+          {!selected ? <>
+            <div className="ghost-carousel-heading"><h2>SIGNAL INBOX</h2><small>ENCRYPTED MESSAGES</small></div>
+            {loading && <p className="ghost-muted">Connecting to network...</p>}
+            {!loading && threads.length === 0 && <p className="ghost-muted">No conversations yet. Find a contact in Contacts.</p>}
+            <div className="ghost-list">
+              {threads.map(t => <button key={t.conversation_id} className={"ghost-contact" + (pulsingThreads.includes(t.conversation_id) ? " ghost-contact-pulse" : "")} onClick={() => openThread(t)}>
+                <UserRound size={24}/><span><strong>{labelFor(t.other_identity_id,t.other_label)}</strong><small>{t.last_message || 'New conversation'}</small></span>
+                {Number(t.unread_count) > 0 && <b className="ghost-unread">{t.unread_count}</b>}
+              </button>)}
+            </div>
+          </> : <>
+            <div className="ghost-heading"><button onClick={() => { setSelected(null); void refresh().catch(() => {}); }} aria-label="Back to inbox"><ArrowLeft size={20}/></button><UserRound size={27}/><div><h2>{selectedLabel}</h2><small>{selectedMasked ? 'IDENTITY MASKED' : 'SECURE CONNECTION'}</small></div></div>
+            <div className="ghost-status"><ShieldAlert size={15}/> {selectedMasked ? 'UNREGISTERED SIGNAL' : 'PRIVATE COMMUNICATION'}</div>
+            <div className="ghost-messages" ref={historyRef} onScroll={handleHistoryScroll}>
+              {messages.length === 0 && <p className="ghost-muted">No messages yet.</p>}
+              {messages.map(m => m.body.startsWith(REVEAL_EVENT_PREFIX) ?
+                <div key={m.message_id} className="ghost-reveal-event" role="status"><div className="ghost-reveal-title">GHOST//LINK · IDENTITY REVEALED</div><div className="ghost-reveal-description">{m.body.slice(REVEAL_EVENT_PREFIX.length)}</div><time className="ghost-reveal-time" dateTime={m.created_at}>{time(m.created_at)}</time></div> :
+                <div key={m.message_id} className={'ghost-bubble ' + (m.sender_identity_id === selfId ? 'outgoing' : 'incoming')}><span>{m.body}</span><small>{time(m.created_at)}</small></div>)}
+            </div>
+            <form className="ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input value={draft} onChange={e => setDraft(e.target.value)} maxLength={4000} placeholder="Transmit message..." aria-label="Message"/><button type="submit" disabled={busy || !draft.trim()} aria-label="Send message"><Send size={19}/></button></form>
+          </>}
+        </section>
+        <section className="ghost-carousel-slide" aria-hidden={page !== 2}>
+          <div className="ghost-carousel-heading"><h2>CONTACTS</h2><small>REGISTERED IDENTITIES</small></div>
+          {loading && <p className="ghost-muted">Connecting to network...</p>}
+          {!loading && contacts.filter(c => c.can_message || c.can_call).length === 0 && <p className="ghost-muted">No contacts available.</p>}
+          <div className="ghost-list">
+            {contacts.filter(c => c.kind === 'npc' && (c.can_message || c.can_call)).map(c => <div key={c.identity_id} className="ghost-contact-expand">
+              <button type="button" className="ghost-contact" aria-expanded={expandedContact === c.identity_id} onClick={() => setExpandedContact(current => current === c.identity_id ? null : c.identity_id)}>
+                <UserRound size={24}/><span><strong>{labelFor(c.identity_id,c.label)}</strong><small>{c.anonymous && !revealedIdentities[c.identity_id] ? 'ANONYMOUS CONTACT' : 'REGISTERED CONTACT'}</small></span><ChevronDown size={18} className={expandedContact === c.identity_id ? 'ghost-contact-chevron expanded' : 'ghost-contact-chevron'}/>
+              </button>
+              <div className={'ghost-contact-reveal' + (expandedContact === c.identity_id ? ' open' : '')} aria-hidden={expandedContact !== c.identity_id}><div className="ghost-contact-actions">
+                {c.can_message && <button type="button" onClick={() => openContact(c)}><Mail size={19}/> Message</button>}
+                {c.can_call && <button type="button" disabled={calling} onClick={() => void callContact(c)}><Smartphone size={19}/> {calling ? 'Calling…' : 'Call'}</button>}
+              </div></div>
+            </div>)}
+          </div>
+        </section>
+        <section className="ghost-carousel-slide" aria-hidden={page !== 3}>
+          <div className="ghost-carousel-heading"><h2>NOTIFICATIONS</h2><small>NETWORK ACTIVITY</small></div>
+          <div className="ghost-contact-notices">
+            {contactNotices.length === 0 && <p className="ghost-muted">No contact deliveries yet.</p>}
+            {contactNotices.map(n => <div key={n.id} className={'ghost-contact-notice' + (!readNoticeIds.includes(n.id) ? ' unread' : '')}>
+              <strong>GHOST//LINK · NEW CONTACT RECEIVED</strong>
+              <span>{n.message.slice('[GHOST//LINK CONTACT RECEIVED] '.length)} added to your directory.</span>
+              <small>{new Date(n.created_at).toLocaleString()}</small>
+            </div>)}
+          </div>
+        </section>
       </div>
-    </> : <>
-      <div className="ghost-heading"><button onClick={() => { setSelected(null); void refresh().catch(() => {}); }} aria-label="Back to inbox"><ArrowLeft size={20}/></button><UserRound size={27}/><div><h2>{selectedLabel}</h2><small>{selectedMasked ? 'IDENTITY MASKED' : 'SECURE CONNECTION'}</small></div></div>
-      <div className="ghost-status"><ShieldAlert size={15}/> {selectedMasked ? 'UNREGISTERED SIGNAL' : 'PRIVATE COMMUNICATION'}</div>
-      <div className="ghost-messages" ref={historyRef} onScroll={handleHistoryScroll}>{messages.length === 0 && <p className="ghost-muted">No messages yet.</p>}{messages.map(m => m.body.startsWith(REVEAL_EVENT_PREFIX) ? <div key={m.message_id} className="ghost-reveal-event" role="status"><div className="ghost-reveal-title">GHOST//LINK · IDENTITY REVEALED</div><div className="ghost-reveal-description">{m.body.slice(REVEAL_EVENT_PREFIX.length)}</div><time className="ghost-reveal-time" dateTime={m.created_at}>{time(m.created_at)}</time></div> : <div key={m.message_id} className={'ghost-bubble ' + (m.sender_identity_id === selfId ? 'outgoing' : 'incoming')}><span>{m.body}</span><small>{time(m.created_at)}</small></div>)}</div>
-      <form className="ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input value={draft} onChange={e => setDraft(e.target.value)} maxLength={4000} placeholder="Transmit message..." aria-label="Message"/><button type="submit" disabled={busy || !draft.trim()} aria-label="Send message"><Send size={19}/></button></form>
-    </>}
+    </div>
     {error && <p className="ghost-error" role="alert">{error}</p>}
-    <footer className="ghost-footer"><LockKeyhole size={12}/> GHOST//LINK • NETWORK ACTIVE</footer>
+    <nav className="ghost-carousel-nav" aria-label="Ghost Link pages">
+      <button type="button" onClick={() => changePage(-1)} aria-label="Previous page"><ChevronLeft size={23}/></button>
+      <div className="ghost-carousel-dots" aria-label={['Ghost Link', 'Messages', 'Contacts', 'Notifications'][page]}>
+        {[0,1,2,3].map(i => <span key={i} className={i === page ? 'active' : ''} aria-hidden="true"/>)}
+        {unreadNotices > 0 && page !== 3 && <span className="ghost-carousel-notice-count" title={unreadNotices + ' unread notifications'}>{unreadNotices}</span>}
+      </div>
+      <button type="button" onClick={() => changePage(1)} aria-label="Next page"><ChevronRight size={23}/></button>
+    </nav>
+    <footer className="ghost-footer"><button type="button" onClick={onBack} aria-label="Return to dashboard"><ArrowLeft size={12}/> EXIT GHOST//LINK</button><span><LockKeyhole size={12}/> NETWORK ACTIVE</span></footer>
   </section>;
 }
