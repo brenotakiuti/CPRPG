@@ -40,3 +40,38 @@
 .ghost-contact-reveal>.ghost-contact-actions{min-height:0;overflow:hidden;padding-top:0;padding-bottom:0;transition:padding .24s ease}
 .ghost-contact-reveal.open>.ghost-contact-actions{padding-top:10px;padding-bottom:10px}
 @media(prefers-reduced-motion:reduce){.ghost-contact-reveal,.ghost-contact-reveal>.ghost-contact-actions{transition:none}}
+
+
+/* Ghost//Link: four full-size carousel pages; preserve existing message and contact styling. */
+.ghost-carousel{height:min(78dvh,760px);min-height:520px;max-height:calc(100dvh - 24px)}
+.ghost-carousel-stage{flex:1;min-height:0;overflow:hidden;position:relative;touch-action:pan-y}
+.ghost-carousel-track{display:flex;width:400%;height:100%;transition:transform .24s ease-out;will-change:transform}
+.ghost-carousel-slide{width:25%;flex:0 0 25%;min-width:0;min-height:0;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden;padding:18px 14px 8px}
+.ghost-carousel-heading{padding:0 2px 15px;border-bottom:1px solid #263a52;margin-bottom:11px}
+.ghost-carousel-heading h2{font-size:17px;letter-spacing:1.3px;color:#f0f7ff;margin:0 0 5px}
+.ghost-carousel-heading small{font-size:10px;color:#d77aff;letter-spacing:.8px}
+.ghost-carousel .ghost-list{overflow-y:auto;min-height:0;padding:0 0 12px}
+.ghost-carousel .ghost-contact-notices{flex:1;min-height:0;max-height:none;overflow-y:auto;margin:0;padding:2px 0;background:transparent;border:0}
+.ghost-carousel .ghost-contact-notice{margin:0 0 9px;background:#171b30}
+.ghost-carousel .ghost-contact-notice.unread{background:#2d2240}
+.ghost-carousel-hero{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:13px}
+.ghost-carousel-emblem{width:96px;height:96px;border:2px solid #54e8ed;border-radius:24px;display:grid;place-items:center;transform:rotate(45deg);box-shadow:0 0 28px #35c5d322}
+.ghost-carousel-emblem img{width:62px;height:62px;transform:rotate(-45deg)}
+.ghost-carousel-hero h1{font-size:clamp(21px,6vw,29px);letter-spacing:2px;color:#54e8ed;margin:14px 0 0}
+.ghost-carousel-hero p{font-size:10px;letter-spacing:1.4px;color:#91a9c0;margin:0}
+.ghost-carousel-hero small{color:#54e8ed;font-size:10px;margin-top:14px}
+.ghost-carousel-nav{height:62px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#101c30;border-top:1px solid #2d4864}
+.ghost-carousel-nav button{width:37px;height:37px;display:grid;place-items:center;background:#14283a;border:1px solid #3d7585;border-radius:6px;color:#54e8ed;cursor:pointer}
+.ghost-carousel-dots{display:flex;align-items:center;gap:10px;position:relative}
+.ghost-carousel-dots>span:not(.ghost-carousel-notice-count){height:6px;width:6px;background:#536c7c;border-radius:9px;transition:width .2s,background .2s}
+.ghost-carousel-dots>span.active{width:17px;background:#54e8ed}
+.ghost-carousel-notice-count{position:absolute;left:calc(100% + 9px);background:#d77aff;color:#101524;font-size:9px;font-weight:700;border-radius:9px;padding:2px 5px}
+.ghost-carousel .ghost-footer{display:flex;justify-content:space-between;gap:8px;padding:9px 12px}
+.ghost-carousel .ghost-footer button{display:flex;align-items:center;gap:5px;background:none;border:0;color:#7792ad;font-size:10px;letter-spacing:.5px;cursor:pointer;padding:0}
+.ghost-carousel .ghost-footer span{display:flex;align-items:center;gap:5px}
+.ghost-carousel .ghost-heading{padding:0 0 12px;flex-shrink:0}
+.ghost-carousel .ghost-status{margin:10px 0;flex-shrink:0}
+.ghost-carousel .ghost-messages{min-height:0;max-height:none;overflow-y:auto;flex:1}
+.ghost-carousel .ghost-compose{padding:10px 0 3px;flex-shrink:0}
+.ghost-carousel .ghost-error{flex-shrink:0}
+@media(prefers-reduced-motion:reduce){.ghost-carousel-track{transition:none}}
