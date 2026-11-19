@@ -225,7 +225,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
       <div className="ghost-list">
         {directory ? contacts.filter(c => c.kind === 'npc' && c.can_message).map(c => <div key={c.identity_id} className="ghost-contact-expand">
           <button type="button" className="ghost-contact" aria-expanded={expandedContact === c.identity_id} onClick={() => setExpandedContact(current => current === c.identity_id ? null : c.identity_id)}>
-            <UserRound size={24}/><span><strong>{labelFor(c.identity_id,c.label)}</strong><small>{c.anonymous && !revealedIdentities[c.identity_id] ? 'CONTACT ALIAS · IDENTITY HIDDEN' : 'REGISTERED CONTACT'}</small></span><ChevronDown size={18} className={expandedContact === c.identity_id ? 'ghost-contact-chevron expanded' : 'ghost-contact-chevron'}/>
+            <UserRound size={24}/><span><strong>{labelFor(c.identity_id,c.label)}</strong><small>{c.anonymous && !revealedIdentities[c.identity_id] ? 'ANONYMOUS CONTACT' : 'REGISTERED CONTACT'}</small></span><ChevronDown size={18} className={expandedContact === c.identity_id ? 'ghost-contact-chevron expanded' : 'ghost-contact-chevron'}/>
           </button>
           <div className={'ghost-contact-reveal' + (expandedContact === c.identity_id ? ' open' : '')} aria-hidden={expandedContact !== c.identity_id}><div className="ghost-contact-actions">
             <button type="button" onClick={() => openContact(c)}><Mail size={19}/> Message</button>

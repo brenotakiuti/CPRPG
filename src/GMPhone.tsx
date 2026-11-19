@@ -45,6 +45,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
   const [contactBusy, setContactBusy] = useState(false);
   const [contactRecipients, setContactRecipients] = useState<string[]>([]);
   const [contactReview, setContactReview] = useState(false);
+  const [contactNameMode, setContactNameMode] = useState<'anonymous'|'real'>('anonymous');
   const [contactResult, setContactResult] = useState('');
   const [creatingIdentity, setCreatingIdentity] = useState(false);
   const [internalName, setInternalName] = useState('The Observer');
@@ -249,7 +250,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     try {
       const result = await supabase.rpc('phone_gm_distribute_contact', {
         p_campaign_id: campaignId, p_npc_identity_id: contactNpcId,
-        p_character_ids: contactRecipients,
+        p_character_ids: contactRecipients, p_reveal_real_name: contactNameMode === 'real',
       });
       if (result.error) throw result.error;
       await loadContactGrants();
@@ -357,7 +358,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
       <div className="gm-ghost-identity-directory">
         {allIdentities.map(identity => <button type="button" key={identity.id}
           className={'gm-ghost-identity-choice' + (contactNpcId === identity.id ? ' active' : '')}
-          onClick={() => { setContactNpcId(identity.id); setContactRecipients([]); setContactReview(false); setContactResult(''); }}>
+          onClick={() => { setContactNpcId(identity.id); setContactRecipients([]); setContactNameMode('anonymous'); setContactReview(false); setContactResult(''); }}>
           <strong>{identity.internal_name}</strong>
           <small>{identity.anonymous ? 'Anonymous · shared alias: ' + identity.display_name : 'Public · ' + identity.display_name}</small>
         </button>)}
@@ -382,10 +383,11 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
               : <input type="checkbox" checked={contactRecipients.includes(player.id)} disabled={contactBusy || contactReview} onChange={e => setContactRecipients(current => e.target.checked ? [...current,player.id] : current.filter(id => id !== player.id))} aria-label={'Send contact to ' + player.name}/>}
           </div>;
         })}</div>
+        <fieldset className="gm-ghost-contact-review" disabled={contactBusy || contactReview} style={{marginTop:16}}><legend>NAME SHOWN TO RECIPIENTS</legend><label style={{display:'block',margin:'8px 0'}}><input type="radio" name="contact-name-mode" checked={contactNameMode==='anonymous'} onChange={()=>setContactNameMode('anonymous')}/> Anonymous — Unknown Number</label><label style={{display:'block',margin:'8px 0'}}><input type="radio" name="contact-name-mode" checked={contactNameMode==='real'} onChange={()=>setContactNameMode('real')}/> Real name — {allIdentities.find(i=>i.id===contactNpcId)?.internal_name}</label></fieldset>
         {contactReview ? <div className="gm-ghost-contact-review" role="group" aria-label="Review contact distribution">
           <strong>REVIEW DISTRIBUTION</strong>
           <p>NPC: {identities.find(i => i.id === contactNpcId)?.internal_name}</p>
-          <p>Player sees: {identities.find(i => i.id === contactNpcId)?.display_name || 'Unknown Number'}</p>
+          <p>Player sees: {contactNameMode === 'real' ? allIdentities.find(i => i.id === contactNpcId)?.internal_name : 'Unknown Number'}</p>
           <p>Recipients: {players.filter(p => contactRecipients.includes(p.id)).map(p => p.name).join(', ')}</p>
           <p>Each new recipient receives a persistent Ghost//Link notification.</p>
           <div className="gm-ghost-contact-actions"><button type="button" disabled={contactBusy} onClick={() => setContactReview(false)}>Back</button><button type="button" disabled={contactBusy} onClick={() => void sendContacts()}>{contactBusy ? 'Sending…' : 'Confirm & Send'}</button></div>
