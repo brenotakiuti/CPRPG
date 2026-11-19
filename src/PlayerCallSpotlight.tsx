@@ -55,7 +55,7 @@ export default function PlayerCallSpotlight({characterId}:{characterId:string}){
       <h2>{call.caller_label||'Unknown Number'}</h2>
       <p className="gl-call-state">{ringing?(outgoing?'CALLING...':'INCOMING TRANSMISSION'):connected?'CHANNEL ESTABLISHED':'CONNECTION TERMINATED'}</p>
       <div className={'gl-signal'+(closing?' gl-signal-ended':'')+(ringing?' gl-signal-ringing':'')} aria-label={ringing?'Ringing signal':connected?'Active encrypted signal':'Signal disconnected'}>{Array.from({length:15},(_,i)=><i key={i} style={{animationDelay:(-i*.11)+'s'}}/>)}</div>
-      {ringing?<div className="gl-call-actions"><button disabled={busy} className="gl-call-stop" onClick={()=>void respond('decline')}><PhoneOff size={19}/>{outgoing?'Cancel':'Decline'}</button>{!outgoing&&<button disabled={busy} className="gl-call-start" onClick={()=>void respond('answer')}><Phone size={19}/>Answer</button>}</div>:connected?<div className="gl-call-actions"><button disabled={busy} className="gl-call-stop" onClick={()=>void respond('end')}><PhoneOff size={19}/>Hang Up</button></div>:null}
+      {(ringing||(!connected&&!call.answered_at))?<div className="gl-call-actions"><button disabled={busy||closing} className="gl-call-stop" onClick={()=>void respond('decline')}><PhoneOff size={19}/>{outgoing?'Cancel':'Decline'}</button>{!outgoing&&<button disabled={busy||closing} className="gl-call-start" onClick={()=>void respond('answer')}><Phone size={19}/>Answer</button>}</div>:<div className="gl-call-actions"><button disabled={busy||closing} className="gl-call-stop" onClick={()=>void respond('end')}><PhoneOff size={19}/>Hang Up</button></div>}
       {error&&<p className="gl-call-error" role="alert">{error}</p>}
     </section>
   </div>;

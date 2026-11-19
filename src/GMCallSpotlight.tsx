@@ -14,7 +14,6 @@ function Avatar({name,url,npc}:{name:string;url?:string|null;npc?:boolean}) {
 }
 export default function GMCallSpotlight({campaignId}:{campaignId:string}) {
  const [call,setCall]=useState<Call|null>(null);
- const [closing,setClosing]=useState(false);
  const [identities,setIdentities]=useState<Identity[]>([]);
  const [characters,setCharacters]=useState<Character[]>([]);
  const [minimized,setMinimized]=useState(false);
@@ -68,12 +67,6 @@ export default function GMCallSpotlight({campaignId}:{campaignId:string}) {
   const timer=window.setTimeout(()=>setEndingCall(null),1300);
   return()=>window.clearTimeout(timer);
  },[endingCall?.id,endingCall?.status]);
- useEffect(()=>{
-  if(!call||!['ended','missed','cancelled','declined'].includes(call.status)){setClosing(false);return;}
-  setClosing(true);
-  const timer=window.setTimeout(()=>{setCall(null);setClosing(false);},1300);
-  return()=>window.clearTimeout(timer);
- },[call?.id,call?.status]);
  const action=async(name:string)=>{
   if(!call||busy)return;
   setBusy(true);setError('');
@@ -90,11 +83,12 @@ export default function GMCallSpotlight({campaignId}:{campaignId:string}) {
  const alias=identity?.anonymous?'Unknown Number':identity?.display_name||npc;
  const ringing=shownCall.status==='ringing';
  const ended=!call;
+ const showRinging=ringing && !ended;
  const seconds=Math.max(0,Math.floor((now-new Date(shownCall.created_at).getTime())/1000));
  const duration=shownCall.answered_at?Math.max(0,Math.floor((now-new Date(shownCall.answered_at).getTime())/1000)):0;
  const formatted=`${String(Math.floor(duration/60)).padStart(2,'0')}:${String(duration%60).padStart(2,'0')}`;
  if(minimized && !ended)return <div className="gl-gm-mini" role="status"><Smartphone size={18}/><div><strong>{ringing?'INCOMING CALL':'CONNECTED · '+formatted}</strong><span>{caller} → {npc}</span></div><button onClick={()=>setMinimized(false)} aria-label="Expand call"><Maximize2 size={18}/></button>{!ringing&&<button onClick={()=>void action('phone_gm_end_call')} disabled={busy}><PhoneOff size={18}/></button>}</div>;
- return createPortal(<div className={'gl-spotlight gl-gm-spotlight'+(closing?' gl-closing':'')} role="dialog" aria-modal="true" aria-label="GM incoming call">
+ return createPortal(<div className={'gl-spotlight gl-gm-spotlight'+(ended?' gl-closing':'')} role="dialog" aria-modal="true" aria-label="GM incoming call">
   <div className="gl-spotlight-backdrop"/>
   <section className="gl-gm-spotlight-panel" ref={panelRef}>
    <header className="gl-gm-spotlight-header"><div><RadioTower size={21}/><span><strong>GHOST//LINK</strong><small>COMMUNICATION CONTROL</small></span></div><span className="gl-gm-call-badge">{ended?'ENDED':ringing?'INCOMING':'CONNECTED'}</span></header>
@@ -108,7 +102,7 @@ export default function GMCallSpotlight({campaignId}:{campaignId:string}) {
    <div className="gl-gm-timing">{ended?'SIGNAL DISCONNECTED':ringing?`AWAITING GM RESPONSE · ${Math.max(0,45-seconds)}s REMAINING`:`SIMULATED VOICE CHANNEL · ${formatted}`}</div>
    {error&&<p className="gl-call-error" role="alert">{error}</p>}
    <div className="gl-gm-spotlight-actions">
-    {ended?null:ringing?<><button className="gl-call-stop" disabled={busy} onClick={()=>void action('phone_gm_end_call')}><PhoneOff size={18}/>Decline</button><button className="gl-call-start" disabled={busy} onClick={()=>void action('phone_gm_answer_call')}><Phone size={18}/>Answer</button></>:<><button className="gl-call-stop" disabled={busy} onClick={()=>void action('phone_gm_end_call')}><PhoneOff size={18}/>End Connection</button><button className="gl-gm-minimize" onClick={()=>setMinimized(true)}><Minimize2 size={18}/>Minimize</button></>}
+    {showRinging?<><button className="gl-call-stop" disabled={busy||ended} onClick={()=>void action('phone_gm_end_call')}><PhoneOff size={18}/>Decline</button><button className="gl-call-start" disabled={busy||ended} onClick={()=>void action('phone_gm_answer_call')}><Phone size={18}/>Answer</button></>:<><button className="gl-call-stop" disabled={busy||ended} onClick={()=>void action('phone_gm_end_call')}><PhoneOff size={18}/>End Connection</button><button className="gl-gm-minimize" disabled={ended} onClick={()=>setMinimized(true)}><Minimize2 size={18}/>Minimize</button></>}
    </div>
    <footer>GM-ONLY INFORMATION <span>GHOST//LINK // SECURE</span></footer>
   </section>
