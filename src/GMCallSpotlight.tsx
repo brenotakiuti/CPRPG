@@ -105,7 +105,7 @@ export default function GMCallSpotlight({campaignId}:{campaignId:string}) {
    </div>
    <div className="gl-gm-route"><ArrowRight size={17}/>{caller} is calling {npc}</div>
    <div className={'gl-signal'+(ended?' gl-signal-ended':ringing?' gl-signal-ringing':'')} aria-hidden="true">{Array.from({length:19},(_,i)=><i key={i} style={{animationDelay:(-i*.12)+'s'}}/>)}</div>
-   <div className="gl-gm-timing">{ended?'SIGNAL DISCONNECTED':ringing?`AWAITING GM RESPONSE · ${Math.max(0,45-seconds)}s REMAINING`:connected?`SIMULATED VOICE CHANNEL · ${formatted}`:'SIGNAL DISCONNECTED'}</div>
+   <div className="gl-gm-timing">{ended?'SIGNAL DISCONNECTED':ringing?`AWAITING GM RESPONSE · ${Math.max(0,45-seconds)}s REMAINING`:`SIMULATED VOICE CHANNEL · ${formatted}`}</div>
    {error&&<p className="gl-call-error" role="alert">{error}</p>}
    <div className="gl-gm-spotlight-actions">
     {ended?null:ringing?<><button className="gl-call-stop" disabled={busy} onClick={()=>void action('phone_gm_end_call')}><PhoneOff size={18}/>Decline</button><button className="gl-call-start" disabled={busy} onClick={()=>void action('phone_gm_answer_call')}><Phone size={18}/>Answer</button></>:<><button className="gl-call-stop" disabled={busy} onClick={()=>void action('phone_gm_end_call')}><PhoneOff size={18}/>End Connection</button><button className="gl-gm-minimize" onClick={()=>setMinimized(true)}><Minimize2 size={18}/>Minimize</button></>}
