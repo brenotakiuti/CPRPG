@@ -253,7 +253,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
       onTouchEnd={e => {
         const start = touchStart.current;
         touchStart.current = null;
-        if (!start || selected) return;
+        if (!start) return;
         const dx = e.changedTouches[0].clientX - start.x;
         const dy = e.changedTouches[0].clientY - start.y;
         if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4) changePage(dx < 0 ? 1 : -1);
