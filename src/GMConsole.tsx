@@ -10,6 +10,7 @@ import LiveSession from './LiveSession';
 import CampaignLogs from './CampaignLogs';
 import Ripperdoc from './Ripperdoc';
 import GMPhone from './GMPhone';
+import GMCallSpotlight from './GMCallSpotlight';
 
 // Temporary visual thresholds; can later be supplied by campaign stat-tier records.
 const DEFAULT_STAT_TIERS = [
@@ -720,6 +721,7 @@ export default function GMConsole({
       {visitedTools.includes('inventory') && <div style={{ display: page === 'inventory' ? undefined : 'none' }}><GMInventory campaignId={campaign.id} /></div>}
       {visitedTools.includes('phone') && <div style={{ display: page === 'phone' ? undefined : 'none' }}><GMPhone campaignId={campaign.id} campaignName={campaign.name} onRead={refreshPhoneUnread} /></div>}
       {visitedTools.includes('ripperdoc') && <div style={{ display: page === 'ripperdoc' ? undefined : 'none' }}><Ripperdoc characters={characters} /></div>}
+      <GMCallSpotlight campaignId={campaign.id} />
     </div>
   );
 }

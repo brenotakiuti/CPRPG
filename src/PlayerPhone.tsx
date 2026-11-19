@@ -230,10 +230,10 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
           <button type="button" className="ghost-contact" aria-expanded={expandedContact === c.identity_id} onClick={() => setExpandedContact(current => current === c.identity_id ? null : c.identity_id)}>
             <UserRound size={24}/><span><strong>{labelFor(c.identity_id,c.label)}</strong><small>{c.anonymous && !revealedIdentities[c.identity_id] ? 'MASKED IDENTITY' : 'REGISTERED CONTACT'}</small></span><ChevronDown size={18} className={expandedContact === c.identity_id ? 'ghost-contact-chevron expanded' : 'ghost-contact-chevron'}/>
           </button>
-          {expandedContact === c.identity_id && <div className="ghost-contact-actions">
+          <div className={'ghost-contact-reveal' + (expandedContact === c.identity_id ? ' open' : '')} aria-hidden={expandedContact !== c.identity_id}><div className="ghost-contact-actions">
             <button type="button" onClick={() => openContact(c)}><Mail size={19}/> Message</button>
             <button type="button" disabled={calling || !c.can_call} onClick={() => void callContact(c)}><Smartphone size={19}/> {calling ? 'Calling…' : 'Call'}</button>
-          </div>}
+          </div></div>
         </div>)
           : threads.map(t => <button key={t.conversation_id} className={"ghost-contact" + (pulsingThreads.includes(t.conversation_id) ? " ghost-contact-pulse" : "")} onClick={() => openThread(t)}><UserRound size={24}/><span><strong>{labelFor(t.other_identity_id,t.other_label)}</strong><small>{t.last_message || 'New conversation'}</small></span>{Number(t.unread_count) > 0 && <b className="ghost-unread">{t.unread_count}</b>}</button>)}
       </div>

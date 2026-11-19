@@ -33,3 +33,10 @@
 .ghost-contact-actions{display:flex;gap:9px;padding:10px 12px;background:#101b30;border:1px solid #2d4560;border-top:0;border-radius:0 0 5px 5px}
 .ghost-contact-actions button{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:8px;background:#192a41;color:#75e9ee;border:1px solid #3b6177;border-radius:5px;padding:11px 8px;font-size:12px;font-weight:700;cursor:pointer}
 .ghost-contact-actions button:disabled{opacity:.45;cursor:default}
+
+/* Smooth accordion; keep the panel mounted so closing can animate. */
+.ghost-contact-reveal{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .24s ease,opacity .2s ease;pointer-events:none}
+.ghost-contact-reveal.open{grid-template-rows:1fr;opacity:1;pointer-events:auto}
+.ghost-contact-reveal>.ghost-contact-actions{min-height:0;overflow:hidden;padding-top:0;padding-bottom:0;transition:padding .24s ease}
+.ghost-contact-reveal.open>.ghost-contact-actions{padding-top:10px;padding-bottom:10px}
+@media(prefers-reduced-motion:reduce){.ghost-contact-reveal,.ghost-contact-reveal>.ghost-contact-actions{transition:none}}
