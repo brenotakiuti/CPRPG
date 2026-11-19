@@ -55,7 +55,7 @@ export default function GMCallControl({campaignId,identities,players}:{campaignI
     </div>
     {(active||endingCall)?<div className="gl-gm-active">
       <span className="gl-call-state">{!active?'CONNECTION TERMINATED':active.status==='ringing'?(active.direction==='player'?'INCOMING PLAYER CALL':'CALLING...'):'CHANNEL ESTABLISHED'}</span>
-      <strong>{(active||endingCall)!.direction==='player' ? character((active||endingCall)!.character_id)+' → '+(identity((active||endingCall)!.npc_identity_id)?.internal_name||'NPC') : (identity(active.npc_identity_id)?.internal_name||'NPC')+' → '+character(active.character_id)}</strong>
+      <strong>{(active||endingCall)!.direction==='player' ? character((active||endingCall)!.character_id)+' → '+(identity((active||endingCall)!.npc_identity_id)?.internal_name||'NPC') : (identity((active||endingCall)!.npc_identity_id)?.internal_name||'NPC')+' → '+character((active||endingCall)!.character_id)}</strong>
       <div className={'gl-signal'+(!active?' gl-signal-ended':active.status==='ringing'?' gl-signal-ringing':'')} aria-hidden="true">{Array.from({length:15},(_,i)=><i key={i} style={{animationDelay:(-i*.13)+'s'}}/>)}</div>
       {active && active.direction === 'player' && active.status === 'ringing' && <button className="gl-call-start" disabled={busy} onClick={() => void action('phone_gm_answer_call',{p_call_id:active.id})}><Phone size={17}/>Answer</button>}
       {active&&<button className="gl-call-stop" disabled={busy} onClick={()=>void action('phone_gm_end_call',{p_call_id:active.id})}><PhoneOff size={17}/>{active.direction==='player' && active.status==='ringing'?'Decline':active.status==='ringing'?'Cancel Call':'Hang Up'}</button>}
