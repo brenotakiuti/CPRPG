@@ -63,7 +63,6 @@ export default function CombatMaps({campaignId,mode}:{campaignId:string;mode:'ed
  const [legendOpen,setLegendOpen]=useState(false);
  const [characters,setCharacters]=useState<CampaignCharacter[]>([]);
  const [live,setLive]=useState<LiveState|null>(null);
- const [liveBusy,setLiveBusy]=useState(false);
  const liveRef=useRef<LiveState|null>(null);
  const persistQueue=useRef(Promise.resolve());
  useEffect(()=>{liveRef.current=live},[live]);
@@ -133,7 +132,7 @@ export default function CombatMaps({campaignId,mode}:{campaignId:string;mode:'ed
   {message&&<p role="status" className="combat-maps-message">{message}</p>}
   {mode==='editor'?<><p className="combat-maps-hint">Use the drawing tools below. Save a named map to make it available in Combat. The standalone editor's JSON export/import remains available.</p><iframe ref={frame} title="Tactical map editor" src="/map-editor.html?embedded=1" className="combat-map-editor-frame" onLoad={()=>{const map=maps.find(m=>m.id===selected);if(map)frame.current?.contentWindow?.postMessage({source:'cprpg-gm',action:'import',layout:map.layout},window.location.origin)}}/></>:
    current&&validMap(current.layout)?<><div className="combat-live-controls">
-    <button type="button" disabled={liveBusy} onClick={()=>beginSession(current)}>{live?.mapId===current.id?'Restart / prepare map':'Prepare live map'}</button>
+    <button type="button" onClick={()=>beginSession(current)}>{live?.mapId===current.id?'Restart / prepare map':'Prepare live map'}</button>
     <button type="button" disabled={!live||live.mapId!==current.id} onClick={toggleBroadcast}>{live?.mapId===current.id&&live.broadcasting?'Stop broadcast':'Start broadcast'}</button>
     <button type="button" disabled={!live||live.mapId!==current.id} onClick={()=>resetPositions(current)}>Reset positions</button>
     <span className="combat-live-status">{live?.mapId===current.id?(live.broadcasting?'● Broadcasting':'● Not broadcasting'):'No live session for this map'}</span>
