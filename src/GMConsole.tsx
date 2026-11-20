@@ -541,7 +541,7 @@ export default function GMConsole({
           </button>
         ))}
       </nav>
-      {page !== 'phone' && <h2 className="gm-page-title">
+      {page !== 'phone' && page !== 'combat' && <h2 className="gm-page-title">
         {(() => {
           const current = page === 'logs' ? {id:'logs',label:'Logs',icon:ScrollText} : navigation.find((item) => item.id === page)!;
           return <>{current.icon ? <current.icon size={19} strokeWidth={1.9} aria-hidden="true" /> : null}{current.label}</>;
