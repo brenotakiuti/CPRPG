@@ -14,6 +14,9 @@ export default function PlayerTacticalFeed({ onBack, characterId }: { onBack: ()
   const [selected,setSelected] = useState(false);
   const [offset,setOffset] = useState({x:0,y:0});
   const [moving,setMoving] = useState<{key:string;x:number;y:number}|null>(null);
+  const [pendingMove,setPendingMove]=useState<{key:string;x:number;y:number}|null>(null);
+  const pendingRef=useRef<{key:string;x:number;y:number}|null>(null);
+  const [locked,setLocked]=useState(false);
   const viewport=useRef<HTMLDivElement>(null);
   const gesture=useRef<{mode:'pan'|'move'|'pinch';x:number;y:number;ox:number;oy:number;distance?:number;zoom?:number}|null>(null);
   const pointers=useRef(new Map<number,{x:number;y:number}>());
@@ -25,8 +28,29 @@ export default function PlayerTacticalFeed({ onBack, characterId }: { onBack: ()
     setOffset({x:rect.width/2-(mine.x+.5)*36*zoom,y:rect.height/2-(mine.y+.5)*36*zoom});
   };
   const saveMove=async(key:string,x:number,y:number)=>{
-    const {error:moveError}=await supabase.rpc('move_player_tactical_unit',{p_character_id:characterId,p_marker_key:key,p_x:x,p_y:y});
-    if(moveError)setError(moveError.message);
+    const optimistic={key,x,y};
+    pendingRef.current=optimistic;
+    setPendingMove(optimistic);
+    setLocked(true);
+    setError('');
+    try {
+      const {error:moveError}=await supabase.rpc('move_player_tactical_unit',{p_character_id:characterId,p_marker_key:key,p_x:x,p_y:y});
+      if(moveError)throw moveError;
+      // Read back the confirmed position before releasing the optimistic override.
+      const {data,error:readError}=await supabase.rpc('get_player_tactical_feed',{p_character_id:characterId});
+      if(readError)throw readError;
+      const confirmed=data as TacticalState;
+      if(!confirmed.broadcasting || !confirmed.units?.some(u=>u.mine&&u.key===key&&u.x===x&&u.y===y)){
+        throw new Error('Movement could not be confirmed');
+      }
+      setState(confirmed);
+    } catch (e) {
+      setError(e instanceof Error?e.message:'Movement failed');
+    } finally {
+      pendingRef.current=null;
+      setPendingMove(null);
+      setLocked(false);
+    }
   };
   const pointerDown=(e:React.PointerEvent<HTMLDivElement>)=>{
     if(!state.layout)return;
@@ -39,6 +63,7 @@ export default function PlayerTacticalFeed({ onBack, characterId }: { onBack: ()
       gesture.current={mode:'pinch',x:0,y:0,ox:offset.x,oy:offset.y,distance:Math.hypot(a.x-b.x,a.y-b.y),zoom};
       return;
     }
+    if(target.closest('.tactical-feed-unit.mine') && locked){gesture.current=null;return;}
     if(target.closest('.tactical-feed-unit.mine')){
       if(!selected){setSelected(true);gesture.current=null;return;}
       if(mine){gesture.current={mode:'move',x:e.clientX,y:e.clientY,ox:mine.x,oy:mine.y};setMoving({key:mine.key,x:mine.x,y:mine.y});}
@@ -84,6 +109,11 @@ export default function PlayerTacticalFeed({ onBack, characterId }: { onBack: ()
         if(requestError){setError(requestError.message);return;}
         setError('');
         const next=data as TacticalState;
+        // Keep the local marker at its dropped position until the write is confirmed.
+        if(pendingRef.current && next.units){
+          const pending=pendingRef.current;
+          next.units=next.units.map(u=>u.mine&&u.key===pending.key?{...u,x:pending.x,y:pending.y}:u);
+        }
         setState(previous=>{
           if(next.broadcasting && !previous.broadcasting){
             setLoading(true);
@@ -117,7 +147,7 @@ export default function PlayerTacticalFeed({ onBack, characterId }: { onBack: ()
     <div className="tactical-feed-screen">
       {live&&map?<div className="tactical-feed-live-scroll" ref={viewport} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}><div className="tactical-feed-live-board" style={{width:map.width*36,height:map.height*36,transform:`translate(${offset.x}px,${offset.y}px) scale(${zoom})`,transformOrigin:'top left'}}>
         {Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),o=objects.get(x+','+y);return <div key={i} className={'tactical-feed-tile '+(o?.type||'')} style={{left:x*36,top:y*36,backgroundColor:o?.color||map.floorColors?.[x+','+y]||undefined}}/>})}
-        {(state.units||[]).map(u=><div key={u.key} title={u.name||u.label} className={'tactical-feed-unit '+u.type+(u.mine?' mine':'')+(u.mine&&selected?' selected':'')} style={{left:(u.mine&&moving?moving.x:u.x)*36+4,top:(u.mine&&moving?moving.y:u.y)*36+4}}>{u.mine?'YOU':u.label}</div>)}
+        {(state.units||[]).map(u=><div key={u.key} title={u.name||u.label} className={'tactical-feed-unit '+u.type+(u.mine?' mine':'')+(u.mine&&selected?' selected':'')+(u.mine&&locked?' syncing':'')} style={{left:(u.mine&&moving?moving.x:u.mine&&pendingMove?pendingMove.x:u.x)*36+4,top:(u.mine&&moving?moving.y:u.mine&&pendingMove?pendingMove.y:u.y)*36+4}}>{u.mine?'YOU':u.label}</div>)}
       </div><div className="tactical-feed-map-controls" onPointerDown={e=>e.stopPropagation()}><button type="button" aria-label="Zoom in" onClick={()=>setZoom(z=>clampZoom(z*1.25))}>+</button><button type="button" aria-label="Zoom out" onClick={()=>setZoom(z=>clampZoom(z/1.25))}>−</button><button type="button" aria-label="Center on character" onClick={recenter}>⌖</button></div>{selected&&<div className="tactical-feed-move-hint">MOVE MODE · DRAG YOUR MARKER</div>}{error&&<div className="tactical-feed-error">{error}</div>}</div>:<>
       <div className="tactical-feed-grid" /><div className="tactical-feed-radar"><div className="tactical-feed-sweep" /></div>
       <div className="tactical-feed-static" /><div className="tactical-feed-interference" />
