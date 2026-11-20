@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useGMArtworkCache } from './useGMArtworkCache';
 import { QRCodeSVG } from 'qrcode.react';
-import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Users, Wrench, Zap, Slice, Map as MapIcon, Swords } from 'lucide-react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Users, Wrench, Zap, Slice, Map as MapIcon } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
@@ -469,7 +469,7 @@ export default function GMConsole({
     { id: 'phone', label: 'Ghost//Link', icon: null },
     { id: 'ripperdoc', label: 'Ripperdoc', icon: Slice },
     { id: 'map-editor', label: 'Map Editor', icon: MapIcon },
-    { id: 'combat', label: 'Tactical//Feed', icon: Swords },
+    { id: 'combat', label: 'Tactical//Feed', icon: null },
   ] as const;
   const creationControls = (
     <div className="gm-invitations-layout">
@@ -536,7 +536,7 @@ export default function GMConsole({
         {navigation.map((item) => (
           <button key={item.id} type="button" className={page === item.id ? 'gm-tab active' : 'gm-tab'}
             aria-current={page === item.id ? 'page' : undefined} onClick={() => openPage(item.id)}>
-            <span className="gm-phone-nav-icon">{item.id === "phone" ? <img src="/ghost-link-icon.svg" width={22} height={22} alt="" aria-hidden="true" /> : item.icon ? <item.icon size={19} strokeWidth={1.9} aria-hidden="true" /> : null}{item.id === "phone" && phoneUnread > 0 && <b className="gm-phone-nav-badge">{phoneUnread > 99 ? "99+" : phoneUnread}</b>}</span>
+            <span className="gm-phone-nav-icon">{item.id === "combat" ? <img src="/tactical-feed-icon.svg" width={22} height={22} alt="" aria-hidden="true" /> : item.id === "phone" ? <img src="/ghost-link-icon.svg" width={22} height={22} alt="" aria-hidden="true" /> : item.icon ? <item.icon size={19} strokeWidth={1.9} aria-hidden="true" /> : null}{item.id === "phone" && phoneUnread > 0 && <b className="gm-phone-nav-badge">{phoneUnread > 99 ? "99+" : phoneUnread}</b>}</span>
             <span className="gm-sr-only">{item.label}</span>
           </button>
         ))}
