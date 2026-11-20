@@ -48,9 +48,10 @@ function MapGrid({map,units,onMove}:{map:Layout;units:LiveUnit[];onMove:(key:str
  const occupied=new Map<string,{type:string;color?:string}>();
  for(const o of map.objects){if(o.type==='player'||o.type==='enemy')continue;const [w,h]=shapes[o.type]||[1,1];for(let y=o.y;y<o.y+h;y++)for(let x=o.x;x<o.x+w;x++)occupied.set(x+','+y,{type:terrainKind(o.type),color:o.color});}
  const cellSize=44;const gates=map.gates||[];
+ const stacks=new Map<string,LiveUnit[]>();for(const u of units){const k=u.x+','+u.y;stacks.set(k,[...(stacks.get(k)||[]),u]);}
  return <div className="combat-map-scroll"><div className="combat-map-boundary" style={{width:map.width*cellSize+20,height:map.height*cellSize+20}}>
   <div className="combat-map-grid" style={{position:'absolute',left:10,top:10,gridTemplateColumns:`repeat(${map.width},42px)`}}>{Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),tile=occupied.get(x+','+y),kind=tile?.type||'',customColor=tile?.color||(!tile?map.floorColors?.[x+','+y]:undefined);return <div key={i} data-x={x} data-y={y} style={customColor?{backgroundColor:customColor}:undefined} className={'combat-map-cell '+kind} title={`Column ${x+1}, row ${y+1}`}>{labels[kind]||''}</div>})}</div>
-  {units.map(u=><button type="button" key={u.key} className={'combat-live-marker '+u.type+(u.visible?'':' is-hidden')} title={u.label+(u.name?' — '+u.name:'')+(u.visible?'':' (hidden from players)')} style={{left:10+u.x*cellSize+5,top:10+u.y*cellSize+5}} onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId)}} onPointerUp={e=>{const scroll=e.currentTarget.parentElement!.parentElement;const board=scroll?.getBoundingClientRect();if(!board)return;const x=Math.floor((e.clientX-board.left+scroll!.scrollLeft-10)/cellSize),y=Math.floor((e.clientY-board.top+scroll!.scrollTop-10)/cellSize);if(x>=0&&y>=0&&x<map.width&&y<map.height)onMove(u.key,x,y)}}>{u.label}</button>)}
+  {units.map(u=>{const stack=stacks.get(u.x+','+u.y)||[u];const index=stack.findIndex(v=>v.key===u.key);const spread=stack.length>1;const dx=spread?(index%2===0?-7:7):0;const dy=spread?(Math.floor(index/2)*12+(index%2===0?-7:7)):0;return <button type="button" key={u.key} className={'combat-live-marker '+u.type+(u.visible?'':' is-hidden')} title={u.label+(u.name?' — '+u.name:'')+(u.visible?'':' (hidden from players)')} style={{left:10+u.x*cellSize+5+dx,top:10+u.y*cellSize+5+dy,zIndex:spread?10+index:undefined}} onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId)}} onPointerUp={e=>{const scroll=e.currentTarget.parentElement!.parentElement;const board=scroll?.getBoundingClientRect();if(!board)return;const x=Math.floor((e.clientX-board.left+scroll!.scrollLeft-10)/cellSize),y=Math.floor((e.clientY-board.top+scroll!.scrollTop-10)/cellSize);if(x>=0&&y>=0&&x<map.width&&y<map.height)onMove(u.key,x,y)}}>{u.label}</button>})}
   {gates.map((g,i)=>{const horizontal=g.side==='top'||g.side==='bottom';return <div key={i} className={'combat-map-gate '+g.side} title={'Gate · '+g.length+' cell edges'} style={horizontal?{left:10+g.start*cellSize,width:g.length*cellSize-2,[g.side]:0}:{top:10+g.start*cellSize,height:g.length*cellSize-2,[g.side]:0}}/>})}
  </div></div>;
 }
@@ -123,7 +124,7 @@ export default function CombatMaps({campaignId,mode}:{campaignId:string;mode:'ed
   if(mode==='editor')frame.current?.contentWindow?.postMessage({source:'cprpg-gm',action:'import',layout:map.layout},window.location.origin);
  }
  const current=maps.find(m=>m.id===selected);
- return <section className="combat-maps-panel">
+ return <section className="combat-maps-panel">{mode==='combat'&&<div className="tactical-gm-brand"><img src="/tactical-feed-icon.svg" alt="" /><div><h2>TACTICAL//FEED</h2><span>A GHOST//LINK SYSTEMS DIVISION</span></div></div>}
   <div className="combat-maps-toolbar">
    <label>Saved maps <select aria-label="Saved maps" value={selected} onChange={e=>openMap(e.target.value)}><option value="">Select a map</option>{maps.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
    <button type="button" onClick={()=>void load()}>Refresh list</button>
