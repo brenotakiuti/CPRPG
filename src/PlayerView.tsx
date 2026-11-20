@@ -996,7 +996,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <p>CHARACTER DASHBOARD</p>
         </header>
         {!diagnosticsOpen && character && phoneOpen && <PlayerPhone characterId={character.id} onBack={goBack} />}
-        {!diagnosticsOpen && character && tacticalOpen && <PlayerTacticalFeed onBack={goBack} />}
+        {!diagnosticsOpen && character && tacticalOpen && <PlayerTacticalFeed characterId={character.id} onBack={goBack} />}
         {!diagnosticsOpen && character && transferOpen && <PlayerTransfers key={transferOpen + character.id} kind={transferOpen} character={character} inventory={inventoryData} onBack={goBack} />}
         {!diagnosticsOpen && character && statsOpen && <PlayerStats onBack={goBack} cyberware={cyberwareData} view={statsView} selectedPosition={statsPosition} onNavigate={updateStats} />}
         {!diagnosticsOpen && character && inventoryVisited && <div style={{ display: inventoryOpen && !statsOpen && !transferOpen && !phoneOpen && !tacticalOpen ? undefined : 'none' }}><PlayerInventory inventory={inventoryData} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
