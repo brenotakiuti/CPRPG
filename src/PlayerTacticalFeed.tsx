@@ -137,6 +137,8 @@ export default function PlayerTacticalFeed({ onBack, characterId }: { onBack: ()
     const size=obj.type==='pillar'?[2,2]:obj.type==='coverH'?[2,1]:obj.type==='coverV'?[1,2]:[1,1];
     for(let dy=0;dy<size[1];dy++)for(let dx=0;dx<size[0];dx++)objects.set((obj.x+dx)+','+(obj.y+dy),obj);
   }
+  const displayUnits=(state.units||[]).map(u=>u.mine&&moving?{...u,x:moving.x,y:moving.y}:u.mine&&pendingMove?{...u,x:pendingMove.x,y:pendingMove.y}:u);
+  const unitStacks=new Map<string,TacticalUnit[]>();for(const u of displayUnits){const key=u.x+','+u.y;unitStacks.set(key,[...(unitStacks.get(key)||[]),u]);}
   return <section className="tactical-feed" aria-label="Tactical//Feed">
     <div className="tactical-feed-accent" />
     <header className="tactical-feed-header">
@@ -147,7 +149,7 @@ export default function PlayerTacticalFeed({ onBack, characterId }: { onBack: ()
     <div className="tactical-feed-screen">
       {live&&map?<div className="tactical-feed-live-scroll" ref={viewport} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}><div className="tactical-feed-live-board" style={{width:map.width*36,height:map.height*36,transform:`translate(${offset.x}px,${offset.y}px) scale(${zoom})`,transformOrigin:'top left'}}>
         {Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),o=objects.get(x+','+y);return <div key={i} className={'tactical-feed-tile '+(o?.type||'')} style={{left:x*36,top:y*36,backgroundColor:o?.color||map.floorColors?.[x+','+y]||undefined}}/>})}
-        {(state.units||[]).map(u=><div key={u.key} title={u.name||u.label} className={'tactical-feed-unit '+u.type+(u.mine?' mine':'')+(u.mine&&selected?' selected':'')+(u.mine&&locked?' syncing':'')} style={{left:(u.mine&&moving?moving.x:u.mine&&pendingMove?pendingMove.x:u.x)*36+4,top:(u.mine&&moving?moving.y:u.mine&&pendingMove?pendingMove.y:u.y)*36+4}}>{u.mine?'YOU':u.label}</div>)}
+        {displayUnits.map(u=>{const stack=unitStacks.get(u.x+','+u.y)||[u];const index=stack.findIndex(v=>v.key===u.key);const spread=stack.length>1;const dx=spread?(index%2===0?-6:6):0;const dy=spread?(Math.floor(index/2)*10+(index%2===0?-6:6)):0;return <div key={u.key} title={u.name||u.label} className={'tactical-feed-unit '+u.type+(u.mine?' mine':'')+(u.mine&&selected?' selected':'')+(u.mine&&locked?' syncing':'')} style={{left:u.x*36+4+dx,top:u.y*36+4+dy,zIndex:spread?10+index:undefined}}>{u.mine?'YOU':u.label}</div>})}
       </div><div className="tactical-feed-map-controls" onPointerDown={e=>e.stopPropagation()}><button type="button" aria-label="Zoom in" onClick={()=>setZoom(z=>clampZoom(z*1.25))}>+</button><button type="button" aria-label="Zoom out" onClick={()=>setZoom(z=>clampZoom(z/1.25))}>−</button><button type="button" aria-label="Center on character" onClick={recenter}>⌖</button></div>{selected&&<div className="tactical-feed-move-hint">MOVE MODE · DRAG YOUR MARKER</div>}{error&&<div className="tactical-feed-error">{error}</div>}</div>:<>
       <div className="tactical-feed-grid" /><div className="tactical-feed-radar"><div className="tactical-feed-sweep" /></div>
       <div className="tactical-feed-static" /><div className="tactical-feed-interference" />
