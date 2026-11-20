@@ -530,7 +530,7 @@ export default function GMConsole({
           <div className="gm-eyebrow">CYBERPUNK RPG · GM TERMINAL</div>
           <h1>{campaign.name}</h1>
         </div>
-        <div className="gm-header-actions"><button type="button" className={page === "logs" ? "gm-header-log active" : "gm-header-log"} onClick={() => openPage("logs")} aria-label="Campaign Logs" title="Campaign Logs"><ScrollText size={18} strokeWidth={1.9} aria-hidden="true"/><span>Logs</span></button><span className="gm-online">◉ &nbsp; GM Online</span></div>
+        <div className="gm-header-actions" style={{display:"flex",alignItems:"center",gap:14}}><button type="button" className={page === "logs" ? "gm-tab active" : "gm-tab"} style={{display:"inline-flex",alignItems:"center",gap:7,padding:"8px 12px",width:"auto"}} onClick={() => openPage("logs")} aria-label="Campaign Logs" title="Campaign Logs"><ScrollText size={18} strokeWidth={1.9} aria-hidden="true"/><span>Logs</span></button><span className="gm-online">◉ &nbsp; GM Online</span></div>
       </header>
       <nav className="gm-tabs" aria-label="GM tools">
         {navigation.map((item) => (
