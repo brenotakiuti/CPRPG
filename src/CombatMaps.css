@@ -19,3 +19,11 @@
 .combat-live-marker.is-hidden{opacity:.4;border-style:dashed}
 .combat-map-unit-field select{min-width:0;flex:1;background:#0b1520;color:white;border:1px solid #536477;border-radius:5px;padding:9px;font:inherit}
 .combat-visibility-button{white-space:nowrap;padding:8px;font-size:12px}
+
+/* Responsive legend: never squeeze labels into overlapping columns. */
+.combat-legend-popup{width:390px;max-width:min(390px,calc(100vw - 32px));box-sizing:border-box;overflow-wrap:break-word}
+.combat-legend-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px}
+.combat-legend-items>div{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:start;gap:8px;min-width:0}
+.combat-legend-items span{display:flex;flex-direction:column;min-width:0;white-space:normal;overflow-wrap:break-word;line-height:1.4}
+.combat-legend-items small{display:block;white-space:normal;overflow-wrap:break-word;line-height:1.4}
+@media(max-width:540px){.combat-legend-popup{width:min(300px,calc(100vw - 32px))}.combat-legend-items{grid-template-columns:minmax(0,1fr)}}
