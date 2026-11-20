@@ -713,7 +713,7 @@ export default function GMConsole({
             </div>
           </section>
         </div>
-      ) : page === 'inventory' || page === 'ripperdoc' || page === 'phone' ? null : page === 'map-editor' ? <CombatMaps key={'editor-'+campaign.id} campaignId={campaign.id} mode="editor" /> : page === 'combat' ? <CombatMaps key={'combat-'+campaign.id} campaignId={campaign.id} mode="combat" /> : null}
+      ) : page === 'inventory' || page === 'ripperdoc' || page === 'phone' ? null : page === 'map-editor' ? <CombatMaps key={'editor-'+campaign.id} campaignId={campaign.id} mode="editor" /> : page === 'combat' ? <CombatMaps key={'combat-'+campaign.id} campaignId={campaign.id} campaignName={campaign.name} mode="combat" /> : null}
       {visitedTools.includes('live') && <div style={{ display: page === 'live' ? undefined : 'none' }}><LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} /></div>}
       {visitedTools.includes('bank') && <div style={{ display: page === 'bank' ? undefined : 'none' }} className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>}
       {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
