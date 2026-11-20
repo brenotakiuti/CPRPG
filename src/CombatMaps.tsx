@@ -5,7 +5,8 @@ import './CombatMaps.css';
 type MapObject = { type: string; x: number; y: number; number?: number };
 type Layout = { version: number; width: number; height: number; objects: MapObject[] };
 type SavedMap = { id: string; name: string; width: number; height: number; layout: Layout };
-const shapes: Record<string, [number,number]> = {wall:[1,1],pillar:[2,2],coverH:[2,1],coverV:[1,2],player:[1,1],enemy:[1,1]};
+const shapes: Record<string, [number,number]> = {wall:[1,1],cover:[1,1],hole:[1,1],pillar:[2,2],coverH:[2,1],coverV:[1,2],player:[1,1],enemy:[1,1]};
+const terrainKind=(type:string)=>type==='pillar'?'wall':type==='coverH'||type==='coverV'?'cover':type;
 function validMap(value: unknown): value is Layout {
   if (!value || typeof value !== 'object') return false;
   const m=value as Layout;
@@ -23,7 +24,7 @@ function validMap(value: unknown): value is Layout {
   }
   return true;
 }
-const labels: Record<string,string>={wall:'■',pillar:'▦',coverH:'▰',coverV:'▰'};
+const labels: Record<string,string>={wall:'■',cover:'▰',hole:'◌'};
 type Unit = { key:string; label:string; type:'player'|'enemy'; x:number; y:number };
 function unitsForMap(map:Layout):Unit[]{
  const counters={player:0,enemy:0};
@@ -39,7 +40,7 @@ function MapGrid({map}:{map:Layout}){
  const occupied=new Map<string,string>();
  const units=unitsForMap(map);
  const unitAt=new Map(units.map(u=>[u.x+','+u.y,u.label]));
- for(const o of map.objects){const [w,h]=shapes[o.type]||[1,1];for(let y=o.y;y<o.y+h;y++)for(let x=o.x;x<o.x+w;x++)occupied.set(x+','+y,o.type);}
+ for(const o of map.objects){const [w,h]=shapes[o.type]||[1,1];for(let y=o.y;y<o.y+h;y++)for(let x=o.x;x<o.x+w;x++)occupied.set(x+','+y,terrainKind(o.type));}
  return <div className="combat-map-scroll"><div className="combat-map-grid" style={{gridTemplateColumns:`repeat(${map.width},42px)`}}>{Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),kind=occupied.get(x+','+y)||'';return <div key={i} className={'combat-map-cell '+kind} title={`Column ${x+1}, row ${y+1} ${unitAt.get(x+','+y)||kind}`}>{unitAt.get(x+','+y)||labels[kind]||''}</div>})}</div></div>;
 }
 export default function CombatMaps({campaignId,mode}:{campaignId:string;mode:'editor'|'combat'}){
@@ -105,6 +106,6 @@ export default function CombatMaps({campaignId,mode}:{campaignId:string;mode:'ed
   </div>
   {message&&<p role="status" className="combat-maps-message">{message}</p>}
   {mode==='editor'?<><p className="combat-maps-hint">Use the drawing tools below. Save a named map to make it available in Combat. The standalone editor's JSON export/import remains available.</p><iframe ref={frame} title="Tactical map editor" src="/map-editor.html?embedded=1" className="combat-map-editor-frame" onLoad={()=>{const map=maps.find(m=>m.id===selected);if(map)frame.current?.contentWindow?.postMessage({source:'cprpg-gm',action:'import',layout:map.layout},window.location.origin)}}/></>:
-   current&&validMap(current.layout)?<><h3>{current.name}</h3><MapGrid map={current.layout}/><div className="combat-map-roster"><h3>Combatants</h3><p className="combat-maps-hint">Assign names to the map markers for this combat session.</p><div className="combat-map-roster-grid">{unitsForMap(current.layout).map(unit=><label key={unit.key} className="combat-map-unit-field"><span className={'combat-map-unit-tag '+unit.type}>{unit.label}</span><input type="text" maxLength={100} aria-label={unit.label+' name'} placeholder={unit.type==='player'?'Player name':'Enemy name'} value={unitNames[unit.key]||''} onChange={e=>setUnitNames(prev=>({...prev,[unit.key]:e.target.value}))}/></label>)}</div></div></>:<p className="combat-maps-hint">Choose a saved map to view its grid. Combat actions are not enabled yet.</p>}
+   current&&validMap(current.layout)?<><h3>{current.name}</h3><MapGrid map={current.layout}/><div className="combat-map-legend"><span><i className="combat-map-dot wall"/><strong>Wall</strong> — Cannot be occupied or shot through.</span><span><i className="combat-map-dot cover"/><strong>Cover</strong> — Cannot be occupied. Can be jumped over. Grants defense bonus.</span><span><i className="combat-map-dot hole"/><strong>Hole</strong> — Cannot be occupied. Can be jumped over.</span><span><i className="combat-map-dot player"/>Player (P1, P2…)</span><span><i className="combat-map-dot enemy"/>Enemy (E1, E2…)</span></div><div className="combat-map-roster"><h3>Combatants</h3><p className="combat-maps-hint">Assign names to the map markers for this combat session.</p><div className="combat-map-roster-grid">{unitsForMap(current.layout).map(unit=><label key={unit.key} className="combat-map-unit-field"><span className={'combat-map-unit-tag '+unit.type}>{unit.label}</span><input type="text" maxLength={100} aria-label={unit.label+' name'} placeholder={unit.type==='player'?'Player name':'Enemy name'} value={unitNames[unit.key]||''} onChange={e=>setUnitNames(prev=>({...prev,[unit.key]:e.target.value}))}/></label>)}</div></div></>:<p className="combat-maps-hint">Choose a saved map to view its grid. Combat actions are not enabled yet.</p>}
  </section>;
 }
