@@ -469,7 +469,7 @@ export default function GMConsole({
     { id: 'phone', label: 'Ghost//Link', icon: null },
     { id: 'ripperdoc', label: 'Ripperdoc', icon: Slice },
     { id: 'map-editor', label: 'Map Editor', icon: MapIcon },
-    { id: 'combat', label: 'Combat', icon: Swords },
+    { id: 'combat', label: 'Tactical//Feed', icon: Swords },
   ] as const;
   const creationControls = (
     <div className="gm-invitations-layout">
