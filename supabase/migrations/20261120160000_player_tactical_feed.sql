@@ -18,6 +18,15 @@ begin
   where s.campaign_id = v_campaign and s.broadcasting = true;
   if not found then return jsonb_build_object('broadcasting', false); end if;
 
+  -- Only characters assigned to a player marker receive the broadcast.
+  if not exists (
+    select 1 from jsonb_array_elements(v_session.units) u
+    where u->>'type' = 'player'
+      and u->>'characterId' = p_character_id::text
+  ) then
+    return jsonb_build_object('broadcasting', false);
+  end if;
+
   select m.layout into v_layout from public.combat_maps m
   where m.id = v_session.map_id and m.campaign_id = v_campaign;
   if v_layout is null then return jsonb_build_object('broadcasting', false); end if;
