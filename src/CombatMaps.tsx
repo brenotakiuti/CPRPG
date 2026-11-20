@@ -124,7 +124,7 @@ export default function CombatMaps({campaignId,mode}:{campaignId:string;mode:'ed
   if(mode==='editor')frame.current?.contentWindow?.postMessage({source:'cprpg-gm',action:'import',layout:map.layout},window.location.origin);
  }
  const current=maps.find(m=>m.id===selected);
- return <section className="combat-maps-panel">{mode==='combat'&&<div className="tactical-gm-brand"><img src="/tactical-feed-icon.svg" alt="" /><div><h2>TACTICAL//FEED</h2><span>A GHOST//LINK SYSTEMS DIVISION</span></div></div>}
+ return <section className="combat-maps-panel">{mode==='combat'&&<header className="tactical-gm-brand"><div className="tactical-gm-brand-identity"><img src="/tactical-feed-icon.svg" alt="" /><div><strong>TACTICAL//FEED</strong><small>A GHOST//LINK SYSTEMS DIVISION</small></div></div><div className="tactical-gm-network">● NETWORK TERMINAL <small>Night City 2078</small></div></header>}
   <div className="combat-maps-toolbar">
    <label>Saved maps <select aria-label="Saved maps" value={selected} onChange={e=>openMap(e.target.value)}><option value="">Select a map</option>{maps.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
    <button type="button" onClick={()=>void load()}>Refresh list</button>
