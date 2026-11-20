@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useGMArtworkCache } from './useGMArtworkCache';
 import { QRCodeSVG } from 'qrcode.react';
-import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Shield, Users, Wrench, Zap, Slice, Map as MapIcon, Swords } from 'lucide-react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Users, Wrench, Zap, Slice, Map as MapIcon, Swords } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
@@ -84,9 +84,9 @@ export default function GMConsole({
   onSwitchCampaign,
 }: GMConsoleProps) {
   useGMArtworkCache();
-  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'ripperdoc' | 'factions' | 'logs' | 'phone' | 'map-editor' | 'combat'>(() => {
+  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'ripperdoc' | 'logs' | 'phone' | 'map-editor' | 'combat'>(() => {
     const saved = sessionStorage.getItem('gm-page:' + campaign.id);
-    return saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'ripperdoc' || saved === 'factions' || saved === 'logs' || saved === 'phone' || saved === 'map-editor' || saved === 'combat' ? saved : 'live';
+    return saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'ripperdoc' || saved === 'logs' || saved === 'phone' || saved === 'map-editor' || saved === 'combat' ? saved : 'live';
   });
   // Mount data-heavy tools on first visit, then retain their data and Realtime subscriptions.
   const [visitedTools, setVisitedTools] = useState<string[]>(() => {
@@ -468,10 +468,8 @@ export default function GMConsole({
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'phone', label: 'Ghost//Link', icon: null },
     { id: 'ripperdoc', label: 'Ripperdoc', icon: Slice },
-    { id: 'factions', label: 'Factions', icon: Shield },
     { id: 'map-editor', label: 'Map Editor', icon: MapIcon },
     { id: 'combat', label: 'Combat', icon: Swords },
-    { id: 'logs', label: 'Logs', icon: ScrollText },
   ] as const;
   const creationControls = (
     <div className="gm-invitations-layout">
@@ -532,7 +530,7 @@ export default function GMConsole({
           <div className="gm-eyebrow">CYBERPUNK RPG · GM TERMINAL</div>
           <h1>{campaign.name}</h1>
         </div>
-        <span className="gm-online">◉ &nbsp; GM Online</span>
+        <div className="gm-header-actions"><button type="button" className={page === "logs" ? "gm-header-log active" : "gm-header-log"} onClick={() => openPage("logs")} aria-label="Campaign Logs" title="Campaign Logs"><ScrollText size={18} strokeWidth={1.9} aria-hidden="true"/><span>Logs</span></button><span className="gm-online">◉ &nbsp; GM Online</span></div>
       </header>
       <nav className="gm-tabs" aria-label="GM tools">
         {navigation.map((item) => (
@@ -545,7 +543,7 @@ export default function GMConsole({
       </nav>
       {page !== 'phone' && <h2 className="gm-page-title">
         {(() => {
-          const current = navigation.find((item) => item.id === page)!;
+          const current = page === 'logs' ? {id:'logs',label:'Logs',icon:ScrollText} : navigation.find((item) => item.id === page)!;
           return <>{current.icon ? <current.icon size={19} strokeWidth={1.9} aria-hidden="true" /> : null}{current.label}</>;
         })()}
       </h2>}
@@ -715,9 +713,7 @@ export default function GMConsole({
             </div>
           </section>
         </div>
-      ) : page === 'inventory' || page === 'ripperdoc' || page === 'phone' ? null : page === 'map-editor' ? <CombatMaps key={'editor-'+campaign.id} campaignId={campaign.id} mode="editor" /> : page === 'combat' ? <CombatMaps key={'combat-'+campaign.id} campaignId={campaign.id} mode="combat" /> : (
-        <div className="gm-dashboard-panel gm-empty-detail">Factions — coming later</div>
-      )}
+      ) : page === 'inventory' || page === 'ripperdoc' || page === 'phone' ? null : page === 'map-editor' ? <CombatMaps key={'editor-'+campaign.id} campaignId={campaign.id} mode="editor" /> : page === 'combat' ? <CombatMaps key={'combat-'+campaign.id} campaignId={campaign.id} mode="combat" /> : null}
       {visitedTools.includes('live') && <div style={{ display: page === 'live' ? undefined : 'none' }}><LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} /></div>}
       {visitedTools.includes('bank') && <div style={{ display: page === 'bank' ? undefined : 'none' }} className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>}
       {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
