@@ -1,12 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useGMArtworkCache } from './useGMArtworkCache';
 import { QRCodeSVG } from 'qrcode.react';
-import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Shield, Users, Wrench, Zap } from 'lucide-react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Shield, Users, Wrench, Zap, Slice } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
-import ItemCatalog from './ItemCatalog';
+import GMInventory from './GMInventory';
 import LiveSession from './LiveSession';
 import CampaignLogs from './CampaignLogs';
+import Ripperdoc from './Ripperdoc';
+import GMPhone from './GMPhone';
+import GMCallSpotlight from './GMCallSpotlight';
 
 // Temporary visual thresholds; can later be supplied by campaign stat-tier records.
 const DEFAULT_STAT_TIERS = [
@@ -78,21 +82,41 @@ export default function GMConsole({
   campaign,
   onSwitchCampaign,
 }: GMConsoleProps) {
-  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'factions' | 'logs'>(() => {
+  useGMArtworkCache();
+  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'ripperdoc' | 'factions' | 'logs' | 'phone'>(() => {
     const saved = sessionStorage.getItem('gm-page:' + campaign.id);
-    return saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'factions' || saved === 'logs' ? saved : 'live';
+    return saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'ripperdoc' || saved === 'factions' || saved === 'logs' || saved === 'phone' ? saved : 'live';
   });
   // Mount data-heavy tools on first visit, then retain their data and Realtime subscriptions.
   const [visitedTools, setVisitedTools] = useState<string[]>(() => {
     const saved = sessionStorage.getItem('gm-page:' + campaign.id) ?? 'live';
-    return ['live', 'bank', 'logs', 'inventory'].includes(saved) ? [saved] : [];
+    return ['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone'].includes(saved) ? [saved] : [];
   });
   const openPage = (next: typeof page) => {
     setPage(next);
-    if (['live', 'bank', 'logs', 'inventory'].includes(next)) {
+    if (['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone'].includes(next)) {
       setVisitedTools(previous => previous.includes(next) ? previous : [...previous, next]);
     }
   };
+  const [phoneUnread, setPhoneUnread] = useState(0);
+  const refreshPhoneUnread = useCallback(async () => {
+    const result = await supabase.rpc('phone_gm_unread', { p_campaign_id: campaign.id });
+    if (result.error) {
+      console.warn('[Ghost//Link] GM unread count unavailable:', result.error.message);
+      return;
+    }
+    const rows = (result.data || []) as Array<{ unread_count: number }>;
+    setPhoneUnread(rows.reduce((sum, row) => sum + Number(row.unread_count || 0), 0));
+  }, [campaign.id]);
+  useEffect(() => {
+    void refreshPhoneUnread();
+    const channel = supabase.channel('gm-phone-badge-' + campaign.id)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'phone_messages', filter: 'campaign_id=eq.' + campaign.id }, () => { void refreshPhoneUnread(); })
+      .subscribe();
+    const focus = () => { void refreshPhoneUnread(); };
+    window.addEventListener('focus', focus);
+    return () => { window.removeEventListener('focus', focus); void supabase.removeChannel(channel); };
+  }, [campaign.id, refreshPhoneUnread]);
   const [selectedId, setSelectedId] = useState(() => sessionStorage.getItem('gm-selected-character:' + campaign.id) || '');
   const [detailTab, setDetailTab] = useState<'stats' | 'cyberware' | 'inventory' | 'access'>(() => {
     const saved = sessionStorage.getItem('gm-character-tab:' + campaign.id);
@@ -441,6 +465,8 @@ export default function GMConsole({
     { id: 'characters', label: 'Characters', icon: Users },
     { id: 'bank', label: 'Bank', icon: Landmark },
     { id: 'inventory', label: 'Inventory', icon: Package },
+    { id: 'phone', label: 'Ghost//Link', icon: null },
+    { id: 'ripperdoc', label: 'Ripperdoc', icon: Slice },
     { id: 'factions', label: 'Factions', icon: Shield },
     { id: 'logs', label: 'Logs', icon: ScrollText },
   ] as const;
@@ -509,17 +535,17 @@ export default function GMConsole({
         {navigation.map((item) => (
           <button key={item.id} type="button" className={page === item.id ? 'gm-tab active' : 'gm-tab'}
             aria-current={page === item.id ? 'page' : undefined} onClick={() => openPage(item.id)}>
-            <item.icon size={19} strokeWidth={1.9} aria-hidden="true" />
+            <span className="gm-phone-nav-icon">{item.id === "phone" ? <img src="/ghost-link-icon.svg" width={22} height={22} alt="" aria-hidden="true" /> : item.icon ? <item.icon size={19} strokeWidth={1.9} aria-hidden="true" /> : null}{item.id === "phone" && phoneUnread > 0 && <b className="gm-phone-nav-badge">{phoneUnread > 99 ? "99+" : phoneUnread}</b>}</span>
             <span className="gm-sr-only">{item.label}</span>
           </button>
         ))}
       </nav>
-      <h2 className="gm-page-title">
+      {page !== 'phone' && <h2 className="gm-page-title">
         {(() => {
           const current = navigation.find((item) => item.id === page)!;
-          return <><current.icon size={19} strokeWidth={1.9} aria-hidden="true" />{current.label}</>;
+          return <>{current.icon ? <current.icon size={19} strokeWidth={1.9} aria-hidden="true" /> : null}{current.label}</>;
         })()}
-      </h2>
+      </h2>}
       {page === 'live' ? null : page === 'characters' ? (
         <div className="gm-characters-layout">
           <aside className="gm-roster">
@@ -686,13 +712,16 @@ export default function GMConsole({
             </div>
           </section>
         </div>
-      ) : page === 'inventory' ? null : (
+      ) : page === 'inventory' || page === 'ripperdoc' || page === 'phone' ? null : (
         <div className="gm-dashboard-panel gm-empty-detail">Factions — coming later</div>
       )}
       {visitedTools.includes('live') && <div style={{ display: page === 'live' ? undefined : 'none' }}><LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} /></div>}
       {visitedTools.includes('bank') && <div style={{ display: page === 'bank' ? undefined : 'none' }} className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>}
       {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
-      {visitedTools.includes('inventory') && <div style={{ display: page === 'inventory' ? undefined : 'none' }}><ItemCatalog /></div>}
+      {visitedTools.includes('inventory') && <div style={{ display: page === 'inventory' ? undefined : 'none' }}><GMInventory campaignId={campaign.id} /></div>}
+      {visitedTools.includes('phone') && <div style={{ display: page === 'phone' ? undefined : 'none' }}><GMPhone campaignId={campaign.id} campaignName={campaign.name} onRead={refreshPhoneUnread} /></div>}
+      {visitedTools.includes('ripperdoc') && <div style={{ display: page === 'ripperdoc' ? undefined : 'none' }}><Ripperdoc characters={characters} /></div>}
+      <GMCallSpotlight campaignId={campaign.id} />
     </div>
   );
 }

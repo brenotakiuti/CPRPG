@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowDownLeft, Clock3, Cookie, Dices, Heart, History, MessageSquare, Minus, Plus, SunMoon, Wallet, X } from 'lucide-react';
+import { ArrowDownLeft, Clock3, Cookie, Dices, Heart, History, MessageSquare, Phone, Minus, Plus, SunMoon, Wallet } from 'lucide-react';
 import { supabase } from './supabase';
 import './PlayerLogs.css';
 import { displayLogMessage, tarotFromLog } from './tarotData';
@@ -19,6 +19,7 @@ const newestFirst = (a: LogEvent, b: LogEvent) =>
   b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id);
 
 function EventIcon({ message }: { message: string }) {
+  if (/^GHOST\/\/LINK CALL:/i.test(message)) return <Phone size={18} aria-hidden="true" />;
   if (/^HEALTH \+\d+ HP$/i.test(message)) return <span style={{ display: 'inline-flex', alignItems: 'center' }}><Heart size={15} aria-hidden="true" /><Plus size={11} aria-hidden="true" /></span>;
   if (/^HEALTH -\d+ HP$/i.test(message)) return <span style={{ display: 'inline-flex', alignItems: 'center' }}><Heart size={15} aria-hidden="true" /><Minus size={11} aria-hidden="true" /></span>;
   if (/^(?:TAROT REVEALED|TAROT CARD):/i.test(message)) return <SunMoon size={18} aria-hidden="true" />;
@@ -122,7 +123,6 @@ export default function PlayerLogs({ campaignId, characterId, onClose }: {
     <section className="player-logs-dialog" role="dialog" aria-modal="true" aria-label="Personal logs">
       <header className="player-logs-heading">
         <div><h2><History size={20} aria-hidden="true" /> PERSONAL LOGS</h2><p>Your recorded notifications</p></div>
-        <button type="button" className="player-logs-x" aria-label="Close logs" onClick={onClose}><X size={20} /></button>
       </header>
       <input className="player-logs-search" aria-label="Search personal logs" placeholder="Search your logs..." value={search} onChange={event => setSearch(event.target.value)} />
       <div className="player-logs-tabs" role="group" aria-label="Log audience">

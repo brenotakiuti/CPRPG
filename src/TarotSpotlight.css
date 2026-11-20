@@ -7,7 +7,7 @@
 .tarot-card-front{transform:rotateY(180deg)}
 .tarot-card-face img{display:block;width:100%;height:100%;object-fit:fill}
 .tarot-card-face img.tarot-reversed{transform:rotate(180deg)}
-.tarot-result{min-height:60px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px}
+.tarot-result{height:60px;flex:none;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px}
 .tarot-result strong{font-size:20px;color:#e6c34d}
 .tarot-result span{display:flex;align-items:center;gap:5px;font-size:13px}
 .tarot-positive{color:#8bdfaf}.tarot-negative{color:#ff9999}
@@ -17,7 +17,12 @@
 .tarot-actions button:disabled{opacity:.45;cursor:default}
 @media(prefers-reduced-motion:reduce){.tarot-card-surface{transition-duration:.01ms}}
 
-.tarot-card-stage{cursor:pointer}
-.tarot-card-stage:focus-visible{outline:2px solid #e8bd4a;outline-offset:5px}
+.tarot-card-interactive{cursor:pointer}
+.tarot-card-interactive:focus-visible{outline:2px solid #e8bd4a;outline-offset:5px}
 
 .tarot-intro{font-size:20px;line-height:1.4;text-align:center;color:#f0e5cc}.tarot-tap{font-size:12px;letter-spacing:1.5px;color:#d6b36e;font-weight:700}
+
+/* Keep the tarot stage anchored while the result and actions change. */
+.tarot-tap{height:18px;flex:none}
+.tarot-actions{min-height:44px;flex:none}
+.tarot-scene>.tarot-intro{min-height:56px;display:flex;align-items:center;justify-content:center}

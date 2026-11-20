@@ -1,10 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
-import { HeartPulse, Wallet, Dices, Crosshair, Swords, ArrowLeft, Utensils, BriefcaseMedical, UserRound, Backpack, Smartphone, Bell, Wifi, WifiOff, RadioTower, History } from 'lucide-react';
+import { HeartPulse, Wallet, Send, Package, Dices, Crosshair, Swords, ArrowLeft, Utensils, BriefcaseMedical, UserRound, Backpack, Wifi, WifiOff, RadioTower, History, Bug, Copy, Trash2, Info, AlertTriangle } from 'lucide-react';
 import './PlayerView.css';
 import { ArtworkZoomButton } from './ArtworkViewer';
 import PlayerLogs from './PlayerLogs';
 import PlayerSpotlights from './PlayerSpotlights';
+import DiceSpotlight from './DiceSpotlight';
+import PlayerStats from './PlayerStats';
+import PlayerTransfers from './PlayerTransfers';
+import PlayerLoading from './PlayerLoading';
+import PlayerPhone from './PlayerPhone';
+import PlayerCallSpotlight from './PlayerCallSpotlight';
+import HudNotification, { type HudNotice } from './HudNotification';
+import { usePlayerCyberware } from './usePlayerCyberware';
 
 type PlayerCharacter = {
   id: string;
@@ -47,41 +55,60 @@ function consumableIcon(item?: CatalogEntry) {
   if (item?.category !== 'Consumable') return null;
   return item.properties?.subtype === 'food' ? Utensils : item.properties?.subtype === 'medical' ? BriefcaseMedical : null;
 }
-function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSelect }: { characterId: string; onBack: () => void; initialSelectedId?: string | null; onSelect: (id: string | null) => void }) {
+type PlayerInventoryData = { entries: InventoryEntry[]; catalog: Record<string, CatalogEntry>; loading: boolean; error: string; refresh: () => Promise<void> };
+
+function usePlayerInventory(characterId: string | null): PlayerInventoryData {
   const [entries, setEntries] = useState<InventoryEntry[]>([]);
   const [catalog, setCatalog] = useState<Record<string, CatalogEntry>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const versionRef = useRef(0);
+  const catalogRef = useRef<Record<string, CatalogEntry>>({});
+  const refresh = useCallback(async () => {
+    if (!characterId) return;
+    const version = ++versionRef.current;
+    const { data, error: readError } = await supabase.from('character_inventory')
+      .select('id, item_id, quantity, equipped_slot, instance_data').eq('character_id', characterId).order('created_at');
+    if (version !== versionRef.current) return;
+    if (readError) { setError(readError.message); setLoading(false); return; }
+    const rows = (data ?? []) as InventoryEntry[];
+    const missingIds = [...new Set(rows.map(row => row.item_id))].filter(id => !catalogRef.current[id]);
+    if (missingIds.length) {
+      const { data: itemRows, error: itemError } = await supabase.from('items')
+        .select('id, name, category, rarity, description, properties').in('id', missingIds);
+      if (version !== versionRef.current) return;
+      if (itemError) {
+        // Keep previously loaded entries and catalog visible on a transient failure.
+        setEntries(rows); setError(itemError.message); setLoading(false); return;
+      }
+      catalogRef.current = {
+        ...catalogRef.current,
+        ...Object.fromEntries(((itemRows ?? []) as CatalogEntry[]).map(item => [item.id, item])),
+      };
+    }
+    if (version !== versionRef.current) return;
+    setEntries(rows); setCatalog(catalogRef.current); setError(''); setLoading(false);
+  }, [characterId]);
+  useEffect(() => {
+    ++versionRef.current; catalogRef.current = {}; setEntries([]); setCatalog({}); setError(''); setLoading(true);
+    if (!characterId) return;
+    void refresh();
+    const channel = supabase.channel('player-shared-inventory-' + characterId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'character_inventory', filter: 'character_id=eq.' + characterId }, () => { void refresh(); }).subscribe();
+    return () => { ++versionRef.current; void supabase.removeChannel(channel); };
+  }, [characterId, refresh]);
+  return { entries, catalog, loading, error, refresh };
+}
+
+function PlayerInventory({ inventory, onBack, initialSelectedId = null, onSelect }: { inventory: PlayerInventoryData; onBack: () => void; initialSelectedId?: string | null; onSelect: (id: string | null) => void }) {
+  const { entries, catalog, loading, error, refresh } = inventory;
+  const [actionError, setActionError] = useState('');
   const selectedId = initialSelectedId;
   const setSelectedId = onSelect;
   const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  async function refresh() {
-    const { data, error: readError } = await supabase.from('character_inventory')
-      .select('id, item_id, quantity, equipped_slot, instance_data')
-      .eq('character_id', characterId).order('created_at');
-    if (readError) { setError(readError.message); setLoading(false); return; }
-    const rows = (data ?? []) as InventoryEntry[];
-    const ids = [...new Set(rows.map(row => row.item_id))];
-    if (ids.length) {
-      const { data: itemRows, error: itemError } = await supabase.from('items')
-        .select('id, name, category, rarity, description, properties').in('id', ids);
-      if (itemError) { setError(itemError.message); setLoading(false); return; }
-      setCatalog(Object.fromEntries(((itemRows ?? []) as CatalogEntry[]).map(item => [item.id, item])));
-    } else setCatalog({});
-    setEntries(rows);
-    if (selectedId && !rows.some(row => row.id === selectedId)) {
-      setSelectedId(null);
-    }
-    setError('');
-    setLoading(false);
-  }
   useEffect(() => {
-    void refresh();
-    const channel = supabase.channel('player-inventory-' + characterId)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'character_inventory', filter: 'character_id=eq.' + characterId }, () => { void refresh(); })
-      .subscribe();
-    return () => { void supabase.removeChannel(channel); };
-  }, [characterId]);
+    if (!loading && selectedId && !entries.some(row => row.id === selectedId)) setSelectedId(null);
+  }, [entries, loading, selectedId, setSelectedId]);
   const selected = entries.find(row => row.id === selectedId);
   const item = selected ? catalog[selected.item_id] : undefined;
   const properties = (item?.properties ?? {}) as Record<string, any>;
@@ -92,16 +119,16 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSele
     if (!selected || busy) return;
     setBusy(true);
     const { error: equipError } = await supabase.rpc('equip_character_item', { p_inventory_id: selected.id, p_slot: slot });
-    if (equipError) setError(equipError.message);
-    else await refresh();
+    if (equipError) setActionError(equipError.message);
+    else { setActionError(''); await refresh(); }
     setBusy(false);
   }
   async function useConsumable() {
     if (!selected || item?.category !== 'Consumable' || busy) return;
     setBusy(true);
-    setError('');
+    setActionError('');
     const { error: useError } = await supabase.rpc('consume_character_item', { p_inventory_id: selected.id });
-    if (useError) setError(useError.message);
+    if (useError) setActionError(useError.message);
     else await refresh();
     setBusy(false);
   }
@@ -111,12 +138,27 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSele
         style={{ background: '#202e3e', border: '1px solid #405268', borderRadius: 6, color: '#e8bd4a', cursor: 'pointer', fontSize: 13, fontWeight: 700, padding: '9px 12px', display: 'inline-flex', alignItems: 'center', gap: 7 }}><ArrowLeft size={19} strokeWidth={2} aria-hidden="true" />Back</button>
       <h2 style={{ margin: 0, fontSize: 23, fontWeight: 600 }}>{selectedId ? 'Item details' : 'Inventory'}</h2>
     </div>
-    {error && <p role="alert" style={{ color: '#ffb3b3', fontSize: 13 }}>{error}</p>}
+    {(error || actionError) && <p role="alert" style={{ color: '#ffb3b3', fontSize: 13 }}>{actionError || error}</p>}
     {!selectedId ? <>
-      <p style={{ ...inventoryMuted, margin: '0 0 12px' }}>{loading ? 'Loading inventory…' : entries.length + (entries.length === 1 ? ' item' : ' items')}</p>
+      <p style={{ ...inventoryMuted, margin: '0 0 12px' }}>{!loading ? entries.length + (entries.length === 1 ? ' item' : ' items') : ''}</p>
       {!loading && entries.length === 0 && <p style={inventoryMuted}>No items in inventory.</p>}
-      <div style={{ background: '#14202c', border: '1px solid #354556', borderRadius: 8, padding: '4px 12px' }}>
-      {entries.map(entry => {
+      {loading && <PlayerLoading message="Retrieving inventory..." />}
+      {!loading && <div style={{ background: '#14202c', border: '1px solid #354556', borderRadius: 8, padding: '4px 12px' }}>
+      {[...entries].sort((a, b) => {
+        const itemA = catalog[a.item_id];
+        const itemB = catalog[b.item_id];
+        const group = (item?: CatalogEntry) => {
+          if (item?.category === 'Weapon') return 0;
+          if (item?.category === 'Consumable' && item.properties?.subtype === 'medical') return 1;
+          if (item?.category === 'Consumable' && item.properties?.subtype === 'food') return 2;
+          return 3;
+        };
+        const groupDifference = group(itemA) - group(itemB);
+        if (groupDifference) return groupDifference;
+        const categoryDifference = (itemA?.category ?? '').localeCompare(itemB?.category ?? '', undefined, { sensitivity: 'base' });
+        if (group(itemA) === 3 && categoryDifference) return categoryDifference;
+        return (itemA?.name ?? 'Unknown item').localeCompare(itemB?.name ?? 'Unknown item', undefined, { sensitivity: 'base' }) || a.id.localeCompare(b.id);
+      }).map(entry => {
         const catalogItem = catalog[entry.item_id];
         const CategoryIcon = consumableIcon(catalogItem);
         const rarityColor = rarityColors[catalogItem?.rarity ?? ''] ?? '#8996a5';
@@ -129,7 +171,7 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSele
           <span aria-hidden="true" style={{ color: '#8996a5' }}>›</span>
         </button>;
       })}
-      </div>
+      </div>}
     </> : selected ? <>
       <h3 style={{ margin: '0 0 4px', fontSize: 25, fontWeight: 600 }}>{item?.name ?? 'Unknown item'}</h3>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 16 }}>
@@ -174,31 +216,11 @@ function PlayerInventory({ characterId, onBack, initialSelectedId = null, onSele
 }
 
 
-function PlayerLoadout({ characterId, onInspect, onInventory }: { characterId: string; onInspect: (inventoryId: string) => void; onInventory: () => void }) {
-  const [equipped, setEquipped] = useState<InventoryEntry[]>([]);
-  const [catalog, setCatalog] = useState<Record<string, CatalogEntry>>({});
-  useEffect(() => {
-    let active = true;
-    async function refresh() {
-      const { data, error } = await supabase.from('character_inventory')
-        .select('id, item_id, quantity, equipped_slot, instance_data')
-        .eq('character_id', characterId).in('equipped_slot', ['weapon_1', 'weapon_2']);
-      if (error) { console.warn('[Player Loadout]', error.message); return; }
-      const rows = (data ?? []) as InventoryEntry[];
-      const ids = [...new Set(rows.map(row => row.item_id))];
-      const result = ids.length ? await supabase.from('items')
-        .select('id, name, category, rarity, description, properties').in('id', ids) : null;
-      if (!active) return;
-      if (result?.error) console.warn('[Player Loadout catalog]', result.error.message);
-      setEquipped(rows);
-      setCatalog(Object.fromEntries(((result?.data ?? []) as CatalogEntry[]).map(item => [item.id, item])));
-    }
-    void refresh();
-    const channel = supabase.channel('player-loadout-' + characterId)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'character_inventory', filter: 'character_id=eq.' + characterId }, () => { void refresh(); })
-      .subscribe();
-    return () => { active = false; void supabase.removeChannel(channel); };
-  }, [characterId]);
+function PlayerLoadout({ inventory, onInspect, onInventory }: { inventory: PlayerInventoryData; onInspect: (inventoryId: string) => void; onInventory: () => void }) {
+  const { entries, catalog, loading, error } = inventory;
+  if (loading) return <section className="player-card" aria-label="Loadout"><div className="player-section-heading"><span>LOADOUT</span></div><PlayerLoading message="Retrieving equipment..." /></section>;
+  if (error && entries.length === 0) return <section className="player-card" aria-label="Loadout"><div className="player-section-heading"><span>LOADOUT</span></div><p role="alert">{error}</p></section>;
+  const equipped = entries.filter(row => row.equipped_slot === 'weapon_1' || row.equipped_slot === 'weapon_2');
   return <section className="player-card" aria-label="Loadout" style={{ padding: 16 }}>
     <div className="player-section-heading" style={{ marginBottom: 12 }}>
       <span>LOADOUT</span><strong style={{ color: '#9baebe', fontSize: 11 }}>{equipped.length} / 2 EQUIPPED</strong>
@@ -253,122 +275,390 @@ type PlayerViewProps = {
 
 export default function PlayerView({ token }: PlayerViewProps) {
   const [character, setCharacter] = useState<PlayerCharacter | null>(null);
+  const inventoryData = usePlayerInventory(character?.id ?? null);
+  const cyberwareData = usePlayerCyberware(character?.id ?? null);
   const [body, setBody] = useState<number | null>(null);
-  type PlayerScreen = { inventory: boolean; selected: string | null; logs: boolean };
+  const [diceOpen, setDiceOpen] = useState(false);
+  type PlayerScreen = { inventory: boolean; selected: string | null; logs: boolean; stats?: boolean; diagnostics?: boolean; statsView?: 'map' | 'list'; statsPosition?: string | null; transfer?: 'money' | 'item' | null; phone?: boolean };
   const screenKey = 'player-screen:' + (token ?? 'current');
   function restoreScreen(): PlayerScreen {
     try {
       const value = JSON.parse(sessionStorage.getItem(screenKey) || 'null');
-      return { inventory: value?.inventory === true, selected: typeof value?.selected === 'string' ? value.selected : null, logs: value?.logs === true };
-    } catch { return { inventory: false, selected: null, logs: false }; }
+      return { inventory: value?.inventory === true, selected: typeof value?.selected === 'string' ? value.selected : null, logs: value?.logs === true, stats: value?.stats === true, statsView: value?.statsView === 'list' ? 'list' : 'map', statsPosition: typeof value?.statsPosition === 'string' ? value.statsPosition : null, diagnostics: value?.diagnostics === true, phone: value?.phone === true, transfer: value?.transfer === 'money' || value?.transfer === 'item' ? value.transfer : null };
+    } catch { return { inventory: false, selected: null, logs: false, diagnostics: false }; }
   }
   const [initialScreen] = useState(restoreScreen);
   const [logsOpen, setLogsOpen] = useState(initialScreen.logs);
+  const [statsOpen, setStatsOpen] = useState(initialScreen.stats === true);
+  const [statsView, setStatsView] = useState<'map' | 'list'>(initialScreen.statsView ?? 'map');
+  const [statsPosition, setStatsPosition] = useState<string | null>(initialScreen.statsPosition ?? null);
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(initialScreen.diagnostics === true);
   const [inventoryOpen, setInventoryOpen] = useState(initialScreen.inventory);
+  const [phoneOpen, setPhoneOpen] = useState(initialScreen.phone === true);
+  const [transferOpen, setTransferOpen] = useState<'money' | 'item' | null>(initialScreen.transfer ?? null);
   const [inventorySelection, setInventorySelection] = useState<string | null>(initialScreen.selected);
   const [inventoryVisited, setInventoryVisited] = useState(initialScreen.inventory);
   const [logsVisited, setLogsVisited] = useState(initialScreen.logs);
   const navRef = useRef<PlayerScreen>(initialScreen);
   const navigationKey = useRef('player-navigation:' + (token ?? 'current'));
-  function navigate(next: { inventory: boolean; selected: string | null; logs: boolean }) {
+  const pendingStatsTab = useRef<'map' | 'list' | null>(null);
+  function applyScreen(next: PlayerScreen) {
     navRef.current = next;
     sessionStorage.setItem(screenKey, JSON.stringify(next));
-    window.history.pushState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: next }, '');
     setInventoryOpen(next.inventory);
+    setTransferOpen(next.transfer ?? null);
+    setPhoneOpen(next.phone === true);
     setInventorySelection(next.selected);
     setLogsOpen(next.logs);
+    setStatsOpen(next.stats === true);
+    setStatsView(next.statsView ?? 'map');
+    setStatsPosition(next.statsPosition ?? null);
+    setDiagnosticsOpen(next.diagnostics === true);
     if (next.inventory) setInventoryVisited(true);
     if (next.logs) setLogsVisited(true);
   }
+  function updateStats(view: 'map' | 'list', position: string | null) {
+    const current = navRef.current;
+    if (!current.stats || (current.statsView ?? 'map') === view && (current.statsPosition ?? null) === position) return;
+    // Changing tabs is not a history step. If a detail is open, collapse it
+    // back to the base Stats entry before switching tabs.
+    if (current.statsPosition && !position && view !== (current.statsView ?? 'map')) {
+      pendingStatsTab.current = view;
+      window.history.back();
+      return;
+    }
+    const next = { ...current, statsView: view, statsPosition: position };
+    if (position && !current.statsPosition) {
+      navigate(next);
+    } else if (!position && current.statsPosition) {
+      window.history.back();
+    } else {
+      applyScreen(next);
+      window.history.replaceState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: next }, '');
+    }
+  }
+  function navigate(next: PlayerScreen) {
+    applyScreen(next);
+    window.history.pushState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: next }, '');
+    if (next.transfer || next.phone) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }
   function goBack() {
-    if (navRef.current.logs || navRef.current.selected || navRef.current.inventory) window.history.back();
+    if (navRef.current.logs || navRef.current.diagnostics || navRef.current.stats || navRef.current.selected || navRef.current.inventory || navRef.current.transfer || navRef.current.phone) window.history.back();
   }
   useEffect(() => {
     window.history.replaceState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: navRef.current }, '');
     const onPopState = (event: PopStateEvent) => {
       const next = event.state?.playerNavigationKey === navigationKey.current
-        ? event.state.playerScreen as { inventory: boolean; selected: string | null; logs: boolean }
-        : { inventory: false, selected: null, logs: false };
-      navRef.current = next;
-      sessionStorage.setItem(screenKey, JSON.stringify(next));
-      setInventoryOpen(next.inventory);
-      setInventorySelection(next.selected);
-      setLogsOpen(next.logs);
-      if (next.inventory) setInventoryVisited(true);
-      if (next.logs) setLogsVisited(true);
+        ? event.state.playerScreen as PlayerScreen
+        : { inventory: false, selected: null, logs: false, diagnostics: false };
+      if (pendingStatsTab.current && next.stats) {
+        const tab = pendingStatsTab.current;
+        pendingStatsTab.current = null;
+        const base = { ...next, statsView: tab, statsPosition: null };
+        applyScreen(base);
+        window.history.replaceState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: base }, '');
+      } else {
+        pendingStatsTab.current = null;
+        applyScreen(next);
+      }
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
   function openInventory(selected: string | null = null) {
-    if (selected) {
-      navigate({ inventory: true, selected: null, logs: false });
-      navigate({ inventory: true, selected, logs: false });
-    } else navigate({ inventory: true, selected: null, logs: false });
+    if (selected) navigate({ inventory: true, selected, logs: false });
+    else navigate({ inventory: true, selected: null, logs: false });
   }
   function selectInventoryItem(id: string | null) {
     if (id) navigate({ inventory: true, selected: id, logs: false });
     else goBack();
   }
+  type DiagnosticEntry = { time: string; source: string; message: string; severity?: 'info' | 'warning' | 'error'; hint?: string };
+  const diagnosticKey = 'player-diagnostics';
+  const [diagnostics, setDiagnostics] = useState<DiagnosticEntry[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(diagnosticKey) || '[]');
+      return Array.isArray(stored) ? stored.slice(-50) : [];
+    } catch { return []; }
+  });
+  const recordDiagnostic = useCallback((source: string, detail: unknown, severity: DiagnosticEntry['severity'] = 'error', hint?: string) => {
+    const message = detail instanceof Error ? detail.message : String(detail ?? 'Unknown error');
+    const entry: DiagnosticEntry = { time: new Date().toISOString(), source, message, severity, hint };
+    setDiagnostics(previous => {
+      const next = [...previous, entry].slice(-50);
+      try { localStorage.setItem(diagnosticKey, JSON.stringify(next)); } catch { /* Storage unavailable */ }
+      return next;
+    });
+  }, []);
+  useEffect(() => {
+    const onError = (event: ErrorEvent) => recordDiagnostic('Browser error', event.message);
+    const onRejection = (event: PromiseRejectionEvent) => recordDiagnostic('Unhandled promise', event.reason);
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onRejection);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onRejection);
+    };
+  }, [recordDiagnostic]);
   const [feedCampaignId, setFeedCampaignId] = useState<string | null>(null);
-  const [hudMessage, setHudMessage] = useState<{ id: string; text: string; duration: number } | null>(null);
-  const hudQueue = useRef<Array<{ id: string; text: string; duration: number }>>([]);
-  const hudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [hudMessage, setHudMessage] = useState<HudNotice | null>(null);
+  const hudQueue = useRef<HudNotice[]>([]);
+  const [hudPending, setHudPending] = useState(0);
+  const hudVisibleIds = useRef(new Set<string>());
+  const hudStackInitialized = useRef(false);
+  const [phoneUnread, setPhoneUnread] = useState(0);
+  const phoneOpenRef = useRef(false);
+  const phoneKnown = useRef(new Set<string>());
+  const hudSeen = useRef(new Set<string>());
+  const hudSince = useRef('');
+  const hudStorageKey = feedCampaignId && character ? `player-hud-v1-${feedCampaignId}-${character.id}` : '';
+  const hudStorageRef = useRef('');
+  const hudCurrent = useRef<HudNotice | null>(null);
+  const hudRecovering = useRef(false);
+  const hudWrite = () => {
+    if (!hudStorageRef.current) return;
+    try {
+      localStorage.setItem(hudStorageRef.current, JSON.stringify({
+        since: hudSince.current,
+        current: hudCurrent.current,
+        queue: hudQueue.current,
+        seen: [...hudSeen.current].slice(-2000),
+      }));
+    } catch { /* Storage can be unavailable or full; campaign logs remain authoritative. */ }
+  };
+  const enqueueHud = (notices: Array<HudNotice & { created_at?: string }>) => {
+    const fresh = notices.filter(notice => {
+      if (hudSeen.current.has(notice.id)) return false;
+      hudSeen.current.add(notice.id);
+      return true;
+    });
+    if (!fresh.length) return;
+    // Only the pending cards are reordered; the visible card never jumps.
+    hudQueue.current.push(...fresh.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || '')));
+    hudQueue.current.sort((a, b) => ((a as HudNotice & { created_at?: string }).created_at || '').localeCompare((b as HudNotice & { created_at?: string }).created_at || ''));
+    setHudPending(hudQueue.current.length);
+    if (!hudActive.current) showNextHudMessage();
+    hudWrite();
+  };
+
   const hudActive = useRef(false);
+  const [hudOffset, setHudOffset] = useState(0);
+  const [hudDismissing, setHudDismissing] = useState(false);
+  const hudGesture = useRef<{ startX: number; pointerId: number } | null>(null);
+  const hudPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (hudDismissing) return;
+    hudGesture.current = { startX: event.clientX, pointerId: event.pointerId };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const hudPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (hudGesture.current?.pointerId !== event.pointerId || hudDismissing) return;
+    setHudOffset(event.clientX - hudGesture.current.startX);
+  };
+  const hudPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (hudGesture.current?.pointerId !== event.pointerId) return;
+    const delta = event.clientX - hudGesture.current.startX;
+    hudGesture.current = null;
+    if (Math.abs(delta) >= 65) {
+      setHudOffset(delta);
+      setHudDismissing(true);
+      requestAnimationFrame(() => setHudOffset(delta < 0 ? -window.innerWidth : window.innerWidth));
+    } else setHudOffset(0);
+  };
+  const hudPointerCancel = () => { hudGesture.current = null; if (!hudDismissing) setHudOffset(0); };
+  const finishHudDismiss = (event: React.TransitionEvent<HTMLDivElement>) => {
+    if (event.propertyName !== 'transform' || !hudDismissing) return;
+    setHudOffset(0);
+    setHudDismissing(false);
+    showNextHudMessage();
+    hudWrite();
+  };
 
   // The HUD consumes persisted events, independent of their producing system.
-  // One message finishes its full animation before the next starts.
+  // One notification stays visible until the player swipes it away.
   function showNextHudMessage() {
     const next = hudQueue.current.shift();
+    setHudPending(hudQueue.current.length);
     if (!next) {
       hudActive.current = false;
       setHudMessage(null);
+      hudCurrent.current = null;
+      hudWrite();
       return;
     }
     hudActive.current = true;
+    hudCurrent.current = next;
     setHudMessage(next);
-    hudTimer.current = setTimeout(showNextHudMessage, next.duration);
+    hudWrite();
+
   }
 
   useEffect(() => {
-    if (!feedCampaignId || !character) return;
+    if (!feedCampaignId || !character || !hudStorageKey) return;
+    let alive = true;
+    hudStorageRef.current = hudStorageKey;
+    hudQueue.current = [];
+    hudVisibleIds.current.clear();
+    hudStackInitialized.current = false;
+    hudSeen.current = new Set();
+    hudCurrent.current = null;
+    hudActive.current = false;
+    setHudMessage(null);
+    setHudPending(0);
+    const initialSince = new Date().toISOString();
+    hudSince.current = initialSince;
+    try {
+      const saved = JSON.parse(localStorage.getItem(hudStorageKey) || 'null') as {
+        since?: string; current?: HudNotice; queue?: HudNotice[]; seen?: string[];
+      } | null;
+      if (saved && typeof saved.since === 'string' && !Number.isNaN(Date.parse(saved.since))) {
+        hudSince.current = saved.since;
+        hudSeen.current = new Set(Array.isArray(saved.seen) ? saved.seen.filter(id => typeof id === 'string') : []);
+        const pending = [saved.current, ...(Array.isArray(saved.queue) ? saved.queue : [])]
+          .filter((item): item is HudNotice => !!item && typeof item.id === 'string' && typeof item.text === 'string');
+        hudQueue.current = pending;
+        showNextHudMessage();
+      }
+    } catch { /* Invalid storage is treated as a fresh device. */ }
+    hudWrite();
+
+    const validEvent = (event: { audience?: string; character_id?: string | null; category?: string; message?: string }) =>
+      (event.audience === 'campaign' || (event.audience === 'character' && event.character_id === character.id)) &&
+      (event.category === 'system' || event.category === 'text') &&
+      typeof event.message === 'string' && !!event.message.trim() &&
+      !/^(?:(?:TAROT REVEALED|TAROT CARD|FORTUNE REVEALED):|HEALTH [+-]\\d+ HP$)/i.test(event.message.trim()) &&
+      !/^GHOST\/\/LINK CALL:/i.test(event.message.trim()) &&
+      !/\\[UNAPPROVED\\]/i.test(event.message);
+
+    const recover = async () => {
+      if (!alive || hudRecovering.current) return;
+      hudRecovering.current = true;
+      try {
+        // Read forward from the device's first HUD activation, not the whole campaign.
+        // A bounded page loop avoids silently dropping busy periods.
+        let cursor = hudSince.current;
+        for (let page = 0; page < 30 && alive; page++) {
+          const { data, error } = await supabase.from('campaign_events')
+            .select('id,character_id,audience,category,message,created_at')
+            .eq('campaign_id', feedCampaignId)
+            .or(`audience.eq.campaign,and(audience.eq.character,character_id.eq.${character.id})`)
+            .gte('created_at', cursor)
+            .order('created_at', { ascending: true })
+            .order('id', { ascending: true })
+            .limit(500);
+          if (error) { console.warn('[Campaign HUD] Recovery:', error.message); break; }
+          const rows = data || [];
+          enqueueHud(rows.filter(validEvent).map(row => ({
+            id: row.id, text: row.message.trim().replace(/\\s+/g, ' '), created_at: row.created_at,
+          })));
+          if (rows.length < 500) break;
+          const last = rows[rows.length - 1];
+          // Avoid skipping events sharing a timestamp; deduplication handles overlap.
+          if (last.created_at === cursor) break;
+          cursor = last.created_at;
+        }
+        // Ghost//Link history is accessed through the same authorized RPCs as the phone UI.
+        const identity = await supabase.rpc('phone_ensure_player_identity', { p_character_id: character.id });
+        if (!alive || identity.error) return;
+        const threads = await supabase.rpc('phone_threads', { p_character_id: character.id });
+        if (!alive || threads.error) return;
+        const recovered: Array<HudNotice & { created_at: string }> = [];
+        for (const thread of (threads.data || []) as Array<{ conversation_id: string; other_label: string }>) {
+          if (!alive) return;
+          const result = await supabase.rpc('phone_read_messages', { p_conversation_id: thread.conversation_id, p_limit: 100 });
+          if (result.error) continue;
+          for (const msg of (result.data || []) as Array<{ message_id: string; sender_identity_id: string; body: string; created_at: string }>) {
+            if (msg.sender_identity_id === identity.data || msg.created_at < hudSince.current) continue;
+            recovered.push({ id: 'phone:' + msg.message_id, kind: 'ghostlink', sender: thread.other_label,
+              text: msg.body.trim().replace(/\\s+/g, ' ').slice(0, 110), created_at: msg.created_at });
+          }
+        }
+        if (alive) enqueueHud(recovered);
+        // A small overlap protects events written while recovery was running.
+        if (alive) { hudSince.current = new Date(Date.now() - 60000).toISOString(); hudWrite(); }
+      } finally { hudRecovering.current = false; }
+    };
     const channel = supabase.channel('campaign-events-' + feedCampaignId + '-' + character.id)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'campaign_events',
-        filter: 'campaign_id=eq.' + feedCampaignId,
-      }, ({ new: event }) => {
-        if (event.audience === 'gm') return;
-        if (event.audience === 'character' && event.character_id !== character.id) return;
-        if (event.audience !== 'campaign' && event.audience !== 'character') return;
-        if (typeof event.message !== 'string' || !event.message.trim()) return;
-        if (event.category !== 'system' && event.category !== 'text') return;
-        // Tarot and fortune results are already displayed in interactive spotlights.
-        // Keep them in campaign logs without duplicating them in the HUD.
-        if (/^(?:(?:TAROT REVEALED|TAROT CARD|FORTUNE REVEALED):|HEALTH [+-]\\d+ HP$)/i.test(event.message.trim())) return;
-        const text = event.message.trim().replace(/\s+/g, ' ');
-        hudQueue.current.push({
-          id: typeof event.id === 'string' ? event.id : crypto.randomUUID(),
-          text,
-          duration: event.category === 'text' ? 2500 : 2000,
-        });
-        if (!hudActive.current) showNextHudMessage();
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'campaign_events',
+        filter: 'campaign_id=eq.' + feedCampaignId }, ({ new: event }) => {
+        if (!alive || !validEvent(event)) return;
+        enqueueHud([{ id: typeof event.id === 'string' ? event.id : crypto.randomUUID(),
+          text: (event.message as string).trim().replace(/\\s+/g, ' '), created_at: event.created_at as string }]);
       })
       .subscribe((status, error) => {
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        if (status === 'SUBSCRIBED') void recover();
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT')
           console.warn('[Campaign HUD] Event subscription problem:', error ?? status);
-        }
       });
+    const onReturn = () => { if (document.visibilityState === 'visible') void recover(); };
+    const onOnline = () => { void recover(); };
+    document.addEventListener('visibilitychange', onReturn);
+    window.addEventListener('focus', onReturn);
+    window.addEventListener('online', onOnline);
     return () => {
-      if (hudTimer.current) clearTimeout(hudTimer.current);
-      hudTimer.current = null;
+      alive = false;
+      hudWrite();
+      hudStorageRef.current = '';
       hudQueue.current = [];
       hudActive.current = false;
+      hudCurrent.current = null;
+      hudRecovering.current = false;
       setHudMessage(null);
+      setHudPending(0);
+      setHudOffset(0);
+      setHudDismissing(false);
+      hudGesture.current = null;
+      document.removeEventListener('visibilitychange', onReturn);
+      window.removeEventListener('focus', onReturn);
+      window.removeEventListener('online', onOnline);
       void supabase.removeChannel(channel);
     };
+  }, [feedCampaignId, character?.id, hudStorageKey]);
+  // Track cards already shown so only newly exposed rear cards slide into the stack.
+  useEffect(() => {
+    if (!hudMessage) return;
+    hudVisibleIds.current.add(hudMessage.id);
+    hudQueue.current.slice(0, 2).forEach(notice => hudVisibleIds.current.add(notice.id));
+    hudStackInitialized.current = true;
+  }, [hudMessage, hudPending]);
+
+  // Keep phone notifications separate from campaign_events while sharing the HUD queue.
+  useEffect(() => {
+    if (!character?.id || !feedCampaignId) return;
+    let alive = true;
+    phoneKnown.current.clear();
+    const updateUnread = async () => {
+      const result = await supabase.rpc('phone_threads', { p_character_id: character.id });
+      if (!alive || result.error) return;
+      const rows = (result.data || []) as Array<{ unread_count: number }>;
+      setPhoneUnread(rows.reduce((sum, row) => sum + Number(row.unread_count || 0), 0));
+    };
+    const initialize = async () => {
+      const identity = await supabase.rpc('phone_ensure_player_identity', { p_character_id: character.id });
+      if (!alive || identity.error) return;
+      const selfId = identity.data as string;
+      await updateUnread();
+      const channel = supabase.channel('player-phone-hud-' + character.id)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'phone_messages', filter: 'campaign_id=eq.' + feedCampaignId }, async ({ new: message }) => {
+          if (!alive || message.sender_identity_id === selfId || typeof message.id !== 'string' || phoneKnown.current.has(message.id)) return;
+          phoneKnown.current.add(message.id);
+          const result = await supabase.rpc('phone_threads', { p_character_id: character.id });
+          if (!alive || result.error) return;
+          const threads = (result.data || []) as Array<{ conversation_id: string; other_label: string; unread_count: number }>;
+          setPhoneUnread(threads.reduce((sum, row) => sum + Number(row.unread_count || 0), 0));
+          const thread = threads.find(row => row.conversation_id === message.conversation_id);
+          if (!thread || phoneOpenRef.current) return;
+          const body = typeof message.body === 'string' ? message.body.trim().replace(/\\s+/g, ' ') : '';
+          enqueueHud([{ id: 'phone:' + message.id, kind: 'ghostlink', sender: thread.other_label, text: body.slice(0, 110), created_at: message.created_at as string }]);
+        }).subscribe();
+      return channel;
+    };
+    let channel: ReturnType<typeof supabase.channel> | undefined;
+    void initialize().then(value => { if (!alive && value) void supabase.removeChannel(value); else channel = value; }).catch(error => console.warn('[Ghost//Link HUD]', error));
+    const refresh = () => { void updateUnread(); };
+    window.addEventListener('focus', refresh);
+    return () => { alive = false; window.removeEventListener('focus', refresh); if (channel) void supabase.removeChannel(channel); };
   }, [feedCampaignId, character?.id]);
+  phoneOpenRef.current = Boolean(navRef.current.phone);
   const characterLoaded = useRef(false);
   const [message, setMessage] = useState('Connecting...');
   const [connected, setConnected] = useState(false);
@@ -376,9 +666,70 @@ export default function PlayerView({ token }: PlayerViewProps) {
   useEffect(() => {
     let active = true;
     let subscribedCharacterId: string | null = null;
+    let loadingCharacter = false;
+    let idle = document.visibilityState === 'hidden';
+    let refreshAfterLoad = false;
     let characterChannel: ReturnType<typeof supabase.channel> | null = null;
-    const onOffline = () => { if (active) setConnected(false); };
+    let statsChannel: ReturnType<typeof supabase.channel> | null = null;
+    let cachedCampaignId: string | null = null;
+    let cachedBodyId: string | null = null;
+    let definitionsLoaded = false;
+    let assignedId: string | null = null;
+    let pendingHP: number | null = null;
+    let hpTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastHPUpdate = 0;
+    const flushHP = () => {
+      if (hpTimer) clearTimeout(hpTimer);
+      hpTimer = null;
+      if (pendingHP === null) return;
+      const value = pendingHP;
+      pendingHP = null;
+      lastHPUpdate = Date.now();
+      setCharacter(previous => previous?.id === assignedId ? { ...previous, current_hp: value } : previous);
+    };
+    const queueHP = (value: number | null) => {
+      if (value === null) {
+        if (hpTimer) clearTimeout(hpTimer);
+        hpTimer = null;
+        pendingHP = null;
+        setCharacter(previous => previous?.id === assignedId ? { ...previous, current_hp: null } : previous);
+        return;
+      }
+      pendingHP = value;
+      if (hpTimer) return;
+      const wait = Math.max(0, 400 - (Date.now() - lastHPUpdate));
+      if (wait === 0) flushHP();
+      else hpTimer = setTimeout(flushHP, wait);
+    };
+    const onOffline = () => { if (active) { setConnected(false); recordDiagnostic('Network', 'Browser went offline'); } };
     window.addEventListener('offline', onOffline);
+    const suspend = () => {
+      if (idle) return;
+      idle = true;
+      recordDiagnostic('App lifecycle / visibilitychange', 'Browser hidden; character synchronization suspended.', 'info', 'Expected when switching apps or turning the screen off.');
+      flushHP();
+      if (statsChannel) { const previous = statsChannel; statsChannel = null; void supabase.removeChannel(previous); }
+      if (characterChannel) {
+        const previous = characterChannel;
+        characterChannel = null;
+        subscribedCharacterId = null;
+        void supabase.removeChannel(previous);
+      }
+    };
+    const onOnline = () => { if (active && !idle) void loadCharacter(); };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        suspend();
+      } else if (document.visibilityState === 'visible') {
+        const wasIdle = idle;
+        idle = false;
+        if (wasIdle) recordDiagnostic('App lifecycle / visibilitychange', 'Browser visible; character synchronization resuming.', 'info', 'Expected after returning to the browser.');
+        if (loadingCharacter) refreshAfterLoad = true;
+        else if (characterLoaded.current) void loadCharacter();
+      }
+    };
+    window.addEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     async function connectPlayer() {
       // Reuse the existing anonymous account if possible.
@@ -388,6 +739,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       if (!active) return;
 
       if (sessionError) {
+        recordDiagnostic('Auth session', sessionError.message);
         setMessage(sessionError.message);
         return;
       }
@@ -400,6 +752,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
         if (!active) return;
 
         if (error) {
+          recordDiagnostic('Anonymous sign-in', error.message);
           setMessage(error.message);
           return;
         }
@@ -408,6 +761,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
       }
 
       if (!session) {
+        recordDiagnostic('Auth session', 'Could not establish a player session');
         setMessage('Could not establish a player session.');
         return;
       }
@@ -428,6 +782,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
         if (!active) return;
 
         if (error) {
+          recordDiagnostic('Claim character', error.message);
           setMessage(error.message);
           return;
         }
@@ -444,58 +799,89 @@ export default function PlayerView({ token }: PlayerViewProps) {
     }
 
     async function loadCharacter() {
+      if (loadingCharacter || idle || !navigator.onLine) return;
+      loadingCharacter = true;
+      try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (!active) return;
+      if (userError || !userData.user) {
+        recordDiagnostic('Character loader / supabase.auth.getUser()', userError?.message ?? 'No authenticated user', 'warning', 'May occur while connectivity recovers after returning to the browser. Check whether subsequent synchronization succeeds.');
+        setConnected(false);
+        return;
+      }
       const { data, error } = await supabase
         .from('characters')
         .select('id, name, balance')
-        .eq('player_id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('player_id', userData.user.id)
         .maybeSingle();
 
       if (!active) return;
 
       if (error) {
+        recordDiagnostic('Character loader / characters.select()', error.message, 'warning', 'A temporary network failure can cause this. Cached character data remains visible while the app retries.');
         setConnected(false);
-        setCharacter(null);
-        setFeedCampaignId(null);
+        // A network failure is not evidence that character access was revoked.
+        // Keep the last successfully loaded dashboard visible while retrying.
         setMessage(error.message);
       } else if (!data) {
         setConnected(false);
         // A GM may revoke access while this browser remains signed in.
         setCharacter(null);
         setFeedCampaignId(null);
+        recordDiagnostic('Load character', 'No character assigned');
         setMessage('No character assigned. Ask your GM for a new invitation.');
       } else {
         // Read HP separately so older databases can still show the character.
         const { data: hpData, error: hpError } = await supabase.from('characters')
           .select('current_hp').eq('id', data.id).maybeSingle();
         if (!active) return;
-        if (hpError) console.warn('[Player] HP:', hpError.message);
-        setCharacter({ ...data, current_hp: hpData?.current_hp == null ? null : Number(hpData.current_hp) });
+        if (hpError) { recordDiagnostic('Load HP', hpError.message); console.warn('[Player] HP:', hpError.message); }
+        if (assignedId !== data.id) {
+          assignedId = data.id;
+          if (hpTimer) clearTimeout(hpTimer);
+          hpTimer = null;
+          pendingHP = null;
+          lastHPUpdate = 0;
+          cachedCampaignId = null;
+          cachedBodyId = null;
+          definitionsLoaded = false;
+          setBody(null);
+        }
+        setCharacter(previous => ({
+          ...data,
+          current_hp: previous && previous.id === data.id ? previous.current_hp
+            : (hpError || hpData?.current_hp == null ? null : Number(hpData.current_hp)),
+        }));
+        if (!hpError) queueHP(hpData?.current_hp == null ? null : Number(hpData.current_hp));
 
-        // Use separate definition and value queries, as in the GM monitor.
-        const { data: campaignRow, error: campaignError } = await supabase
-          .from('characters').select('campaign_id').eq('id', data.id).maybeSingle();
-        if (!active) return;
-        if (campaignError) console.warn('[Player] Campaign:', campaignError.message);
-        const campaignId = campaignRow?.campaign_id;
-        setFeedCampaignId(campaignId ?? null);
-        if (campaignId) {
-          const { data: definitions, error: definitionError } = await supabase
-            .from('stat_definitions').select('id, name').eq('campaign_id', campaignId);
+        // Cache campaign and stat definitions for the character session.
+        if (!cachedCampaignId) {
+          const { data: campaignRow, error: campaignError } = await supabase
+            .from('characters').select('campaign_id').eq('id', data.id).maybeSingle();
           if (!active) return;
-          if (definitionError) console.warn('[Player] Stat definitions:', definitionError.message);
-          const bodyId = (definitions ?? []).find(d => d.name.trim().toLowerCase() === 'body')?.id;
-          if (bodyId) {
-            const { data: bodyRow, error: bodyError } = await supabase
-              .from('character_stats').select('value')
-              .eq('character_id', data.id).eq('stat_id', bodyId).maybeSingle();
-            if (!active) return;
-            if (bodyError) console.warn('[Player] BODY:', bodyError.message);
-            setBody(bodyRow ? Number(bodyRow.value) : null);
-          } else setBody(null);
-        } else setBody(null);
+          if (campaignError) recordDiagnostic('Load campaign', campaignError.message);
+          else { cachedCampaignId = campaignRow?.campaign_id ?? null; setFeedCampaignId(cachedCampaignId); }
+        }
+        if (cachedCampaignId && !definitionsLoaded) {
+          const { data: definitions, error: definitionError } = await supabase
+            .from('stat_definitions').select('id, name').eq('campaign_id', cachedCampaignId);
+          if (!active) return;
+          if (definitionError) recordDiagnostic('Load stat definitions', definitionError.message);
+          else {
+            cachedBodyId = (definitions ?? []).find(d => d.name.trim().toLowerCase() === 'body')?.id ?? null;
+            definitionsLoaded = true;
+          }
+        }
+        if (cachedBodyId) {
+          const { data: bodyRow, error: bodyError } = await supabase.from('character_stats')
+            .select('value').eq('character_id', data.id).eq('stat_id', cachedBodyId).maybeSingle();
+          if (!active) return;
+          if (bodyError) recordDiagnostic('Load BODY', bodyError.message);
+          else setBody(bodyRow ? Number(bodyRow.value) : null);
+        }
         // Subscribe once per assigned character. Realtime updates arrive after the
         // GM's debounced database write, rather than waiting for the next poll.
-        if (subscribedCharacterId !== data.id) {
+        if (!idle && subscribedCharacterId !== data.id) {
           if (characterChannel) void supabase.removeChannel(characterChannel);
           subscribedCharacterId = data.id;
           characterChannel = supabase.channel('player-character-' + data.id)
@@ -511,13 +897,13 @@ export default function PlayerView({ token }: PlayerViewProps) {
                 balance: payload.new?.balance,
               });
               const row = payload.new as Partial<PlayerCharacter>;
+              if (row.current_hp !== undefined) queueHP(row.current_hp == null ? null : Number(row.current_hp));
               setCharacter(previous => {
                 if (!previous || previous.id !== data.id) return previous;
                 return {
                   ...previous,
                   ...(typeof row.name === 'string' ? { name: row.name } : {}),
                   ...(typeof row.balance === 'number' ? { balance: row.balance } : {}),
-                  ...(row.current_hp !== undefined ? { current_hp: row.current_hp } : {}),
                 };
               });
             })
@@ -528,32 +914,53 @@ export default function PlayerView({ token }: PlayerViewProps) {
                 ...(error ? { error: error.message } : {}),
               });
               if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                console.warn('[Player Realtime] Subscription problem; polling remains active', error);
+                if (!idle && document.visibilityState === 'visible') recordDiagnostic('Character Realtime / subscribe()', error?.message ?? status, 'warning', 'WebSocket interruptions can occur during network changes. If they persist while the app is visible, investigate connectivity.');
+                console.warn('[Player Realtime] Subscription problem; reconnect refresh available', error);
               }
+            });
+        }
+        if (!idle && cachedBodyId && !statsChannel) {
+          statsChannel = supabase.channel('player-body-' + data.id)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'character_stats', filter: 'character_id=eq.' + data.id }, payload => {
+              if (!active || idle || payload.eventType === 'DELETE') return;
+              const row = payload.new as { stat_id?: string; value?: number | null };
+              if (row.stat_id === cachedBodyId) setBody(row.value == null ? null : Number(row.value));
+            }).subscribe((status, error) => {
+              if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && !idle)
+                recordDiagnostic('BODY Realtime / subscribe()', error?.message ?? status, 'warning');
             });
         }
         setConnected(navigator.onLine);
         setMessage('');
       }
       characterLoaded.current = true;
+      } catch (failure) {
+        if (active) {
+          recordDiagnostic('Load character exception', failure);
+          setConnected(false);
+        }
+      } finally {
+        loadingCharacter = false;
+        if (active && !idle && refreshAfterLoad) {
+          refreshAfterLoad = false;
+          void loadCharacter();
+        }
+      }
     }
 
-    connectPlayer();
+    void connectPlayer();
 
-    // Simple balance synchronization for our prototype.
-    const interval = setInterval(() => {
-      if (active && characterLoaded.current) {
-        loadCharacter();
-      }
-    }, 5000);
-
+    // Realtime updates live data; visibility and online events recover missed updates.
     return () => {
       active = false;
-      clearInterval(interval);
+      if (hpTimer) clearTimeout(hpTimer);
+      if (statsChannel) void supabase.removeChannel(statsChannel);
       if (characterChannel) void supabase.removeChannel(characterChannel);
       window.removeEventListener('offline', onOffline);
+      window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [token]);
+  }, [token, recordDiagnostic]);
 
   const maximum = body === null ? null : 10 + 5 * body;
   const hp = character?.current_hp ?? null;
@@ -562,16 +969,35 @@ export default function PlayerView({ token }: PlayerViewProps) {
 
   return (
     <main className="player-terminal">
-      {hudMessage && <div className="player-hud-feed" role="status" key={hudMessage.id} style={{ animationDuration: `${hudMessage.duration}ms` }}>{hudMessage.text}</div>}
+      {hudMessage && <div className="player-toast-stack" role="status" aria-live="polite">
+        {hudQueue.current.slice(0, 2).map((notice, index) => {
+          const advance = hudDismissing ? 1 : Math.min(1, Math.abs(hudOffset) / 110);
+          const depth = index + 1 - advance;
+          const entering = index === 1 && hudStackInitialized.current && !hudVisibleIds.current.has(notice.id);
+          return <div key={notice.id}
+            className={"player-toast-layer player-toast-queued" + (entering ? " player-toast-back-enter" : "")}
+            style={{ transform: `translate(${depth * 8}px, ${-depth * 10}px)`, zIndex: 2 - index,
+              filter: `brightness(${1 - depth * .13})` }}
+            aria-hidden="true"><HudNotification notice={notice} queued={Math.max(0, hudPending - index - 1)} /></div>;
+        })}
+        <div className={"player-hud-feed" + (hudDismissing ? " player-hud-dismissing" : "")}
+          key={hudMessage.id} style={{ transform: `translateX(${hudOffset}px)` }}
+          onPointerDown={hudPointerDown} onPointerMove={hudPointerMove}
+          onPointerUp={hudPointerUp} onPointerCancel={hudPointerCancel}
+          onTransitionEnd={finishHudDismiss}><HudNotification notice={hudMessage} queued={hudPending} /></div>
+      </div>}
       <div className="player-shell">
         <header className="player-card player-header">
-          <div className="player-header-top"><span>NIGHT CITY // 2077</span><div className="player-header-actions"><RadioTower size={16} aria-hidden="true" />{character && feedCampaignId && <button type="button" className="player-logs-trigger" aria-label="Open personal logs" title="Personal logs" onClick={() => navigate({ ...navRef.current, logs: true })}><History size={19} aria-hidden="true" /></button>}</div></div>
+          <div className="player-header-top"><span>NIGHT CITY // 2077</span><div className="player-header-actions"><RadioTower size={16} aria-hidden="true" /><button type="button" className="player-logs-trigger" aria-label="Open personal logs" title="Personal logs" disabled={!character || !feedCampaignId} onClick={() => { if (character && feedCampaignId) navigate({ ...navRef.current, logs: true, diagnostics: false }); }}><History size={19} aria-hidden="true" /></button><button type="button" className="player-logs-trigger" aria-label="Open diagnostics" title="Diagnostics" onClick={() => { if (!navRef.current.diagnostics) navigate({ inventory: false, selected: null, logs: false, diagnostics: true }); }}><Bug size={19} aria-hidden="true" /></button></div></div>
           <h1>{character?.name ?? 'PLAYER TERMINAL'}</h1>
           <p>CHARACTER DASHBOARD</p>
         </header>
-        {character && inventoryVisited && <div style={{ display: inventoryOpen ? undefined : 'none' }}><PlayerInventory characterId={character.id} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
-        {character ? (
-          <div hidden={inventoryOpen}>
+        {!diagnosticsOpen && character && phoneOpen && <PlayerPhone characterId={character.id} onBack={goBack} />}
+        {!diagnosticsOpen && character && transferOpen && <PlayerTransfers key={transferOpen + character.id} kind={transferOpen} character={character} inventory={inventoryData} onBack={goBack} />}
+        {!diagnosticsOpen && character && statsOpen && <PlayerStats onBack={goBack} cyberware={cyberwareData} view={statsView} selectedPosition={statsPosition} onNavigate={updateStats} />}
+        {!diagnosticsOpen && character && inventoryVisited && <div style={{ display: inventoryOpen && !statsOpen && !transferOpen && !phoneOpen ? undefined : 'none' }}><PlayerInventory inventory={inventoryData} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
+        {!diagnosticsOpen && character ? (
+          <div style={{ display: inventoryOpen || statsOpen || transferOpen || phoneOpen ? 'none' : 'flex', flexDirection: 'column', gap: 12 }}>
             <section className="player-card player-health" aria-label="Character health">
               <div className="player-section-heading"><span><HeartPulse size={19} aria-hidden="true" /> HEALTH</span><strong>{hp !== null && maximum !== null ? `${hp} / ${maximum} HP` : 'HP unavailable'}</strong></div>
               <div className="player-hp-track" role="progressbar" aria-label="HP" aria-valuemin={0} aria-valuemax={maximum ?? 100} aria-valuenow={hp ?? 0}>
@@ -586,28 +1012,54 @@ export default function PlayerView({ token }: PlayerViewProps) {
               </section>
               <section className="player-card player-quick-card">
                 <div className="player-quick-label"><Dices size={18} aria-hidden="true" /> DICE</div>
-                <div className="player-dice-placeholder" aria-label="Dice rolling coming soon"><Dices size={17} aria-hidden="true" /> ROLL</div>
+                <button type="button" className="player-dice-placeholder" onClick={() => setDiceOpen(true)}><Dices size={17} aria-hidden="true" /> ROLL</button>
               </section>
             </div>
-            <PlayerLoadout characterId={character.id} onInspect={id => openInventory(id)} onInventory={() => openInventory()} />
+            <PlayerLoadout inventory={inventoryData} onInspect={id => openInventory(id)} onInventory={() => openInventory()} />
             <section className="player-card player-navigation">
-              <h2>CHARACTER <span>›</span></h2>
+              <h2>CHARACTER</h2>
               <div className="player-nav-grid">
-                <div className="player-nav-tile"><UserRound size={24} aria-hidden="true" /><span>STATS</span></div>
+                <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, stats: true })} style={{ cursor: "pointer", font: "inherit" }}><UserRound size={24} aria-hidden="true" /><span>STATS</span></button>
                 <button type="button" className="player-nav-tile" onClick={() => openInventory()} style={{ cursor: "pointer", font: "inherit" }}><Backpack size={24} aria-hidden="true" /><span>INVENTORY</span></button>
-                <div className="player-nav-tile"><Smartphone size={24} aria-hidden="true" /><span>PHONE</span></div>
+                <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, phone: true })} style={{ cursor: "pointer", font: "inherit" }}><span className="player-phone-icon"><img src="/ghost-link-icon.svg" width={30} height={30} alt="" aria-hidden="true" />{phoneUnread > 0 && <b className="player-phone-unread">{phoneUnread > 99 ? "99+" : phoneUnread}</b>}</span><span>GHOST//LINK</span></button>
+                <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, transfer: "money" })} style={{ cursor: "pointer", font: "inherit" }}><Send size={24} aria-hidden="true" /><span>SEND MONEY</span></button>
+                <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, transfer: "item" })} style={{ cursor: "pointer", font: "inherit" }}><Package size={24} aria-hidden="true" /><span>SEND ITEM</span></button>
               </div>
-            </section>
-            <section className="player-card player-events">
-              <h2><Bell size={18} aria-hidden="true" /> INCOMING EVENTS</h2>
-              <p>No new notifications</p>
             </section>
             <footer className="player-footer"><span className={connected ? "player-online" : "player-offline"}>{connected ? <Wifi size={14} aria-hidden="true" /> : <WifiOff size={14} aria-hidden="true" />}{connected ? "CONNECTED" : "DISCONNECTED"}</span><span>PLAYER TERMINAL</span></footer>
           </div>
-        ) : <section className="player-card player-message" role="status">{message}</section>}
+        ) : !diagnosticsOpen ? <section className="player-card player-message" role="status">{!character && (!message || message === 'Connecting...') ? <PlayerLoading message="Connecting to Night City..." /> : message}</section> : null}
+
       </div>
-      {character && feedCampaignId && <PlayerSpotlights campaignId={feedCampaignId} characterId={character.id} />}
-      {logsVisited && character && feedCampaignId && <div style={{ display: logsOpen ? undefined : 'none' }}><PlayerLogs campaignId={feedCampaignId} characterId={character.id} onClose={goBack} /></div>}
+      {diagnosticsOpen && <div className="player-logs-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) goBack(); }}>
+        <section className="player-logs-dialog" role="dialog" aria-modal="true" aria-label="Diagnostics">
+          <header className="player-logs-heading">
+            <div><h2><Bug size={20} aria-hidden="true" /> DIAGNOSTICS</h2><p>Connection and application history · last 50 entries</p></div>
+          </header>
+          <div className="player-diagnostics-actions">
+            <button type="button" className="player-diagnostics-icon" aria-label="Copy diagnostic logs" title="Copy diagnostic logs" onClick={() => void navigator.clipboard.writeText(diagnostics.map(entry => `[${entry.time}] [${entry.severity ?? 'error'}] ${entry.source}: ${entry.message}${entry.hint ? ' — ' + entry.hint : ''}`).join('\\n'))}><Copy size={18} aria-hidden="true" /></button>
+            <button type="button" className="player-diagnostics-icon player-diagnostics-clear" aria-label="Clear diagnostic logs" title="Clear diagnostic logs" onClick={() => { if (!window.confirm('Clear all diagnostic logs from this device?')) return; setDiagnostics([]); try { localStorage.removeItem(diagnosticKey); } catch { /* Storage unavailable */ } }}><Trash2 size={18} aria-hidden="true" /></button>
+          </div>
+          <div className="player-logs-list">
+            {diagnostics.length === 0 ? <p className="player-logs-empty">No diagnostic events recorded yet.</p> : [...diagnostics].reverse().map((entry, index) => <article className="player-logs-entry" key={`${entry.time}-${index}`}>
+              <span className="player-logs-icon" style={{ color: entry.severity === 'info' ? '#7fd2dc' : entry.severity === 'warning' ? '#e9c04c' : '#ff9b9b' }}>
+                {entry.severity === 'info' ? <Info size={18} /> : entry.severity === 'warning' ? <AlertTriangle size={18} /> : <Bug size={18} />}
+              </span>
+              <div className="player-logs-entry-body">
+                <p>{entry.message}</p>
+                <span style={{ display: 'block', overflowWrap: 'anywhere' }}>{entry.source} · {entry.severity ?? 'error'}</span>
+                {entry.hint && <p style={{ color: '#9bb0c0', marginTop: 7 }}>{entry.hint}</p>}
+              </div>
+              <time dateTime={entry.time} title={new Date(entry.time).toLocaleString()}>{new Date(entry.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
+            </article>)}
+          </div>
+          <footer className="player-logs-footer"><span>{diagnostics.length} entries stored on this device</span><button type="button" onClick={goBack}>Close</button></footer>
+        </section>
+      </div>}
+      {diceOpen && character && !diagnosticsOpen && <DiceSpotlight characterId={character.id} campaignId={feedCampaignId} onClose={() => setDiceOpen(false)} />}
+      {!diagnosticsOpen && character && feedCampaignId && <PlayerSpotlights campaignId={feedCampaignId} characterId={character.id} />}
+      {character && feedCampaignId && <PlayerCallSpotlight characterId={character.id} />}
+      {!diagnosticsOpen && logsVisited && character && feedCampaignId && <div style={{ display: logsOpen ? undefined : 'none' }}><PlayerLogs campaignId={feedCampaignId} characterId={character.id} onClose={goBack} /></div>}
     </main>
   );
 }
