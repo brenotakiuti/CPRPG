@@ -55,7 +55,7 @@ function MapGrid({map,units,onMove}:{map:Layout;units:LiveUnit[];onMove:(key:str
   {gates.map((g,i)=>{const horizontal=g.side==='top'||g.side==='bottom';return <div key={i} className={'combat-map-gate '+g.side} title={'Gate · '+g.length+' cell edges'} style={horizontal?{left:10+g.start*cellSize,width:g.length*cellSize-2,[g.side]:0}:{top:10+g.start*cellSize,height:g.length*cellSize-2,[g.side]:0}}/>})}
  </div></div>;
 }
-export default function CombatMaps({campaignId,mode}:{campaignId:string;mode:'editor'|'combat'}){
+export default function CombatMaps({campaignId,mode,campaignName}:{campaignId:string;mode:'editor'|'combat';campaignName?:string}){
  const [maps,setMaps]=useState<SavedMap[]>([]);
  const [selected,setSelected]=useState('');
  const [name,setName]=useState('');
@@ -124,7 +124,7 @@ export default function CombatMaps({campaignId,mode}:{campaignId:string;mode:'ed
   if(mode==='editor')frame.current?.contentWindow?.postMessage({source:'cprpg-gm',action:'import',layout:map.layout},window.location.origin);
  }
  const current=maps.find(m=>m.id===selected);
- return <section className="combat-maps-panel">{mode==='combat'&&<header className="tactical-gm-brand"><div className="tactical-gm-brand-identity"><img src="/tactical-feed-icon.svg" alt="" /><div><strong>TACTICAL//FEED</strong><small>A GHOST//LINK SYSTEMS DIVISION</small></div></div><div className="tactical-gm-network">● NETWORK TERMINAL <small>Night City 2078</small></div></header>}
+ return <section className="combat-maps-panel">{mode==='combat'&&<header className="tactical-gm-brand"><div className="tactical-gm-brand-identity"><img src="/tactical-feed-icon.svg" alt="" /><div><strong>TACTICAL//FEED</strong><small>A GHOST//LINK SYSTEMS DIVISION</small></div></div><div className="tactical-gm-network">● NETWORK TERMINAL <small>{campaignName}</small></div></header>}
   <div className="combat-maps-toolbar">
    <label>Saved maps <select aria-label="Saved maps" value={selected} onChange={e=>openMap(e.target.value)}><option value="">Select a map</option>{maps.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
    <button type="button" onClick={()=>void load()}>Refresh list</button>
