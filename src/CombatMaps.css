@@ -27,3 +27,5 @@
 .combat-legend-items span{display:flex;flex-direction:column;min-width:0;white-space:normal;overflow-wrap:break-word;line-height:1.4}
 .combat-legend-items small{display:block;white-space:normal;overflow-wrap:break-word;line-height:1.4}
 @media(max-width:540px){.combat-legend-popup{width:min(300px,calc(100vw - 32px))}.combat-legend-items{grid-template-columns:minmax(0,1fr)}}
+
+.tactical-gm-brand{display:flex;align-items:center;gap:16px;padding:18px 22px;margin-bottom:18px;border:1px solid #304457;border-radius:12px;background:#101c2b}.tactical-gm-brand img{width:54px;height:54px;object-fit:contain;flex:none}.tactical-gm-brand h2{margin:0 0 4px;font-size:24px;letter-spacing:.05em;color:#3de3e7}.tactical-gm-brand span{font-size:12px;font-weight:700;letter-spacing:.07em;color:#e053ee}.combat-live-marker{isolation:isolate;box-shadow:0 2px 5px #000b}
