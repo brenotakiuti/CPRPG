@@ -3,14 +3,16 @@ import { supabase } from './supabase';
 import './CombatMaps.css';
 
 type MapObject = { type: string; x: number; y: number; number?: number };
-type Layout = { version: number; width: number; height: number; objects: MapObject[] };
+type Gate = { type:'gate'; side:'top'|'bottom'|'left'|'right'; start:number; length:number };
+type Layout = { version: number; width: number; height: number; objects: MapObject[]; gates?:Gate[] };
 type SavedMap = { id: string; name: string; width: number; height: number; layout: Layout };
-const shapes: Record<string, [number,number]> = {wall:[1,1],cover:[1,1],hole:[1,1],pillar:[2,2],coverH:[2,1],coverV:[1,2],player:[1,1],enemy:[1,1]};
+const shapes: Record<string, [number,number]> = {wall:[1,1],cover:[1,1],hole:[1,1],target:[1,1],pillar:[2,2],coverH:[2,1],coverV:[1,2],player:[1,1],enemy:[1,1]};
 const terrainKind=(type:string)=>type==='pillar'?'wall':type==='coverH'||type==='coverV'?'cover':type;
 function validMap(value: unknown): value is Layout {
   if (!value || typeof value !== 'object') return false;
   const m=value as Layout;
   if(m.version!==1 || !Number.isInteger(m.width)||!Number.isInteger(m.height)||m.width<4||m.height<4||m.width>30||m.height>30||!Array.isArray(m.objects)||m.objects.length>900)return false;
+  if(m.gates!==undefined){if(!Array.isArray(m.gates)||m.gates.length>120)return false;const used=new Set<string>();for(const g of m.gates){if(!g||g.type!=='gate'||!['top','bottom','left','right'].includes(g.side)||!Number.isInteger(g.start)||!Number.isInteger(g.length)||g.start<0||g.length<1||g.start+g.length>(g.side==='top'||g.side==='bottom'?m.width:m.height))return false;for(let i=g.start;i<g.start+g.length;i++){const k=g.side+':'+i;if(used.has(k))return false;used.add(k)}}}
   const taken=new Set<string>();
   const unitNumbers={player:new Set<number>(),enemy:new Set<number>()};
   for(const o of m.objects){
@@ -24,7 +26,7 @@ function validMap(value: unknown): value is Layout {
   }
   return true;
 }
-const labels: Record<string,string>={wall:'■',cover:'▰',hole:'◌'};
+const labels: Record<string,string>={wall:'■',cover:'▰',hole:'◌',target:'T'};
 type Unit = { key:string; label:string; type:'player'|'enemy'; x:number; y:number };
 function unitsForMap(map:Layout):Unit[]{
  const counters={player:0,enemy:0};
@@ -41,7 +43,7 @@ function MapGrid({map}:{map:Layout}){
  const units=unitsForMap(map);
  const unitAt=new Map(units.map(u=>[u.x+','+u.y,u.label]));
  for(const o of map.objects){const [w,h]=shapes[o.type]||[1,1];for(let y=o.y;y<o.y+h;y++)for(let x=o.x;x<o.x+w;x++)occupied.set(x+','+y,terrainKind(o.type));}
- return <div className="combat-map-scroll"><div className="combat-map-grid" style={{gridTemplateColumns:`repeat(${map.width},42px)`}}>{Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),kind=occupied.get(x+','+y)||'';return <div key={i} className={'combat-map-cell '+kind} title={`Column ${x+1}, row ${y+1} ${unitAt.get(x+','+y)||kind}`}>{unitAt.get(x+','+y)||labels[kind]||''}</div>})}</div></div>;
+ const cellSize=44;const gates=map.gates||[];return <div className="combat-map-scroll"><div className="combat-map-boundary" style={{width:map.width*cellSize+20,height:map.height*cellSize+20}}><div className="combat-map-grid" style={{position:'absolute',left:10,top:10,gridTemplateColumns:`repeat(${map.width},42px)`}}  >{Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),kind=occupied.get(x+','+y)||'';return <div key={i} className={'combat-map-cell '+kind} title={`Column ${x+1}, row ${y+1} ${unitAt.get(x+','+y)||kind}`}>{unitAt.get(x+','+y)||labels[kind]||''}</div>})}</div>{gates.map((g,i)=>{const horizontal=g.side==='top'||g.side==='bottom';return <div key={i} className={'combat-map-gate '+g.side} title={'Gate · '+g.length+' cell edges'} style={horizontal?{left:10+g.start*cellSize,width:g.length*cellSize-2,[g.side]:0}:{top:10+g.start*cellSize,height:g.length*cellSize-2,[g.side]:0}}/>})}</div></div>;
 }
 export default function CombatMaps({campaignId,mode}:{campaignId:string;mode:'editor'|'combat'}){
  const [maps,setMaps]=useState<SavedMap[]>([]);
@@ -106,6 +108,6 @@ export default function CombatMaps({campaignId,mode}:{campaignId:string;mode:'ed
   </div>
   {message&&<p role="status" className="combat-maps-message">{message}</p>}
   {mode==='editor'?<><p className="combat-maps-hint">Use the drawing tools below. Save a named map to make it available in Combat. The standalone editor's JSON export/import remains available.</p><iframe ref={frame} title="Tactical map editor" src="/map-editor.html?embedded=1" className="combat-map-editor-frame" onLoad={()=>{const map=maps.find(m=>m.id===selected);if(map)frame.current?.contentWindow?.postMessage({source:'cprpg-gm',action:'import',layout:map.layout},window.location.origin)}}/></>:
-   current&&validMap(current.layout)?<><h3>{current.name}</h3><MapGrid map={current.layout}/><div className="combat-map-legend"><span><i className="combat-map-dot wall"/><strong>Wall</strong> — Cannot be occupied or shot through.</span><span><i className="combat-map-dot cover"/><strong>Cover</strong> — Cannot be occupied. Can be jumped over. Grants defense bonus.</span><span><i className="combat-map-dot hole"/><strong>Hole</strong> — Cannot be occupied. Can be jumped over.</span><span><i className="combat-map-dot player"/>Player (P1, P2…)</span><span><i className="combat-map-dot enemy"/>Enemy (E1, E2…)</span></div><div className="combat-map-roster"><h3>Combatants</h3><p className="combat-maps-hint">Assign names to the map markers for this combat session.</p><div className="combat-map-roster-grid">{unitsForMap(current.layout).map(unit=><label key={unit.key} className="combat-map-unit-field"><span className={'combat-map-unit-tag '+unit.type}>{unit.label}</span><input type="text" maxLength={100} aria-label={unit.label+' name'} placeholder={unit.type==='player'?'Player name':'Enemy name'} value={unitNames[unit.key]||''} onChange={e=>setUnitNames(prev=>({...prev,[unit.key]:e.target.value}))}/></label>)}</div></div></>:<p className="combat-maps-hint">Choose a saved map to view its grid. Combat actions are not enabled yet.</p>}
+   current&&validMap(current.layout)?<><h3>{current.name}</h3><MapGrid map={current.layout}/><div className="combat-map-legend"><span><i className="combat-map-dot wall"/><strong>Wall</strong> — Cannot be occupied or shot through.</span><span><i className="combat-map-dot cover"/><strong>Cover</strong> — Cannot be occupied. Can be jumped over. Grants defense bonus.</span><span><i className="combat-map-dot hole"/><strong>Hole</strong> — Cannot be occupied. Can be jumped over.</span><span><i className="combat-map-dot player"/>Player (P1, P2…)</span><span><i className="combat-map-dot enemy"/>Enemy (E1, E2…)</span><span><i className="combat-map-dot target"/>Target (T)</span><span><i className="combat-map-dot gate"/>Gate — Boundary passage</span></div><div className="combat-map-roster"><h3>Combatants</h3><p className="combat-maps-hint">Assign names to the map markers for this combat session.</p><div className="combat-map-roster-grid">{unitsForMap(current.layout).map(unit=><label key={unit.key} className="combat-map-unit-field"><span className={'combat-map-unit-tag '+unit.type}>{unit.label}</span><input type="text" maxLength={100} aria-label={unit.label+' name'} placeholder={unit.type==='player'?'Player name':'Enemy name'} value={unitNames[unit.key]||''} onChange={e=>setUnitNames(prev=>({...prev,[unit.key]:e.target.value}))}/></label>)}</div></div></>:<p className="combat-maps-hint">Choose a saved map to view its grid. Combat actions are not enabled yet.</p>}
  </section>;
 }
