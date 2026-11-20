@@ -91,11 +91,11 @@ export default function GMConsole({
   // Mount data-heavy tools on first visit, then retain their data and Realtime subscriptions.
   const [visitedTools, setVisitedTools] = useState<string[]>(() => {
     const saved = sessionStorage.getItem('gm-page:' + campaign.id) ?? 'live';
-    return ['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone'].includes(saved) ? [saved] : [];
+    return ['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone', 'map-editor', 'combat'].includes(saved) ? [saved] : [];
   });
   const openPage = (next: typeof page) => {
     setPage(next);
-    if (['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone'].includes(next)) {
+    if (['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone', 'map-editor', 'combat'].includes(next)) {
       setVisitedTools(previous => previous.includes(next) ? previous : [...previous, next]);
     }
   };
@@ -713,13 +713,15 @@ export default function GMConsole({
             </div>
           </section>
         </div>
-      ) : page === 'inventory' || page === 'ripperdoc' || page === 'phone' ? null : page === 'map-editor' ? <CombatMaps key={'editor-'+campaign.id} campaignId={campaign.id} mode="editor" /> : page === 'combat' ? <CombatMaps key={'combat-'+campaign.id} campaignId={campaign.id} campaignName={campaign.name} mode="combat" /> : null}
+      ) : page === 'inventory' || page === 'ripperdoc' || page === 'phone' ? null : null}
       {visitedTools.includes('live') && <div style={{ display: page === 'live' ? undefined : 'none' }}><LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} /></div>}
       {visitedTools.includes('bank') && <div style={{ display: page === 'bank' ? undefined : 'none' }} className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>}
       {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
       {visitedTools.includes('inventory') && <div style={{ display: page === 'inventory' ? undefined : 'none' }}><GMInventory campaignId={campaign.id} /></div>}
       {visitedTools.includes('phone') && <div style={{ display: page === 'phone' ? undefined : 'none' }}><GMPhone campaignId={campaign.id} campaignName={campaign.name} onRead={refreshPhoneUnread} /></div>}
       {visitedTools.includes('ripperdoc') && <div style={{ display: page === 'ripperdoc' ? undefined : 'none' }}><Ripperdoc characters={characters} /></div>}
+      {visitedTools.includes('map-editor') && <div style={{ display: page === 'map-editor' ? undefined : 'none' }}><CombatMaps key={'editor-'+campaign.id} campaignId={campaign.id} mode="editor" /></div>}
+      {visitedTools.includes('combat') && <div style={{ display: page === 'combat' ? undefined : 'none' }}><CombatMaps key={'combat-'+campaign.id} campaignId={campaign.id} campaignName={campaign.name} mode="combat" /></div>}
       <GMCallSpotlight campaignId={campaign.id} />
     </div>
   );
