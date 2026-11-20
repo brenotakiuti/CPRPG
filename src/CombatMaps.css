@@ -7,3 +7,15 @@
 .combat-legend-anchor{position:relative;display:flex;justify-content:flex-end;margin:10px 0}.combat-legend-toggle,.combat-legend-heading button{cursor:pointer;border:1px solid #536477;background:#192634;color:#e8edf4;border-radius:7px;padding:8px 12px}.combat-legend-popup{position:absolute;right:0;top:calc(100% + 6px);width:min(390px,100%);padding:14px;background:#192634;border:1px solid #536477;border-radius:10px;box-shadow:0 12px 30px #0009;z-index:20}.combat-legend-heading{display:flex;justify-content:space-between;align-items:center}.combat-legend-heading button{padding:2px 8px;font-size:20px}.combat-legend-section{font-size:11px;font-weight:700;letter-spacing:.08em;color:#e9c05e;margin:12px 0 8px}.combat-legend-items{display:grid;grid-template-columns:1fr 1fr;gap:12px}.combat-legend-items>div{display:flex;align-items:flex-start;gap:8px;min-width:0}.combat-legend-items span{display:flex;flex-direction:column;gap:3px;font-size:13px}.combat-legend-items small{color:#b8c6d3;font-size:11px}.combat-legend-icon{flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:5px;color:white;font-size:13px;font-style:normal;font-weight:700}.combat-legend-icon.wall{background:#56616c}.combat-legend-icon.cover{background:#886d42}.combat-legend-icon.hole{background:#080d13;border:1px dashed #7d8794}.combat-legend-icon.player{background:#13688e}.combat-legend-icon.enemy{background:#aa3c46}.combat-legend-icon.target{background:#176b55}.combat-legend-icon.gate{background:#7354a6}
 
 .combat-map-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}.combat-map-heading h3{margin:0}.combat-map-heading .combat-legend-anchor{margin:0}
+
+.combat-live-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:16px 0}
+.combat-live-controls button,.combat-visibility-button{background:#192634;color:#e8edf4;border:1px solid #536477;border-radius:7px;padding:9px 12px;cursor:pointer}
+.combat-live-controls button:disabled{opacity:.45;cursor:not-allowed}
+.combat-live-status{font-size:13px;color:#e9c05e}
+.combat-live-marker{position:absolute;z-index:5;width:32px;height:32px;border-radius:50%;border:2px solid #e8edf4;color:white;font-size:12px;font-weight:700;cursor:grab;touch-action:none;user-select:none;box-shadow:0 2px 8px #0009}
+.combat-live-marker:active{cursor:grabbing}
+.combat-live-marker.player{background:#13688e}
+.combat-live-marker.enemy{background:#aa3c46}
+.combat-live-marker.is-hidden{opacity:.4;border-style:dashed}
+.combat-map-unit-field select{min-width:0;flex:1;background:#0b1520;color:white;border:1px solid #536477;border-radius:5px;padding:9px;font:inherit}
+.combat-visibility-button{white-space:nowrap;padding:8px;font-size:12px}
