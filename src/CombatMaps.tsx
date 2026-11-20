@@ -33,7 +33,7 @@ function unitsForMap(map:Layout):Unit[]{
   if(o.number!==undefined)counters[type]=Math.max(counters[type],o.number);
   const label=(type==='player'?'P':'E')+number;
   return {key:type+':'+number,label,type,x:o.x,y:o.y};
- });
+ }).sort((a,b)=>a.type===b.type?Number(a.label.slice(1))-Number(b.label.slice(1)):a.type==='player'?-1:1);
 }
 function MapGrid({map}:{map:Layout}){
  const occupied=new Map<string,string>();
