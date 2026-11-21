@@ -59,3 +59,14 @@
 .tactical-workspace .combat-map-roster-grid{display:flex;flex-direction:column;gap:8px}
 .tactical-workspace .combat-map-unit-field{min-width:0}
 @media(max-width:850px){.tactical-command-bar{gap:9px}.tactical-broadcast-field{margin-left:0}.tactical-workspace{grid-template-columns:minmax(0,1fr)}.tactical-workspace>.combat-map-scroll,.tactical-workspace>.combat-map-roster{max-height:none}}
+
+/* Contextual GM help and compact Lucide visibility actions. */
+.combat-legend-anchor{display:flex;align-items:center;gap:7px;position:relative}
+.combat-help-toggle{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;padding:0;cursor:pointer;border:1px solid #536477;border-radius:7px;background:#192634;color:#e8edf4}
+.combat-help-toggle:hover,.combat-legend-toggle:hover{border-color:#75b7c9}
+.combat-help-popup{position:absolute;right:0;top:calc(100% + 6px);z-index:21;width:min(390px,calc(100vw - 32px));box-sizing:border-box;padding:14px;border:1px solid #536477;border-radius:10px;background:#192634;color:#e8edf4;box-shadow:0 12px 30px #0009}
+.combat-help-popup p{font-size:13px;line-height:1.5;color:#c9d6e3;margin:10px 0 0}
+.combat-visibility-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;height:36px;padding:0;border:1px solid #536477;border-radius:7px;cursor:pointer}
+.combat-visibility-button.is-visible{color:#67d9d2}
+.combat-visibility-button.is-hidden{color:#8c9aa9}
+.combat-visibility-button:hover{border-color:#78b9c6}
