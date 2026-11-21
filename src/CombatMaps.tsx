@@ -10,27 +10,57 @@ type SavedMap = { id: string; name: string; width: number; height: number; layou
 const shapes: Record<string, [number,number]> = {wall:[1,1],cover:[1,1],hole:[1,1],target:[1,1],poi:[1,1],pillar:[2,2],coverH:[2,1],coverV:[1,2],player:[1,1],enemy:[1,1]};
 const allowedColors=new Set(['#718096','#c2a477','#a35d42','#4c8065','#427caa','#8467a8','#b66b81','#c4a448']);
 const terrainKind=(type:string)=>type==='pillar'?'wall':type==='coverH'||type==='coverV'?'cover':type;
-function validMap(value: unknown): value is Layout {
-  if (!value || typeof value !== 'object') return false;
+function mapValidationError(value:unknown):string|null {
+  if(!value||typeof value!=='object')return 'Map data is missing.';
   const m=value as Layout;
-  if(m.version!==1 || !Number.isInteger(m.width)||!Number.isInteger(m.height)||m.width<4||m.height<4||m.width>30||m.height>30||!Array.isArray(m.objects)||m.objects.length>900)return false;
-  if(m.gates!==undefined){if(!Array.isArray(m.gates)||m.gates.length>120)return false;const used=new Set<string>();for(const g of m.gates){if(!g||g.type!=='gate'||!['top','bottom','left','right'].includes(g.side)||!Number.isInteger(g.start)||!Number.isInteger(g.length)||g.start<0||g.length<1||g.start+g.length>(g.side==='top'||g.side==='bottom'?m.width:m.height))return false;for(let i=g.start;i<g.start+g.length;i++){const k=g.side+':'+i;if(used.has(k))return false;used.add(k)}}}
-  if(m.floorColors!==undefined){if(!m.floorColors||typeof m.floorColors!=='object'||Array.isArray(m.floorColors)||Object.keys(m.floorColors).length>900)return false;for(const [k,color] of Object.entries(m.floorColors)){const match=/^(\d+),(\d+)$/.exec(k);if(!match||+match[1]>=m.width||+match[2]>=m.height||!allowedColors.has(color))return false}}
-  const taken=new Set<string>();
-  const unitNumbers={player:new Set<number>(),enemy:new Set<number>(),target:new Set<number>(),poi:new Set<number>()};
-  for(const o of m.objects){
-    if(!o||!Object.prototype.hasOwnProperty.call(shapes,o.type)||!Number.isInteger(o.x)||!Number.isInteger(o.y))return false;
-    if(['player','enemy','target','poi'].includes(o.type)){
-      if(o.number!==undefined){if(!Number.isInteger(o.number)||o.number<1||unitNumbers[o.type as keyof typeof unitNumbers].has(o.number))return false;unitNumbers[o.type as keyof typeof unitNumbers].add(o.number);}
+  if(m.version!==1||!Number.isInteger(m.width)||!Number.isInteger(m.height)||m.width<4||m.height<4||m.width>30||m.height>30||!Array.isArray(m.objects)||m.objects.length>900)return 'Invalid map dimensions or object list.';
+  if(m.gates!==undefined){
+    if(!Array.isArray(m.gates)||m.gates.length>120)return 'Invalid gate list.';
+    const used=new Set<string>();
+    for(const g of m.gates){
+      if(!g||g.type!=='gate'||!['top','bottom','left','right'].includes(g.side)||!Number.isInteger(g.start)||!Number.isInteger(g.length)||g.start<0||g.length<1||g.start+g.length>(g.side==='top'||g.side==='bottom'?m.width:m.height))return 'Invalid gate position or size.';
+      for(let i=g.start;i<g.start+g.length;i++){const k=g.side+':'+i;if(used.has(k))return 'Overlapping gates at '+k+'.';used.add(k)}
     }
-    if(o.color!==undefined&&(!['wall','cover','hole','pillar','coverH','coverV'].includes(o.type)||!allowedColors.has(o.color)))return false;
-    const [w,h]=shapes[o.type];
-    if(o.x<0||o.y<0||o.x+w>m.width||o.y+h>m.height)return false;
-    for(let y=o.y;y<o.y+h;y++)for(let x=o.x;x<o.x+w;x++){const k=x+','+y;if(taken.has(k))return false;taken.add(k);}
   }
-  if(m.groups!==undefined){if(!Array.isArray(m.groups)||m.groups.length>900)return false;const used=new Set<string>();for(const g of m.groups){if(!g||typeof g.id!=='string'||!Array.isArray(g.cells)||g.cells.length>900)return false;for(const k of g.cells){if(typeof k!=='string'||!taken.has(k)||used.has(k))return false;used.add(k)}}}
-  return true;
+  if(m.floorColors!==undefined){
+    if(!m.floorColors||typeof m.floorColors!=='object'||Array.isArray(m.floorColors)||Object.keys(m.floorColors).length>900)return 'Invalid floor color settings.';
+    for(const [k,color] of Object.entries(m.floorColors)){const match=/^(\\d+),(\\d+)$/.exec(k);if(!match||+match[1]>=m.width||+match[2]>=m.height||!allowedColors.has(color))return 'Invalid floor color at '+k+'.'}
+  }
+  const taken=new Map<string,string>();
+  const numbers:Record<string,Set<number>>={player:new Set(),enemy:new Set(),target:new Set(),poi:new Set()};
+  for(const [index,o] of m.objects.entries()){
+    if(!o||!Object.prototype.hasOwnProperty.call(shapes,o.type)||!Number.isInteger(o.x)||!Number.isInteger(o.y))return 'Invalid object #'+(index+1)+'.';
+    const label=o.type+' at column '+(o.x+1)+', row '+(o.y+1);
+    if(Object.prototype.hasOwnProperty.call(numbers,o.type)&&o.number!==undefined){
+      if(!Number.isInteger(o.number)||o.number<1)return 'Invalid marker number for '+label+'.';
+      if(numbers[o.type].has(o.number))return 'Duplicate '+o.type+' marker number '+o.number+'.';
+      numbers[o.type].add(o.number);
+    }
+    if(o.color!==undefined&&(!['wall','cover','hole','pillar','coverH','coverV'].includes(o.type)||!allowedColors.has(o.color)))return 'Invalid color on '+label+'.';
+    const [width,height]=shapes[o.type];
+    if(o.x<0||o.y<0||o.x+width>m.width||o.y+height>m.height)return 'Object outside map: '+label+'.';
+    for(let y=o.y;y<o.y+height;y++)for(let x=o.x;x<o.x+width;x++){
+      const k=x+','+y;
+      if(taken.has(k))return 'Overlapping objects: '+label+' and '+taken.get(k)+' at column '+(x+1)+', row '+(y+1)+'.';
+      taken.set(k,label);
+    }
+  }
+  if(m.groups!==undefined){
+    if(!Array.isArray(m.groups)||m.groups.length>900)return 'Invalid obstacle groups.';
+    const used=new Set<string>();
+    for(const [index,g] of m.groups.entries()){
+      if(!g||typeof g.id!=='string'||!Array.isArray(g.cells)||g.cells.length>900)return 'Invalid obstacle group #'+(index+1)+'.';
+      for(const k of g.cells){
+        if(typeof k!=='string'||!taken.has(k))return 'Obstacle group #'+(index+1)+' refers to an empty or invalid cell '+String(k)+'.';
+        if(used.has(k))return 'Obstacle cell '+k+' belongs to more than one group.';
+        used.add(k);
+      }
+    }
+  }
+  return null;
 }
+function validMap(value:unknown):value is Layout{return mapValidationError(value)===null;}
+
 const labels: Record<string,string>={wall:'■',cover:'▰',hole:'◌'};
 type Unit = { key:string; label:string; type:'player'|'enemy'|'target'|'objective'; x:number; y:number };
 function unitsForMap(map:Layout):Unit[]{
@@ -116,7 +146,7 @@ export default function CombatMaps({campaignId,mode,campaignName}:{campaignId:st
   setBusy(true);setMessage('');
   try{
    const layout=await requestLayout();
-   if(!validMap(layout))throw new Error('Map contains invalid or overlapping objects.');
+   const validationError=mapValidationError(layout);if(validationError)throw new Error(validationError);
    const original=maps.find(m=>m.id===loadedEditorId);
    const sameName=!!original&&original.name===trimmed;
    const existing=maps.find(m=>m.name.toLocaleLowerCase()===trimmed.toLocaleLowerCase()&&m.id!==loadedEditorId);
