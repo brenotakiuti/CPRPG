@@ -70,7 +70,8 @@ function unitsForMap(map:Layout):Unit[]{
   const number=o.number??++counters[type];
   if(o.number!==undefined)counters[type]=Math.max(counters[type],o.number);
   const label=({player:'P',enemy:'E',poi:'T',target:'O'}[type])+number;
-  return {key:type+':'+number,label,type:type==='poi'?'target':type==='target'?'objective':type,x:o.x,y:o.y};
+  const markerType:Unit['type']=type==='poi'?'target':type==='target'?'objective':type;
+  return {key:type+':'+number,label,type:markerType,x:o.x,y:o.y};
  }).sort((a,b)=>a.type===b.type?Number(a.label.slice(1))-Number(b.label.slice(1)):a.label.localeCompare(b.label));
 }
 type LiveUnit = Unit & {characterId?:string|null;name?:string;visible:boolean};
@@ -147,6 +148,7 @@ export default function CombatMaps({campaignId,mode,campaignName}:{campaignId:st
   try{
    const layout=await requestLayout();
    const validationError=mapValidationError(layout);if(validationError)throw new Error(validationError);
+   if(!validMap(layout))throw new Error('Map validation failed.');
    const original=maps.find(m=>m.id===loadedEditorId);
    const sameName=!!original&&original.name===trimmed;
    const existing=maps.find(m=>m.name.toLocaleLowerCase()===trimmed.toLocaleLowerCase()&&m.id!==loadedEditorId);
