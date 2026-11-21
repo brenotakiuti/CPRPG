@@ -101,21 +101,22 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
     busy.current = true;
     setError('');
     const next = generate(1, sides);
-    // One database transaction saves the structured roll and GM-visible history.
-    const { error: saveError } = await supabase.rpc('record_player_dice_roll', {
-      p_character_id: characterId, p_campaign_id: campaignId,
-      p_dice_sides: sides, p_results: next.values,
-    });
-    if (saveError) {
-      setError('Roll could not be recorded: ' + saveError.message + '. Apply the dice migration in Supabase and retry.');
-      busy.current = false;
-      return;
-    }
     clearTimers();
     setResult(null);
     setPhase('rolling');
     setSceneStyle('');
     setDice(next.values.map(() => ({ face: '?', style: 'rolling' })));
+    const publish = () => {
+      // Publish only after the roller has seen the final face.
+      later(async () => {
+        const { error: saveError } = await supabase.rpc('record_player_dice_roll', {
+          p_character_id: characterId, p_campaign_id: campaignId,
+          p_dice_sides: sides, p_results: next.values,
+        });
+        if (saveError) setError('Result shown, but could not be recorded: ' + saveError.message);
+        busy.current = false;
+      }, 120);
+    };
     const effect: Effect = (['normal','normal','normal','jam','blackout','matrix'] as const)[Math.floor(Math.random() * 6)];
     let finished = 0;
     next.values.forEach((value, index) => {
@@ -124,7 +125,7 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
           updateDie(index, { face: String(value), style: 'coin-final' });
           setResult(next);
           setPhase('revealed');
-          busy.current = false;
+          publish();
         }, 1700);
         return;
       }
@@ -134,7 +135,7 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
           setSceneStyle('');
           setResult(next);
           setPhase('revealed');
-          busy.current = false;
+          publish();
         }
       });
     });
