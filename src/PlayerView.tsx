@@ -996,7 +996,15 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <p>CHARACTER DASHBOARD</p>
         </header>
         {!diagnosticsOpen && character && phoneOpen && <PlayerPhone characterId={character.id} onBack={goBack} />}
-        {!diagnosticsOpen && character && tacticalOpen && <PlayerTacticalFeed characterId={character.id} onBack={goBack} />}
+        {!diagnosticsOpen && character && tacticalOpen && <PlayerTacticalFeed characterId={character.id} onBack={goBack} currentHp={hp} maxHp={maximum} weapons={(['weapon_1','weapon_2'] as const).map(slot => {
+          const entry=inventoryData.entries.find(row=>row.equipped_slot===slot);
+          const item=entry?inventoryData.catalog[entry.item_id]:undefined;
+          const properties=item?.properties??{};
+          const attack=(properties.attack??{}) as Record<string,unknown>;
+          const magazine=(properties.magazine??{}) as Record<string,unknown>;
+          const remaining=entry?.instance_data?.remaining_attacks;
+          return entry&&item?{name:item.name,type:String(properties.subtype??properties.weapon_type??'Weapon'),dice:typeof attack.dice==='number'?attack.dice+'d6':'—',accuracy:typeof attack.accuracy_threshold==='number'?attack.accuracy_threshold+'+':'—',damage:typeof attack.damage_per_success==='number'?String(attack.damage_per_success):'—',ammo:(typeof remaining==='number'?remaining:magazine.capacity)===undefined?'—':String(typeof remaining==='number'?remaining:magazine.capacity)+'/'+String(magazine.capacity??'—')}:null;
+        }).filter((weapon):weapon is NonNullable<typeof weapon>=>weapon!==null)} />}
         {!diagnosticsOpen && character && transferOpen && <PlayerTransfers key={transferOpen + character.id} kind={transferOpen} character={character} inventory={inventoryData} onBack={goBack} />}
         {!diagnosticsOpen && character && statsOpen && <PlayerStats onBack={goBack} cyberware={cyberwareData} view={statsView} selectedPosition={statsPosition} onNavigate={updateStats} />}
         {!diagnosticsOpen && character && inventoryVisited && <div style={{ display: inventoryOpen && !statsOpen && !transferOpen && !phoneOpen && !tacticalOpen ? undefined : 'none' }}><PlayerInventory inventory={inventoryData} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
