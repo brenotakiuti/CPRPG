@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import './PlayerTacticalFeed.css';
 
-type TacticalUnit = {key:string;label:string;type:'player'|'enemy';x:number;y:number;name?:string;mine?:boolean};
+type TacticalUnit = {key:string;label:string;type:'player'|'enemy'|'target'|'objective';x:number;y:number;name?:string;mine?:boolean};
 type TacticalObject = {type:string;x:number;y:number;color?:string};
 type TacticalLayout = {width:number;height:number;objects:TacticalObject[];floorColors?:Record<string,string>};
 type TacticalState = {visibilityMode?:'full'|'dark';visibilityRadius?:number;broadcasting:boolean;mapId?:string;layout?:TacticalLayout;units?:TacticalUnit[]};
@@ -134,7 +134,7 @@ export default function PlayerTacticalFeed({ onBack, characterId }: { onBack: ()
   const live=state.broadcasting && !loading && state.layout && Number.isInteger(state.layout.width) && Number.isInteger(state.layout.height) && state.layout.width>0 && state.layout.height>0;
   const map=state.layout;
   const objects=new Map<string,TacticalObject>();
-  if(live&&map)for(const obj of map.objects||[])if(obj.type!=='player'&&obj.type!=='enemy'){
+  if(live&&map)for(const obj of map.objects||[])if(!['player','enemy','target','poi'].includes(obj.type)){
     const size=obj.type==='pillar'?[2,2]:obj.type==='coverH'?[2,1]:obj.type==='coverV'?[1,2]:[1,1];
     for(let dy=0;dy<size[1];dy++)for(let dx=0;dx<size[0];dx++)objects.set((obj.x+dx)+','+(obj.y+dy),obj);
   }
