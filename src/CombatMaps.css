@@ -102,3 +102,5 @@
 .combat-editor-help-popup{position:absolute;top:calc(100% + 8px);right:0;z-index:40;width:min(390px,calc(100vw - 32px));box-sizing:border-box;padding:14px;border:1px solid #536477;border-radius:9px;background:#192634;color:#e8edf4;box-shadow:0 12px 30px #0009}
 .combat-editor-help-popup p{font-size:13px;line-height:1.5;color:#c9d6e3;margin:10px 0 0}
 @media(max-width:740px){.combat-editor-help{margin-left:0}}
+
+.combat-live-marker.target,.combat-map-unit-tag.target,.combat-legend-icon.target{background:#8b4eb0;color:#fff}.combat-live-marker.objective,.combat-map-unit-tag.objective,.combat-legend-icon.objective{background:#176b55;color:#fff}.combat-live-marker.objective{cursor:default}
