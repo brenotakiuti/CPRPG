@@ -86,3 +86,19 @@
 .tactical-fixed-status.is-live{color:#67d9a4}
 .tactical-fixed-status.is-offline{color:#e9c05e}
 @media(max-width:1050px){.tactical-command-bar{flex-wrap:wrap}.tactical-status-field{margin-left:auto}}
+
+/* Map Editor: desktop command strip separated from iframe workspace. */
+.combat-editor-toolbar-shell{background:#111d2a;border:1px solid #35495c;border-radius:10px;padding:14px;margin-bottom:14px}
+.combat-editor-toolbar-shell .combat-maps-toolbar{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.combat-editor-field{display:flex;flex-direction:column;gap:6px;min-width:0;position:relative}
+.combat-editor-field>span,.combat-editor-field>label{font-size:10px;font-weight:700;letter-spacing:.08em;color:#94aabd;white-space:nowrap}
+.combat-editor-toolbar-shell .combat-editor-field select,.combat-editor-toolbar-shell .combat-editor-field input{box-sizing:border-box;width:100%;height:38px;min-width:0;background:#172332;color:#fff;border:1px solid #536477;border-radius:7px;padding:0 10px;font-size:13px}
+.combat-editor-toolbar-shell .combat-editor-field button{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;padding:0;border:1px solid #536477;border-radius:7px;background:#192634;color:#e8edf4;cursor:pointer}
+.combat-editor-toolbar-shell .combat-editor-field button:hover:not(:disabled){border-color:#75b7c9;background:#254052}
+.combat-editor-toolbar-shell .combat-editor-field button:disabled{opacity:.4;cursor:not-allowed}
+.combat-editor-picker{flex:2 1 180px}
+.combat-editor-name{flex:2 1 180px}
+.combat-editor-help{margin-left:auto}
+.combat-editor-help-popup{position:absolute;top:calc(100% + 8px);right:0;z-index:40;width:min(390px,calc(100vw - 32px));box-sizing:border-box;padding:14px;border:1px solid #536477;border-radius:9px;background:#192634;color:#e8edf4;box-shadow:0 12px 30px #0009}
+.combat-editor-help-popup p{font-size:13px;line-height:1.5;color:#c9d6e3;margin:10px 0 0}
+@media(max-width:740px){.combat-editor-help{margin-left:0}}
