@@ -1,3 +1,4 @@
+import { LogOut } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import './PlayerTacticalFeed.css';
@@ -162,6 +163,6 @@ export default function PlayerTacticalFeed({ onBack, characterId }: { onBack: ()
       <div className="tactical-feed-bottom"><span>SCAN ACTIVE</span><span>UPLINK STATUS: {loading?'CONNECTING':'IDLE'}</span></div>
       </>}
     </div>
-    <footer className="tactical-feed-footer"><span>GHOSTLINK OS // 2077</span><button type="button" onClick={onBack}>← BACK</button></footer>
+    <footer className="tactical-feed-footer"><span>GHOSTLINK OS // 2077</span><button type="button" onClick={onBack} aria-label="Exit Tactical Feed" title="Exit Tactical Feed"><LogOut size={19}/></button></footer>
   </section>;
 }
