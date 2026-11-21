@@ -16,7 +16,7 @@
    Browser chrome remains untouched; existing map gestures and controls stay available. */
 .tactical-feed-live-scroll.tactical-feed-expanded{
  position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;
- z-index:2147483000;overflow:hidden;overscroll-behavior:contain;
+ z-index:1000;overflow:hidden;overscroll-behavior:contain;
  touch-action:none;background:#0b1923;box-sizing:border-box;
 }
 .tactical-feed-expanded .tactical-feed-map-controls{
@@ -58,3 +58,19 @@
 .tactical-feed-hud-stats svg{color:#e3c13e}
 .tactical-feed-hud-empty{font-size:10px;color:#9baebe;border-top:1px solid #354b5a;padding-top:8px}
 @media(max-height:450px){.tactical-feed-expanded .tactical-feed-compact-hud{max-height:52dvh;padding:8px 10px}.tactical-feed-hud-track{margin:6px 0}.tactical-feed-hud-weapons{gap:5px}.tactical-feed-hud-weapon{padding-top:5px}}
+
+/* Tactical shortcuts remain fixed to the viewport and never transform with the map. */
+.tactical-feed-hud-health,.tactical-feed-hud-weapon{display:block;width:100%;background:transparent;border:0;color:inherit;font:inherit;text-align:left;padding:0;cursor:pointer}
+.tactical-feed-hud-health:focus-visible,.tactical-feed-hud-weapon:focus-visible{outline:2px solid #e3c13e;outline-offset:3px}
+.tactical-feed-hud-weapon{border-top:1px solid #354b5a;padding-top:8px}
+.tactical-feed-expanded .tactical-feed-hud-actions{position:absolute;left:max(12px,env(safe-area-inset-left));bottom:calc(max(12px,env(safe-area-inset-bottom)) + min(55dvh,360px) + 10px);z-index:19;display:flex;gap:7px}
+.tactical-feed-hud-actions button{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border:1px solid #47cdd5;border-radius:7px;background:#142434f2;color:#f3dc34;cursor:pointer}
+.tactical-feed-hud-actions button[aria-pressed=true]{border-color:#f3dc34;background:#37402c}
+.tactical-feed-expanded .tactical-feed-scan-panel{position:absolute;left:max(12px,env(safe-area-inset-left));top:max(12px,env(safe-area-inset-top));z-index:18;width:min(225px,calc(100vw - 90px));background:#142434f2;border:1px solid #47cdd5;border-radius:9px;padding:12px;color:#e6edf5;font-size:12px}
+.tactical-feed-scan-panel strong{color:#f3dc34;letter-spacing:1px}
+.tactical-feed-scan-panel p{color:#a7b7c6;margin:8px 0 0}
+.tactical-feed-expanded .tactical-feed-subscreen{position:absolute;inset:0;z-index:30;background:#0a111cf7;overflow:auto;padding:12px 12px 32px;touch-action:pan-y;overscroll-behavior:contain}
+.tactical-feed-subscreen-top{position:sticky;top:0;z-index:3;background:#0a111c;padding:0 0 12px}
+.tactical-feed-subscreen-top button{display:flex;align-items:center;gap:7px;background:#142434;border:1px solid #47cdd5;border-radius:7px;color:#f3dc34;padding:9px 12px;font-weight:700;cursor:pointer}
+.tactical-feed-subscreen .player-card{max-width:720px;margin:0 auto 12px}
+@media(max-height:450px){.tactical-feed-expanded .tactical-feed-hud-actions{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 52dvh + 6px)}}
