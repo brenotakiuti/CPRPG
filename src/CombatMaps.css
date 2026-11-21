@@ -33,3 +33,29 @@
 /* Ghost//Link-aligned header geometry; Tactical//Feed retains its own palette. */
 .tactical-gm-brand{padding:14px 18px;margin:0 0 12px;border:1px solid #2b4058;border-radius:10px;background:#101b2c;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:76px}.tactical-gm-brand-identity{display:flex;align-items:center;gap:12px;min-width:0}.tactical-gm-brand-identity img{width:43px;height:43px;object-fit:contain;flex:none}.tactical-gm-brand-identity strong{display:block;font-size:19px;letter-spacing:1px;color:#67f0ef}.tactical-gm-brand-identity small{display:block;font-size:10px;color:#d77aff;letter-spacing:1px}.tactical-gm-network{text-align:right;color:#5fe5d9;font-size:11px;white-space:nowrap}.tactical-gm-network small{display:block;color:#91a9c1;font-size:10px;letter-spacing:1px}@media(max-width:560px){.tactical-gm-network{display:none}}
 .combat-legend-heading button{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;min-width:34px;padding:0;line-height:1;font-size:22px;vertical-align:middle}
+
+/* GM desktop command console: fixed controls and map/roster workspace. */
+.tactical-command-bar{display:flex;align-items:end;gap:12px;flex-wrap:wrap;padding:12px 14px;margin:0 0 10px;background:#101b2b;border:1px solid #304457;border-radius:9px}
+.tactical-command-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.tactical-command-field>span:first-child{font-size:10px;font-weight:700;letter-spacing:.09em;color:#94aabd;white-space:nowrap}
+.tactical-command-field button,.tactical-command-field select{height:36px;border:1px solid #536477;background:#192737;color:#e8edf4;border-radius:6px;padding:0 11px;font:inherit;font-size:13px;cursor:pointer}
+.tactical-command-field button:disabled,.tactical-command-field select:disabled{opacity:.4;cursor:not-allowed}
+.tactical-map-picker{flex:1 1 185px;max-width:300px}
+.tactical-map-picker-row,.tactical-action-buttons,.tactical-broadcast-actions,.tactical-segmented{display:flex;align-items:center;gap:5px}
+.tactical-map-picker-row select{min-width:0;flex:1}
+.tactical-map-picker-row button{font-size:20px;min-width:36px;padding:0}
+.tactical-segmented{gap:0;border:1px solid #536477;border-radius:6px;overflow:hidden}
+.tactical-segmented button{border:0;border-radius:0;white-space:nowrap}
+.tactical-segmented button+button{border-left:1px solid #536477}
+.tactical-segmented button.active{background:#27516a;color:#f1ffff}
+.tactical-radius-field select{min-width:90px}
+.tactical-broadcast-field{margin-left:auto}
+.tactical-inline-status{font-size:11px;color:#e9c05e;white-space:nowrap;margin-right:3px}
+.tactical-broadcast-actions button.broadcast-start{background:#116c64;border-color:#238d80;color:#fff;font-weight:700}
+.tactical-broadcast-actions button.broadcast-stop{background:#71383d;border-color:#ae5d65;color:#fff;font-weight:700}
+.tactical-workspace{display:grid;grid-template-columns:minmax(0,3fr) minmax(255px,1fr);align-items:start;gap:12px}
+.tactical-workspace>.combat-map-scroll{min-width:0;margin:0;max-height:calc(100vh - 300px);overflow:auto}
+.tactical-workspace>.combat-map-roster{min-width:0;margin:0;max-height:calc(100vh - 300px);overflow:auto;background:#101b2b;border:1px solid #304457;border-radius:8px;padding:12px}
+.tactical-workspace .combat-map-roster-grid{display:flex;flex-direction:column;gap:8px}
+.tactical-workspace .combat-map-unit-field{min-width:0}
+@media(max-width:850px){.tactical-command-bar{gap:9px}.tactical-broadcast-field{margin-left:0}.tactical-workspace{grid-template-columns:minmax(0,1fr)}.tactical-workspace>.combat-map-scroll,.tactical-workspace>.combat-map-roster{max-height:none}}
