@@ -11,3 +11,23 @@
 .tactical-feed-footer button{display:inline-flex;align-items:center;justify-content:center;width:40px;height:38px;padding:0;border-radius:6px}
 
 .tactical-feed-unit.target{background:#8b4eb0;color:#fff}.tactical-feed-unit.objective{background:#176b55;color:#fff}
+
+/* Map-only expanded view: portal escapes Tactical//Feed's clipped stacking context.
+   Browser chrome remains untouched; existing map gestures and controls stay available. */
+.tactical-feed-live-scroll.tactical-feed-expanded{
+ position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;
+ z-index:2147483000;overflow:hidden;overscroll-behavior:contain;
+ touch-action:none;background:#0b1923;box-sizing:border-box;
+}
+.tactical-feed-expanded .tactical-feed-map-controls{
+ top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));
+}
+.tactical-feed-expanded .tactical-feed-move-hint{
+ bottom:max(10px,env(safe-area-inset-bottom));left:max(10px,env(safe-area-inset-left));
+}
+.tactical-feed-expanded .tactical-feed-error{
+ bottom:max(44px,calc(env(safe-area-inset-bottom) + 40px));
+}
+.tactical-feed-expanded .tactical-feed-map-controls button{
+ display:flex;align-items:center;justify-content:center;
+}
