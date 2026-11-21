@@ -24,10 +24,14 @@ export default function TarotSpotlight({ onClose, forced, onReveal, playerMode =
   async function reveal() {
     if (revealed || flipping) return;
     setFlipping(true);
-    if (onReveal) {
-      try { await onReveal(draw); } catch (e) { setError(e instanceof Error ? e.message : 'Could not save reveal'); setFlipping(false); return; }
-    }
-    finishTimer.current = setTimeout(() => { setFlipping(false); setRevealed(true); }, 900);
+    finishTimer.current = setTimeout(() => {
+      setFlipping(false);
+      setRevealed(true);
+      // The card completes its flip before the reveal is announced remotely.
+      if (onReveal) finishTimer.current = setTimeout(() => {
+        void onReveal(draw).catch(e => setError(e instanceof Error ? e.message : 'Could not save reveal'));
+      }, 120);
+    }, 900);
   }
   function redraw() {
     if (flipping) return;
