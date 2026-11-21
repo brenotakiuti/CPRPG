@@ -31,6 +31,11 @@ begin
   v_layout := jsonb_set(v_layout,'{objects}',coalesce((
     select jsonb_agg(o.value) from jsonb_array_elements(coalesce(v_layout->'objects','[]'::jsonb)) o
     where o.value->>'type' not in ('player','enemy')
+      and not exists (
+        select 1 from jsonb_array_elements(coalesce(v_layout->'groups','[]'::jsonb)) g
+        where (g.value->'cells') ? ((o.value->>'x')||','||(o.value->>'y'))
+          and coalesce((v_layout->'layerVisibility'->(g.value->>'id')->>'tactical')::boolean,true)=false
+      )
   ),'[]'::jsonb));
   select coalesce(jsonb_agg(jsonb_build_object(
     'key',u.value->>'key','label',u.value->>'label',
@@ -39,7 +44,12 @@ begin
   )),'[]'::jsonb) into v_units
   from jsonb_array_elements(v_session.units) u
   where u.value->>'type'='player'
-     or (u.value->>'type'='enemy' and u.value->>'visible'='true');
+     or (u.value->>'type'='enemy' and u.value->>'visible'='true'
+       and coalesce((v_layout->'layerVisibility'->(u.value->>'key')->>'tactical')::boolean,true)
+       and (v_session.visibility_mode='full'
+         or ((u.value->>'x')::numeric-(v_mine->>'x')::numeric)^2
+            +((u.value->>'y')::numeric-(v_mine->>'y')::numeric)^2
+            <= v_session.visibility_radius*v_session.visibility_radius));
   return jsonb_build_object('broadcasting',true,'mapId',v_session.map_id,
     'layout',v_layout,'units',v_units,
     'visibilityMode',v_session.visibility_mode,'visibilityRadius',v_session.visibility_radius);
