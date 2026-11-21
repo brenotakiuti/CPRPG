@@ -21,7 +21,7 @@ function validMap(value: unknown): value is Layout {
   for(const o of m.objects){
     if(!o||!Object.prototype.hasOwnProperty.call(shapes,o.type)||!Number.isInteger(o.x)||!Number.isInteger(o.y))return false;
     if(['player','enemy','target','poi'].includes(o.type)){
-      if(o.number!==undefined){if(!Number.isInteger(o.number)||o.number<1||unitNumbers[o.type].has(o.number))return false;unitNumbers[o.type].add(o.number);}
+      if(o.number!==undefined){if(!Number.isInteger(o.number)||o.number<1||unitNumbers[o.type as keyof typeof unitNumbers].has(o.number))return false;unitNumbers[o.type as keyof typeof unitNumbers].add(o.number);}
     }
     if(o.color!==undefined&&(!['wall','cover','hole','pillar','coverH','coverV'].includes(o.type)||!allowedColors.has(o.color)))return false;
     const [w,h]=shapes[o.type];
