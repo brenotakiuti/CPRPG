@@ -9,3 +9,5 @@
 
 /* Match Ghost//Link's compact exit-door control. */
 .tactical-feed-footer button{display:inline-flex;align-items:center;justify-content:center;width:40px;height:38px;padding:0;border-radius:6px}
+
+.tactical-feed-unit.target{background:#8b4eb0;color:#fff}.tactical-feed-unit.objective{background:#176b55;color:#fff}
