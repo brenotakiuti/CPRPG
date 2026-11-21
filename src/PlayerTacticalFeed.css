@@ -6,3 +6,6 @@
 
 /* Fog stays above terrain but below tactical markers and controls. */
 .tactical-feed-unit{z-index:6}
+
+/* Match Ghost//Link's compact exit-door control. */
+.tactical-feed-footer button{display:inline-flex;align-items:center;justify-content:center;width:40px;height:38px;padding:0;border-radius:6px}
