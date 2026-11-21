@@ -996,7 +996,10 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <p>CHARACTER DASHBOARD</p>
         </header>
         {!diagnosticsOpen && character && phoneOpen && <PlayerPhone characterId={character.id} onBack={goBack} />}
-        {!diagnosticsOpen && character && tacticalOpen && <PlayerTacticalFeed characterId={character.id} onBack={goBack} currentHp={hp} maxHp={maximum} weapons={(['weapon_1','weapon_2'] as const).map(slot => {
+        {!diagnosticsOpen && character && tacticalOpen && <PlayerTacticalFeed characterId={character.id} onBack={goBack} onDice={() => setDiceOpen(true)}
+          renderStats={onClose => <PlayerStats onBack={onClose} cyberware={cyberwareData} view={statsView} selectedPosition={statsPosition} onNavigate={(view,position)=>{setStatsView(view);setStatsPosition(position)}} />}
+          renderInventory={onClose => <PlayerInventory inventory={inventoryData} onBack={onClose} onSelect={id=>setInventorySelection(id)} initialSelectedId={inventorySelection} />}
+          onOpenInventory={() => setInventorySelection(null)} currentHp={hp} maxHp={maximum} weapons={(['weapon_1','weapon_2'] as const).map(slot => {
           const entry=inventoryData.entries.find(row=>row.equipped_slot===slot);
           const item=entry?inventoryData.catalog[entry.item_id]:undefined;
           const properties=item?.properties??{};
