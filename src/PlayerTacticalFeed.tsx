@@ -134,7 +134,7 @@ export default function PlayerTacticalFeed({ onBack, characterId }: { onBack: ()
   const live=state.broadcasting && !loading && state.layout && Number.isInteger(state.layout.width) && Number.isInteger(state.layout.height) && state.layout.width>0 && state.layout.height>0;
   const map=state.layout;
   const objects=new Map<string,TacticalObject>();
-  if(live&&map)for(const obj of map.objects||[])if(!['player','enemy','target','poi'].includes(obj.type)){
+  if(live&&map)for(const obj of map.objects||[])if(!['player','enemy','target','poi','objective'].includes(obj.type)){
     const size=obj.type==='pillar'?[2,2]:obj.type==='coverH'?[2,1]:obj.type==='coverV'?[1,2]:[1,1];
     for(let dy=0;dy<size[1];dy++)for(let dx=0;dx<size[0];dx++)objects.set((obj.x+dx)+','+(obj.y+dy),obj);
   }
