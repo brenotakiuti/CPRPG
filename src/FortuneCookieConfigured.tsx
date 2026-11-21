@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './FortuneCookieSpotlight.css';
 
 export const fortunes = [
@@ -29,12 +29,17 @@ export default function FortuneCookieSpotlight({ onClose, messageIndex, luckyNum
   const [fortune, setFortune] = useState<Fortune | null>(initiallyRevealed ? fixedFortune ?? null : null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const publishTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (publishTimer.current) clearTimeout(publishTimer.current); }, []);
   async function crack() {
     if (busy || (playerMode && fortune)) return;
     setBusy(true);
-    try { if (onReveal) await onReveal(); setFortune(fixedFortune ?? crackFortune(messageIndex, luckyNumbers)); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Could not save fortune'); }
-    finally { setBusy(false); }
+    setFortune(fixedFortune ?? crackFortune(messageIndex, luckyNumbers));
+    setBusy(false);
+    // Allow the fortune to render before the reveal is published to other viewers.
+    if (onReveal) publishTimer.current = setTimeout(() => {
+      void onReveal().catch(e => setError(e instanceof Error ? e.message : 'Could not save fortune'));
+    }, 120);
   }
   return (
     <div className="fortune-overlay" role="dialog" aria-modal="true" aria-label="Fortune Cookie spotlight">
