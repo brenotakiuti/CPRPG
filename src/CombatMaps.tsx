@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CircleHelp, Eye, EyeOff, Sun, Moon, RefreshCw, FolderOpen, RadioTower, Wifi, WifiOff } from 'lucide-react';
+import { CircleHelp, Eye, EyeOff, Sun, Moon, RefreshCw, FolderOpen, RadioTower, Wifi, WifiOff, FilePlus2, Save } from 'lucide-react';
 import { supabase } from './supabase';
 import './CombatMaps.css';
 
@@ -61,6 +61,10 @@ export default function CombatMaps({campaignId,mode,campaignName}:{campaignId:st
  const [maps,setMaps]=useState<SavedMap[]>([]);
  const [selected,setSelected]=useState('');
  const [name,setName]=useState('');
+ const [loadedEditorId,setLoadedEditorId]=useState('');
+ const [editorDirty,setEditorDirty]=useState(false);
+ const [editorReady,setEditorReady]=useState(false);
+ const [editorHelpOpen,setEditorHelpOpen]=useState(false);
  const [message,setMessage]=useState('');
  const [busy,setBusy]=useState(false);
  const [legendOpen,setLegendOpen]=useState(false);
@@ -92,11 +96,12 @@ export default function CombatMaps({campaignId,mode,campaignName}:{campaignId:st
  useEffect(()=>{
   const receive=(event:MessageEvent)=>{
    if(event.origin!==window.location.origin||event.source!==frame.current?.contentWindow||!event.data||event.data.source!=='cprpg-map-editor')return;
+   if(event.data.action==='changed'&&mode==='editor')setEditorDirty(true);
    if(event.data.action==='export'&&pending.current){const resolve=pending.current;pending.current=null;resolve(event.data.layout);}
   };
   window.addEventListener('message',receive);
   return ()=>window.removeEventListener('message',receive);
- },[]);
+ },[mode]);
  function requestLayout():Promise<unknown>{
   return new Promise((resolve,reject)=>{
    if(!frame.current?.contentWindow){reject(new Error('Editor is not ready'));return;}
@@ -112,25 +117,46 @@ export default function CombatMaps({campaignId,mode,campaignName}:{campaignId:st
   try{
    const layout=await requestLayout();
    if(!validMap(layout))throw new Error('Map contains invalid or overlapping objects.');
+   const original=maps.find(m=>m.id===loadedEditorId);
+   const sameName=!!original&&original.name===trimmed;
+   const existing=maps.find(m=>m.name.toLocaleLowerCase()===trimmed.toLocaleLowerCase()&&m.id!==loadedEditorId);
+   if(existing){setMessage('A map with this name already exists. Choose another name to avoid overwriting it.');return;}
    const payload={campaign_id:campaignId,name:trimmed,width:layout.width,height:layout.height,layout};
-   const query=selected?supabase.from('combat_maps').update(payload).eq('id',selected).eq('campaign_id',campaignId):supabase.from('combat_maps').insert(payload);
+   const query=sameName?supabase.from('combat_maps').update(payload).eq('id',loadedEditorId).eq('campaign_id',campaignId):supabase.from('combat_maps').insert(payload);
    const {data,error}=await query.select('id').single();
    if(error)throw error;
-   setSelected(data.id);await load();setMessage('Map saved to Supabase.');
+   setLoadedEditorId(data.id);setSelected(data.id);setEditorDirty(false);await load();setMessage(sameName?'Map saved.':'New map saved.');
   }catch(e){setMessage(e instanceof Error?e.message:'Unable to save map.');}
   finally{setBusy(false);}
  }
+ function confirmDiscard(){return !editorDirty||window.confirm('Discard unsaved map changes?');}
+ function newEditorMap(){
+  if(!confirmDiscard())return;
+  setLoadedEditorId('');setSelected('');setName('');setEditorDirty(false);
+  frame.current?.contentWindow?.postMessage({source:'cprpg-gm',action:'reset'},window.location.origin);
+  setMessage('');
+ }
+ function loadEditorMap(){
+  const map=maps.find(m=>m.id===selected);
+  if(!map||!confirmDiscard())return;
+  setLoadedEditorId(map.id);setName(map.name);setEditorDirty(false);
+  frame.current?.contentWindow?.postMessage({source:'cprpg-gm',action:'import',layout:map.layout},window.location.origin);
+  setMessage('');
+ }
  function openMap(id:string){
   setSelected(id);
-  
-  const map=maps.find(m=>m.id===id);
-  if(!map)return;
-  setName(map.name);
-  if(mode==='editor')frame.current?.contentWindow?.postMessage({source:'cprpg-gm',action:'import',layout:map.layout},window.location.origin);
+  if(mode==='combat')return;
  }
  const current=maps.find(m=>m.id===selected);
  return <section className="combat-maps-panel">{mode==='combat'&&<header className="tactical-gm-brand"><div className="tactical-gm-brand-identity"><img src="/tactical-feed-icon.svg" alt="" /><div><strong>TACTICAL//FEED</strong><small>A GHOST//LINK SYSTEMS DIVISION</small></div></div><div className="tactical-gm-network">● NETWORK TERMINAL <small>{campaignName}</small></div></header>}
-  {mode==='editor'?<div className="combat-maps-toolbar"><label>Saved maps <select value={selected} onChange={e=>openMap(e.target.value)}><option value="">Select a map</option>{maps.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label><button type="button" onClick={()=>void load()}>Refresh list</button><button type="button" onClick={()=>{setSelected('');setName('');frame.current?.contentWindow?.postMessage({source:'cprpg-gm',action:'reset'},window.location.origin);setMessage('New map.')}}>New map</button><label>Map name <input value={name} maxLength={100} onChange={e=>setName(e.target.value)}/></label><button type="button" disabled={busy} onClick={()=>void save()}>{busy?'Saving...':'Save map'}</button></div>:<div className="tactical-command-bar">
+  {mode==='editor'?<div className="combat-editor-toolbar-shell"><div className="combat-maps-toolbar">
+<div className="combat-editor-field"><span>NEW MAP</span><button type="button" aria-label="New map" title="New map" disabled={!editorReady||busy} onClick={newEditorMap}><FilePlus2 size={19}/></button></div>
+<label className="combat-editor-field combat-editor-picker"><span>SAVED MAPS</span><select aria-label="Saved maps" value={selected} onChange={e=>openMap(e.target.value)}><option value="">Select a map</option>{maps.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+<div className="combat-editor-field"><span>LOAD</span><button type="button" aria-label="Load selected map" title="Load selected map" disabled={!editorReady||!selected||busy} onClick={loadEditorMap}><FolderOpen size={19}/></button></div>
+<label className="combat-editor-field combat-editor-name"><span>MAP NAME</span><input aria-label="Map name" value={name} maxLength={100} onChange={e=>{setName(e.target.value);setEditorDirty(true)}} placeholder="Enter map name"/></label>
+<div className="combat-editor-field"><span>SAVE</span><button type="button" aria-label="Save map" title="Save / Save as" disabled={!editorReady||busy||!name.trim()} onClick={()=>void save()}><Save size={19}/></button></div>
+<div className="combat-editor-field combat-editor-help"><span>HELP</span><button type="button" aria-label="Map editor instructions" title="Map editor instructions" aria-expanded={editorHelpOpen} onClick={()=>setEditorHelpOpen(v=>!v)}><CircleHelp size={19}/></button>{editorHelpOpen&&<div className="combat-editor-help-popup"><div className="combat-legend-heading"><strong>Map editor instructions</strong><button type="button" aria-label="Close instructions" onClick={()=>setEditorHelpOpen(false)}>×</button></div><p>New creates a blank map. Selecting a saved map does not load it; click the folder icon to load. Unsaved changes require confirmation before New or Load. Save updates the loaded map when its name is unchanged; changing the name creates a new copy (Save As). Names already used by other maps cannot be overwritten.</p></div>}</div>
+</div></div>:<div className="tactical-command-bar">
 <div className="tactical-command-field tactical-map-picker"><span>ACTIVE MAP</span><div className="tactical-map-picker-row"><select aria-label="Saved maps" value={selected} onChange={e=>openMap(e.target.value)}><option value="">Select map</option>{maps.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select><button type="button" className="tactical-load-button" disabled={!current||!validMap(current.layout)} title="Load selected map into the tactical session" onClick={()=>{if(current)beginSession(current)}}><FolderOpen size={16}/> Load</button></div></div>
 <div className="tactical-command-field"><span>VISIBILITY</span><div className="tactical-segmented"><button type="button" aria-label="Fully visible" title="Fully visible" aria-pressed={visibilityMode==='full'} className={visibilityMode==='full'?'active':''} disabled={!!live?.broadcasting} onClick={()=>setVisibilityMode('full')}><Sun size={19}/></button><button type="button" aria-label="Dark map" title="Dark map" aria-pressed={visibilityMode==='dark'} className={visibilityMode==='dark'?'active':''} disabled={!!live?.broadcasting} onClick={()=>setVisibilityMode('dark')}><Moon size={19}/></button></div></div>
 <label className="tactical-command-field tactical-radius-field"><span>RADIUS</span><select value={visibilityRadius} disabled={visibilityMode!=='dark'||!!live?.broadcasting} onChange={e=>setVisibilityRadius(Number(e.target.value))}>{Array.from({length:8},(_,i)=><option key={i+1} value={i+1}>{i+1} cells</option>)}</select></label>
@@ -139,7 +165,7 @@ export default function CombatMaps({campaignId,mode,campaignName}:{campaignId:st
 <div className="tactical-command-field tactical-status-field"><span>STATUS</span><div className={'tactical-fixed-status '+(live?.broadcasting?'is-live':'is-offline')}>{live?.broadcasting?<Wifi size={18}/>:<WifiOff size={18}/>}<span>{live?.broadcasting?'LIVE':'OFFLINE'}</span></div></div>
 </div>}
 {message&&!(mode==='combat'&&['Broadcast stopped.','Map broadcast enabled.','Live map ready. Assign characters before broadcasting.'].includes(message))&&<p role="status" className="combat-maps-message">{message}</p>}
-{mode==='editor'?<><iframe ref={frame} title="Tactical map editor" src="/map-editor.html?embedded=1" className="combat-map-editor-frame" onLoad={()=>{const map=maps.find(m=>m.id===selected);if(map)frame.current?.contentWindow?.postMessage({source:'cprpg-gm',action:'import',layout:map.layout},window.location.origin)}}/></>:
+{mode==='editor'?<><iframe ref={frame} title="Tactical map editor" src="/map-editor.html?embedded=1" className="combat-map-editor-frame" onLoad={()=>{setEditorReady(true)}}/></>:
    current&&validMap(current.layout)?<><div className="combat-map-heading"><h3>{current.name}</h3><div className="combat-legend-anchor"><button type="button" className="combat-help-toggle" aria-label="Tactical feed instructions" title="Instructions" aria-expanded={helpOpen} onClick={()=>{setHelpOpen(v=>!v);setLegendOpen(false)}}><CircleHelp size={18}/></button>{helpOpen&&<div className="combat-help-popup" role="region" aria-label="Tactical feed instructions"><div className="combat-legend-heading"><strong>Tactical//Feed instructions</strong><button type="button" aria-label="Close instructions" onClick={()=>setHelpOpen(false)}>×</button></div><p>Drag markers on the map to move combatants. Assign a character to each player marker before broadcasting. Use the eye icons to show or hide enemies from players; hidden enemies remain movable for the GM. Load the map, select visibility settings, then start broadcasting. Dark Map limits the area players can see around their marker.</p></div>}<button type="button" className="combat-legend-toggle" aria-expanded={legendOpen} onClick={()=>{setLegendOpen(v=>!v);setHelpOpen(false)}}>▤ Legend</button>{legendOpen&&<div className="combat-legend-popup"><div className="combat-legend-heading"><strong>Map legend</strong><button type="button" aria-label="Close legend" onClick={()=>setLegendOpen(false)}>×</button></div><div className="combat-legend-section">TERRAIN</div><div className="combat-legend-items">{[{type:'wall',symbol:'■',name:'Wall',desc:'Blocks movement & shots'},{type:'cover',symbol:'▰',name:'Cover',desc:'Jumpable · Defense bonus'},{type:'hole',symbol:'◌',name:'Hole',desc:'Jumpable · No standing'}].map(item=><div key={item.type}><i className={'combat-legend-icon '+item.type}>{item.symbol}</i><span><strong>{item.name}</strong><small>{item.desc}</small></span></div>)}</div><div className="combat-legend-section">MARKERS</div><div className="combat-legend-items">{[{type:'player',symbol:'P1',name:'Player',desc:'Player position'},{type:'enemy',symbol:'E1',name:'Enemy',desc:'Enemy position'},{type:'target',symbol:'T',name:'Target',desc:'Reach this location'},{type:'gate',symbol:'━',name:'Gate',desc:'Entrance / exit'}].map(item=><div key={item.type}><i className={'combat-legend-icon '+item.type}>{item.symbol}</i><span><strong>{item.name}</strong><small>{item.desc}</small></span></div>)}</div></div>}</div></div>{live?.mapId===current.id?<div className="tactical-workspace"><MapGrid map={current.layout} units={live.units} onMove={(key,x,y)=>modifyUnit(key,{x,y})}/><div className="combat-map-roster"><h3>Combatants</h3><div className="combat-map-roster-grid">{live.units.map(u=><div key={u.key} className="combat-map-unit-field"><span className={'combat-map-unit-tag '+u.type}>{u.label}</span>{u.type==='player'?<select aria-label={u.label+' character'} value={u.characterId||''} onChange={e=>modifyUnit(u.key,{characterId:e.target.value||null,name:characters.find(c=>c.id===e.target.value)?.name||''})}><option value="">Unassigned</option>{characters.filter(c=>c.id===u.characterId||!live.units.some(other=>other.key!==u.key&&other.characterId===c.id)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>:<><input type="text" maxLength={100} aria-label={u.label+' enemy name'} placeholder="Enemy name" value={u.name||''} onChange={e=>modifyUnit(u.key,{name:e.target.value})}/><button type="button" className={"combat-visibility-button "+(u.visible?"is-visible":"is-hidden")} aria-label={(u.visible?"Hide ":"Show ")+(u.name||u.label)+" from players"} title={u.visible?"Visible to players — click to hide":"Hidden from players — click to show"} aria-pressed={u.visible} onClick={()=>modifyUnit(u.key,{visible:!u.visible})}>{u.visible?<Eye size={18}/>:<EyeOff size={18}/>}</button></>}</div>)}</div></div></div>:<p className="combat-maps-hint">Load this map to configure character assignments, enemy visibility and GM movement.</p>}</>:<p className="combat-maps-hint">Choose a saved map to view its grid. Combat actions are not enabled yet.</p>}
  </section>;
 }
