@@ -1,0 +1,76 @@
+.tactical-feed{font-family:Arial,Helvetica,sans-serif;color:#eaf4fa;background:#0a111c;border:1px solid #3d4b5a;border-radius:18px;overflow:hidden;position:relative;isolation:isolate}.tactical-feed *{box-sizing:border-box}.tactical-feed-accent{height:4px;background:linear-gradient(90deg,#f3dc34 0 58%,#2de0e0 58% 80%,#f3dc34 80%)}.tactical-feed-header{padding:17px 15px 13px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.tactical-feed-brand{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:1.5px;color:#f3dc34;font-weight:800}.tactical-feed-brand img{width:19px;height:19px}.tactical-feed-header h2{font-size:23px;letter-spacing:1.2px;font-weight:900;margin:5px 0 0;color:#eaf4fa}.tactical-feed-offline{font-size:10px;letter-spacing:1px;color:#a4aeb9;border:1px solid #586471;background:#1a2532;padding:7px 9px;border-radius:3px;white-space:nowrap;animation:tactical-flicker 5s infinite}.tactical-feed-meta{display:flex;justify-content:space-between;gap:8px;margin:0 15px 12px;font-size:10px;letter-spacing:.6px;color:#8e9fb1}.tactical-feed-meta strong{color:#e2bd48}.tactical-feed-screen{height:min(58vh,470px);min-height:320px;margin:0 9px 9px;position:relative;overflow:hidden;background:radial-gradient(ellipse at center,#142a36 0%,#0b1824 52%,#080e18 100%);border:1px solid #344e62;isolation:isolate}.tactical-feed-screen:before,.tactical-feed-screen:after{content:"";position:absolute;width:25px;height:25px;z-index:8;pointer-events:none}.tactical-feed-screen:before{top:0;left:0;border-top:2px solid #f3dc34;border-left:2px solid #f3dc34}.tactical-feed-screen:after{right:0;bottom:0;border-bottom:2px solid #f3dc34;border-right:2px solid #f3dc34}.tactical-feed-grid{position:absolute;inset:0;background-image:linear-gradient(#3a617014 1px,transparent 1px),linear-gradient(90deg,#3a617014 1px,transparent 1px);background-size:30px 30px;mask-image:radial-gradient(ellipse,#000 15%,transparent 80%)}.tactical-feed-radar{position:absolute;width:260px;height:260px;border:1px solid #2ac8cb30;border-radius:50%;top:50%;left:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 43px #25a8b007,0 0 0 85px #25a8b006}.tactical-feed-radar:before,.tactical-feed-radar:after{content:"";position:absolute;inset:25%;border:1px solid #2ac8cb28;border-radius:50%}.tactical-feed-radar:after{inset:48%;background:#46dce0;box-shadow:0 0 15px #46dce0}.tactical-feed-sweep{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0deg,transparent 292deg,#37e0dd07 316deg,#37e0dd25 355deg,transparent 360deg);animation:tactical-sweep 6s linear infinite}.tactical-feed-static{position:absolute;inset:0;z-index:4;opacity:.23;pointer-events:none;background:repeating-linear-gradient(0deg,#b0f5ff12 0px,transparent 1px,transparent 3px,#0008 4px);animation:tactical-static .21s steps(3) infinite}.tactical-feed-interference{position:absolute;left:-15%;right:-15%;height:65px;top:-20%;z-index:5;pointer-events:none;background:linear-gradient(transparent,#b3faff0b,#e5ffff12,#b3faff05,transparent);animation:tactical-interference 7s linear infinite}.tactical-feed-screen-label{position:absolute;top:10px;left:12px;font-size:9px;letter-spacing:1px;color:#8fa8b7;z-index:7}.tactical-feed-center{position:absolute;z-index:7;top:50%;left:50%;width:95%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}.tactical-feed-symbol{font-size:33px;color:#e7c54d;margin-bottom:14px;text-shadow:0 0 15px #e7c54d66}.tactical-feed-center strong{display:block;font-size:18px;font-weight:900;letter-spacing:1.5px;color:#f2d54c}.tactical-feed-center p{font-size:10px;letter-spacing:1.5px;color:#9cb6c3;margin-top:13px;line-height:1.8}.tactical-feed-dots{display:flex;justify-content:center;gap:5px;margin-top:21px}.tactical-feed-dots i{width:5px;height:5px;background:#38d5d5;opacity:.2;animation:tactical-dot 1.4s infinite}.tactical-feed-dots i:nth-child(2){animation-delay:.2s}.tactical-feed-dots i:nth-child(3){animation-delay:.4s}.tactical-feed-dots i:nth-child(4){animation-delay:.6s}.tactical-feed-dots i:nth-child(5){animation-delay:.8s}.tactical-feed-bottom{position:absolute;bottom:13px;left:12px;right:12px;display:flex;justify-content:space-between;font-size:9px;letter-spacing:.7px;color:#6c8795;z-index:7}.tactical-feed-footer{display:flex;justify-content:space-between;align-items:center;padding:9px 15px 15px;font-size:9px;letter-spacing:1px;color:#73889c}.tactical-feed-footer button{background:#14212c;color:#f3dc34;border:1px solid #53616c;padding:9px 12px;font-size:10px;cursor:pointer}@keyframes tactical-sweep{to{transform:rotate(360deg)}}@keyframes tactical-static{33%{transform:translateY(-4px)}66%{transform:translateY(3px)}}@keyframes tactical-interference{0%{top:-25%;opacity:0}10%{opacity:.7}60%{opacity:.15}100%{top:125%;opacity:0}}@keyframes tactical-dot{50%{opacity:1;box-shadow:0 0 8px #38d5d5}}@keyframes tactical-flicker{0%,93%,96%,100%{opacity:1}94%,95%{opacity:.35}}@media(prefers-reduced-motion:reduce){.tactical-feed-sweep,.tactical-feed-static,.tactical-feed-interference,.tactical-feed-dots i,.tactical-feed-offline{animation:none}}
+.tactical-feed-live-scroll{position:absolute;inset:0;overflow:auto;z-index:6;touch-action:pan-x pan-y;overscroll-behavior:contain;background:#0b1923}.tactical-feed-live-board{position:relative;margin:24px auto;box-shadow:0 0 0 2px #f2d54c,0 0 22px #27d4dd30;background:#132431}.tactical-feed-tile{position:absolute;width:36px;height:36px;border:1px solid #2d4c5a;background:#182c39}.tactical-feed-tile.wall,.tactical-feed-tile.pillar{background:#677b87;border-color:#a6c0c8}.tactical-feed-tile.cover,.tactical-feed-tile.coverH,.tactical-feed-tile.coverV{background:#9d8062;border:2px solid #d7b990}.tactical-feed-tile.hole{background:#060b12;border:1px dashed #6c8c98}.tactical-feed-tile.target{background:#36584c}.tactical-feed-unit{position:absolute;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:2px solid #7cdaeb;border-radius:50%;background:#164658;color:#e4fbff;font-size:10px;font-weight:900;box-shadow:0 0 12px #3cddf080}.tactical-feed-unit.enemy{border-color:#ff576b;background:#5b1724;color:#ffe5e5;box-shadow:0 0 12px #ff576b70}.tactical-feed-unit.mine{border-color:#ffe34c;background:#62501c;color:#fff7c0;box-shadow:0 0 16px #ffe34c99;font-size:8px}.tactical-feed-screen:has(.tactical-feed-live-scroll){background:#0b1923}
+.tactical-feed-live-scroll{overflow:hidden;touch-action:none;user-select:none;cursor:grab}.tactical-feed-live-board{margin:0;will-change:transform}.tactical-feed-live-scroll:active{cursor:grabbing}.tactical-feed-unit.mine{cursor:pointer;touch-action:none}.tactical-feed-unit.mine.selected{border-color:#fff5a0;box-shadow:0 0 0 4px #f3dc3455,0 0 20px #f3dc34;animation:tactical-marker-pulse 1.4s infinite}.tactical-feed-map-controls{position:absolute;right:12px;top:12px;z-index:15;display:flex;flex-direction:column;gap:7px}.tactical-feed-map-controls button{width:42px;height:42px;border:1px solid #47cdd5;border-radius:7px;background:#0b1d2bef;color:#f3dc34;font-size:25px;font-weight:700;cursor:pointer;box-shadow:0 3px 12px #0009}.tactical-feed-move-hint{position:absolute;bottom:10px;left:10px;z-index:15;padding:7px 9px;background:#132633ed;border:1px solid #f3dc34;color:#f3dc34;font-size:10px;font-weight:700;pointer-events:none}.tactical-feed-error{position:absolute;bottom:40px;left:10px;right:10px;z-index:16;background:#381c25;border:1px solid #ff6572;color:#fff;padding:8px;font-size:11px;pointer-events:none}@keyframes tactical-marker-pulse{50%{box-shadow:0 0 0 7px #f3dc3422,0 0 22px #f3dc34}}
+
+.tactical-feed-unit.mine.syncing{pointer-events:none;cursor:wait;border-color:#35dce5;box-shadow:0 0 0 4px #35dce544,0 0 18px #35dce5;animation:tactical-sync-pulse .65s ease-in-out infinite alternate}@keyframes tactical-sync-pulse{to{box-shadow:0 0 0 7px #35dce511,0 0 24px #35dce5}}
+
+/* Fog stays above terrain but below tactical markers and controls. */
+.tactical-feed-unit{z-index:6}
+
+/* Match Ghost//Link's compact exit-door control. */
+.tactical-feed-footer button{display:inline-flex;align-items:center;justify-content:center;width:40px;height:38px;padding:0;border-radius:6px}
+
+.tactical-feed-unit.target{background:#8b4eb0;color:#fff}.tactical-feed-unit.objective{background:#176b55;color:#fff}
+
+/* Map-only expanded view: portal escapes Tactical//Feed's clipped stacking context.
+   Browser chrome remains untouched; existing map gestures and controls stay available. */
+.tactical-feed-live-scroll.tactical-feed-expanded{
+ position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;
+ z-index:1000;overflow:hidden;overscroll-behavior:contain;
+ touch-action:none;background:#0b1923;box-sizing:border-box;
+}
+.tactical-feed-expanded .tactical-feed-map-controls{
+ top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));
+}
+.tactical-feed-expanded .tactical-feed-move-hint{
+ bottom:max(10px,env(safe-area-inset-bottom));left:max(10px,env(safe-area-inset-left));
+}
+.tactical-feed-expanded .tactical-feed-error{
+ bottom:max(44px,calc(env(safe-area-inset-bottom) + 40px));
+}
+.tactical-feed-expanded .tactical-feed-map-controls button{
+ display:flex;align-items:center;justify-content:center;
+}
+
+/* Compact map-only HUD. Fixed inside the expanded map viewport, not the map board. */
+.tactical-feed-expanded .tactical-feed-compact-hud{
+ position:absolute;bottom:max(12px,env(safe-area-inset-bottom));left:max(12px,env(safe-area-inset-left));
+ width:min(300px,calc(100vw - 82px));max-height:min(55dvh,360px);overflow-y:auto;
+ z-index:18;background:#142434ed;border:1px solid #3b5669;border-radius:11px;
+ color:#e6edf5;box-shadow:0 6px 25px #0009;padding:11px 12px;
+ font-family:Arial,Helvetica,sans-serif;touch-action:pan-y;box-sizing:border-box;
+}
+.tactical-feed-compact-hud *{box-sizing:border-box}
+.tactical-feed-hud-heading,.tactical-feed-hud-weapon-name,.tactical-feed-hud-stats{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.tactical-feed-hud-heading{font-size:12px;font-weight:800}
+.tactical-feed-hud-heading span{display:flex;align-items:center;gap:6px}
+.tactical-feed-hud-heading svg{color:#e99ba9}
+.tactical-feed-hud-heading strong{font-size:12px;white-space:nowrap}
+.tactical-feed-hud-track{height:7px;margin:9px 0 10px;background:#30475a;border-radius:9px;overflow:hidden}
+.tactical-feed-hud-track>div{height:100%;background:#e3c13e;border-radius:9px}
+.tactical-feed-hud-weapons{display:flex;flex-direction:column;gap:8px}
+.tactical-feed-hud-weapon{border-top:1px solid #354b5a;padding-top:8px}
+.tactical-feed-hud-weapon-name{font-size:11px;min-width:0}
+.tactical-feed-hud-weapon-name strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tactical-feed-hud-weapon-name span{color:#9baebe;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42%}
+.tactical-feed-hud-stats{margin-top:7px;color:#e6edf5;font-size:11px;font-weight:700}
+.tactical-feed-hud-stats span{display:flex;align-items:center;gap:3px;white-space:nowrap}
+.tactical-feed-hud-stats svg{color:#e3c13e}
+.tactical-feed-hud-empty{font-size:10px;color:#9baebe;border-top:1px solid #354b5a;padding-top:8px}
+@media(max-height:450px){.tactical-feed-expanded .tactical-feed-compact-hud{max-height:52dvh;padding:8px 10px}.tactical-feed-hud-track{margin:6px 0}.tactical-feed-hud-weapons{gap:5px}.tactical-feed-hud-weapon{padding-top:5px}}
+
+/* Tactical shortcuts remain fixed to the viewport and never transform with the map. */
+.tactical-feed-hud-health,.tactical-feed-hud-weapon{display:block;width:100%;background:transparent;border:0;color:inherit;font:inherit;text-align:left;padding:0;cursor:pointer}
+.tactical-feed-hud-health:focus-visible,.tactical-feed-hud-weapon:focus-visible{outline:2px solid #e3c13e;outline-offset:3px}
+.tactical-feed-hud-weapon{border-top:1px solid #354b5a;padding-top:8px}
+.tactical-feed-expanded .tactical-feed-hud-actions{position:absolute;left:max(12px,env(safe-area-inset-left));bottom:calc(max(12px,env(safe-area-inset-bottom)) + 160px);z-index:19;display:flex;gap:7px}
+.tactical-feed-hud-actions button{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border:1px solid #47cdd5;border-radius:7px;background:#142434f2;color:#f3dc34;cursor:pointer}
+.tactical-feed-hud-actions button[aria-pressed=true]{border-color:#f3dc34;background:#37402c}
+.tactical-feed-expanded .tactical-feed-scan-panel{position:absolute;left:max(12px,env(safe-area-inset-left));top:max(12px,env(safe-area-inset-top));z-index:18;width:min(225px,calc(100vw - 90px));background:#142434f2;border:1px solid #47cdd5;border-radius:9px;padding:12px;color:#e6edf5;font-size:12px}
+.tactical-feed-scan-panel strong{color:#f3dc34;letter-spacing:1px}
+.tactical-feed-scan-panel p{color:#a7b7c6;margin:8px 0 0}
+.tactical-feed-expanded .tactical-feed-subscreen{position:absolute;inset:0;z-index:30;background:#0a111cf7;overflow:auto;padding:12px 12px 32px;touch-action:pan-y;overscroll-behavior:contain}
+.tactical-feed-subscreen-top{position:sticky;top:0;z-index:3;background:#0a111c;padding:0 0 12px}
+.tactical-feed-subscreen-top button{display:flex;align-items:center;gap:7px;background:#142434;border:1px solid #47cdd5;border-radius:7px;color:#f3dc34;padding:9px 12px;font-weight:700;cursor:pointer}
+.tactical-feed-subscreen .player-card{max-width:720px;margin:0 auto 12px}
+@media(max-height:450px){.tactical-feed-expanded .tactical-feed-hud-actions{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 144px)}}

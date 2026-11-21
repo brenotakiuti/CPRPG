@@ -1,0 +1,106 @@
+.combat-maps-panel{background:#111b27;border:1px solid #36485c;border-radius:10px;padding:16px;color:#e8edf4;min-width:0}.combat-maps-toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:end}.combat-maps-toolbar label{display:flex;flex-direction:column;gap:5px;font-size:13px;color:#c7d2df}.combat-maps-toolbar select,.combat-maps-toolbar input{background:#172332;color:white;border:1px solid #536477;border-radius:6px;padding:9px;min-width:180px}.combat-maps-toolbar button{background:#192634;color:#e8edf4;border:1px solid #536477;border-radius:7px;padding:9px 12px;cursor:pointer}.combat-maps-toolbar button:disabled{opacity:.5}.combat-maps-hint{color:#aebac9}.combat-maps-message{color:#e9c05e}.combat-map-editor-frame{display:block;width:100%;height:950px;border:0;background:#0b1018;border-radius:8px}.combat-map-scroll{overflow:auto;max-width:100%;padding:12px;background:#080d13;border:1px solid #334459;border-radius:8px}.combat-map-grid{display:grid;gap:2px;width:max-content}.combat-map-cell{width:42px;height:42px;display:grid;place-items:center;border:1px solid #354759;border-radius:2px;background:#1d2c3a}.combat-map-cell.wall{background:#56616c}.combat-map-cell.pillar{background:#48505a}.combat-map-cell.coverH,.combat-map-cell.coverV{background:#886d42}.combat-map-cell.player{background:#13688e}.combat-map-cell.enemy{background:#aa3c46}@media(max-width:760px){.combat-map-editor-frame{height:1250px}}
+.combat-map-roster{margin-top:18px}.combat-map-roster h3{margin-bottom:4px}.combat-map-roster-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:12px}.combat-map-unit-field{display:flex;align-items:center;gap:10px;background:#172332;border:1px solid #36485c;border-radius:8px;padding:9px}.combat-map-unit-tag{min-width:43px;text-align:center;font-weight:700;border-radius:5px;padding:8px 5px;background:#13688e;color:white}.combat-map-unit-tag.enemy{background:#aa3c46}.combat-map-unit-field input{min-width:0;flex:1;background:#0b1520;color:white;border:1px solid #536477;border-radius:5px;padding:9px;font:inherit}
+.combat-map-cell.cover{background:#886d42}.combat-map-cell.hole{background:#080d13;border:1px dashed #7d8794}.combat-map-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#b8c6d3;margin:12px 0}.combat-map-legend span{max-width:210px;line-height:1.5}.combat-map-dot{display:inline-block;width:12px;height:12px;vertical-align:middle;margin-right:5px;border-radius:2px}.combat-map-dot.wall{background:#56616c}.combat-map-dot.cover{background:#886d42}.combat-map-dot.hole{background:#080d13;border:1px dashed #7d8794}.combat-map-dot.player{background:#13688e}.combat-map-dot.enemy{background:#aa3c46}
+
+.combat-map-boundary{position:relative;min-width:max-content}.combat-map-gate{position:absolute;background:#a17add;border:1px solid #c3a4fa;border-radius:2px;z-index:1}.combat-map-gate.top,.combat-map-gate.bottom{height:8px}.combat-map-gate.left,.combat-map-gate.right{width:8px}.combat-map-cell.target{background:#176b55;color:white;font-weight:700}.combat-map-dot.target{background:#176b55}.combat-map-dot.gate{background:#a17add}
+
+.combat-legend-anchor{position:relative;display:flex;justify-content:flex-end;margin:10px 0}.combat-legend-toggle,.combat-legend-heading button{cursor:pointer;border:1px solid #536477;background:#192634;color:#e8edf4;border-radius:7px;padding:8px 12px}.combat-legend-popup{position:absolute;right:0;top:calc(100% + 6px);width:min(390px,100%);padding:14px;background:#192634;border:1px solid #536477;border-radius:10px;box-shadow:0 12px 30px #0009;z-index:20}.combat-legend-heading{display:flex;justify-content:space-between;align-items:center}.combat-legend-heading button{padding:2px 8px;font-size:20px}.combat-legend-section{font-size:11px;font-weight:700;letter-spacing:.08em;color:#e9c05e;margin:12px 0 8px}.combat-legend-items{display:grid;grid-template-columns:1fr 1fr;gap:12px}.combat-legend-items>div{display:flex;align-items:flex-start;gap:8px;min-width:0}.combat-legend-items span{display:flex;flex-direction:column;gap:3px;font-size:13px}.combat-legend-items small{color:#b8c6d3;font-size:11px}.combat-legend-icon{flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:5px;color:white;font-size:13px;font-style:normal;font-weight:700}.combat-legend-icon.wall{background:#56616c}.combat-legend-icon.cover{background:#886d42}.combat-legend-icon.hole{background:#080d13;border:1px dashed #7d8794}.combat-legend-icon.player{background:#13688e}.combat-legend-icon.enemy{background:#aa3c46}.combat-legend-icon.target{background:#176b55}.combat-legend-icon.gate{background:#7354a6}
+
+.combat-map-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}.combat-map-heading h3{margin:0}.combat-map-heading .combat-legend-anchor{margin:0}
+
+.combat-live-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:16px 0}
+.combat-live-controls button,.combat-visibility-button{background:#192634;color:#e8edf4;border:1px solid #536477;border-radius:7px;padding:9px 12px;cursor:pointer}
+.combat-live-controls button:disabled{opacity:.45;cursor:not-allowed}
+.combat-live-status{font-size:13px;color:#e9c05e}
+.combat-live-marker{position:absolute;z-index:5;width:32px;height:32px;border-radius:50%;border:2px solid #e8edf4;color:white;font-size:12px;font-weight:700;cursor:grab;touch-action:none;user-select:none;box-shadow:0 2px 8px #0009}
+.combat-live-marker:active{cursor:grabbing}
+.combat-live-marker.player{background:#13688e}
+.combat-live-marker.enemy{background:#aa3c46}
+.combat-live-marker.is-hidden{opacity:.4;border-style:dashed}
+.combat-map-unit-field select{min-width:0;flex:1;background:#0b1520;color:white;border:1px solid #536477;border-radius:5px;padding:9px;font:inherit}
+.combat-visibility-button{white-space:nowrap;padding:8px;font-size:12px}
+
+/* Responsive legend: never squeeze labels into overlapping columns. */
+.combat-legend-popup{width:390px;max-width:min(390px,calc(100vw - 32px));box-sizing:border-box;overflow-wrap:break-word}
+.combat-legend-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px}
+.combat-legend-items>div{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:start;gap:8px;min-width:0}
+.combat-legend-items span{display:flex;flex-direction:column;min-width:0;white-space:normal;overflow-wrap:break-word;line-height:1.4}
+.combat-legend-items small{display:block;white-space:normal;overflow-wrap:break-word;line-height:1.4}
+@media(max-width:540px){.combat-legend-popup{width:min(300px,calc(100vw - 32px))}.combat-legend-items{grid-template-columns:minmax(0,1fr)}}
+
+.tactical-gm-brand{display:flex;align-items:center;gap:16px;padding:18px 22px;margin-bottom:18px;border:1px solid #304457;border-radius:12px;background:#101c2b}.tactical-gm-brand img{width:54px;height:54px;object-fit:contain;flex:none}.tactical-gm-brand h2{margin:0 0 4px;font-size:24px;letter-spacing:.05em;color:#3de3e7}.tactical-gm-brand span{font-size:12px;font-weight:700;letter-spacing:.07em;color:#e053ee}.combat-live-marker{isolation:isolate;box-shadow:0 2px 5px #000b}
+
+/* Ghost//Link-aligned header geometry; Tactical//Feed retains its own palette. */
+.tactical-gm-brand{padding:14px 18px;margin:0 0 12px;border:1px solid #2b4058;border-radius:10px;background:#101b2c;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:76px}.tactical-gm-brand-identity{display:flex;align-items:center;gap:12px;min-width:0}.tactical-gm-brand-identity img{width:43px;height:43px;object-fit:contain;flex:none}.tactical-gm-brand-identity strong{display:block;font-size:19px;letter-spacing:1px;color:#67f0ef}.tactical-gm-brand-identity small{display:block;font-size:10px;color:#d77aff;letter-spacing:1px}.tactical-gm-network{text-align:right;color:#5fe5d9;font-size:11px;white-space:nowrap}.tactical-gm-network small{display:block;color:#91a9c1;font-size:10px;letter-spacing:1px}@media(max-width:560px){.tactical-gm-network{display:none}}
+.combat-legend-heading button{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;min-width:34px;padding:0;line-height:1;font-size:22px;vertical-align:middle}
+
+/* GM desktop command console: fixed controls and map/roster workspace. */
+.tactical-command-bar{display:flex;align-items:end;gap:12px;flex-wrap:wrap;padding:12px 14px;margin:0 0 10px;background:#101b2b;border:1px solid #304457;border-radius:9px}
+.tactical-command-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.tactical-command-field>span:first-child{font-size:10px;font-weight:700;letter-spacing:.09em;color:#94aabd;white-space:nowrap}
+.tactical-command-field button,.tactical-command-field select{height:36px;border:1px solid #536477;background:#192737;color:#e8edf4;border-radius:6px;padding:0 11px;font:inherit;font-size:13px;cursor:pointer}
+.tactical-command-field button:disabled,.tactical-command-field select:disabled{opacity:.4;cursor:not-allowed}
+.tactical-map-picker{flex:1 1 185px;max-width:300px}
+.tactical-map-picker-row,.tactical-action-buttons,.tactical-broadcast-actions,.tactical-segmented{display:flex;align-items:center;gap:5px}
+.tactical-map-picker-row select{min-width:0;flex:1}
+.tactical-map-picker-row button{font-size:20px;min-width:36px;padding:0}
+.tactical-segmented{gap:0;border:1px solid #536477;border-radius:6px;overflow:hidden}
+.tactical-segmented button{border:0;border-radius:0;white-space:nowrap}
+.tactical-segmented button+button{border-left:1px solid #536477}
+.tactical-segmented button.active{background:#27516a;color:#f1ffff}
+.tactical-radius-field select{min-width:90px}
+.tactical-broadcast-field{margin-left:auto}
+.tactical-inline-status{font-size:11px;color:#e9c05e;white-space:nowrap;margin-right:3px}
+.tactical-broadcast-actions button.broadcast-start{background:#116c64;border-color:#238d80;color:#fff;font-weight:700}
+.tactical-broadcast-actions button.broadcast-stop{background:#71383d;border-color:#ae5d65;color:#fff;font-weight:700}
+.tactical-workspace{display:grid;grid-template-columns:minmax(0,3fr) minmax(255px,1fr);align-items:start;gap:12px}
+.tactical-workspace>.combat-map-scroll{min-width:0;margin:0;max-height:calc(100vh - 300px);overflow:auto}
+.tactical-workspace>.combat-map-roster{min-width:0;margin:0;max-height:calc(100vh - 300px);overflow:auto;background:#101b2b;border:1px solid #304457;border-radius:8px;padding:12px}
+.tactical-workspace .combat-map-roster-grid{display:flex;flex-direction:column;gap:8px}
+.tactical-workspace .combat-map-unit-field{min-width:0}
+@media(max-width:850px){.tactical-command-bar{gap:9px}.tactical-broadcast-field{margin-left:0}.tactical-workspace{grid-template-columns:minmax(0,1fr)}.tactical-workspace>.combat-map-scroll,.tactical-workspace>.combat-map-roster{max-height:none}}
+
+/* Contextual GM help and compact Lucide visibility actions. */
+.combat-legend-anchor{display:flex;align-items:center;gap:7px;position:relative}
+.combat-help-toggle{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;padding:0;cursor:pointer;border:1px solid #536477;border-radius:7px;background:#192634;color:#e8edf4}
+.combat-help-toggle:hover,.combat-legend-toggle:hover{border-color:#75b7c9}
+.combat-help-popup{position:absolute;right:0;top:calc(100% + 6px);z-index:21;width:min(390px,calc(100vw - 32px));box-sizing:border-box;padding:14px;border:1px solid #536477;border-radius:10px;background:#192634;color:#e8edf4;box-shadow:0 12px 30px #0009}
+.combat-help-popup p{font-size:13px;line-height:1.5;color:#c9d6e3;margin:10px 0 0}
+.combat-visibility-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;height:36px;padding:0;border:1px solid #536477;border-radius:7px;cursor:pointer}
+.combat-visibility-button.is-visible{color:#67d9d2}
+.combat-visibility-button.is-hidden{color:#8c9aa9}
+.combat-visibility-button:hover{border-color:#78b9c6}
+
+/* Compact command bar controls: stable geometry regardless of broadcast state. */
+.tactical-command-bar{flex-wrap:nowrap;gap:12px}
+.tactical-map-picker{flex:1 1 220px;max-width:none}
+.tactical-map-picker-row .tactical-load-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:none;min-width:83px;background:#225875;border-color:#387b98;color:#f1ffff;font-weight:700;font-size:13px}
+.tactical-segmented button{display:inline-flex;align-items:center;justify-content:center;width:43px;min-width:43px;padding:0}
+.tactical-position-field>button{display:inline-flex;align-items:center;justify-content:center;width:40px;padding:0}
+.tactical-broadcast-field{margin-left:0}
+.tactical-broadcast-field>button{width:155px;display:inline-flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap}
+.tactical-status-field{margin-left:auto;flex:0 0 108px;width:108px}
+.tactical-fixed-status{display:flex;align-items:center;gap:8px;height:36px;white-space:nowrap;font-size:12px;font-weight:700;letter-spacing:.02em}
+.tactical-fixed-status svg{flex:0 0 18px}
+.tactical-fixed-status span{display:inline-block;width:65px}
+.tactical-fixed-status.is-live{color:#67d9a4}
+.tactical-fixed-status.is-offline{color:#e9c05e}
+@media(max-width:1050px){.tactical-command-bar{flex-wrap:wrap}.tactical-status-field{margin-left:auto}}
+
+/* Map Editor: desktop command strip separated from iframe workspace. */
+.combat-editor-toolbar-shell{background:#111d2a;border:1px solid #35495c;border-radius:10px;padding:14px;margin-bottom:14px}
+.combat-editor-toolbar-shell .combat-maps-toolbar{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.combat-editor-field{display:flex;flex-direction:column;gap:6px;min-width:0;position:relative}
+.combat-editor-field>span,.combat-editor-field>label{font-size:10px;font-weight:700;letter-spacing:.08em;color:#94aabd;white-space:nowrap}
+.combat-editor-toolbar-shell .combat-editor-field select,.combat-editor-toolbar-shell .combat-editor-field input{box-sizing:border-box;width:100%;height:38px;min-width:0;background:#172332;color:#fff;border:1px solid #536477;border-radius:7px;padding:0 10px;font-size:13px}
+.combat-editor-toolbar-shell .combat-editor-field button{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;padding:0;border:1px solid #536477;border-radius:7px;background:#192634;color:#e8edf4;cursor:pointer}
+.combat-editor-toolbar-shell .combat-editor-field button:hover:not(:disabled){border-color:#75b7c9;background:#254052}
+.combat-editor-toolbar-shell .combat-editor-field button:disabled{opacity:.4;cursor:not-allowed}
+.combat-editor-picker{flex:2 1 180px}
+.combat-editor-name{flex:2 1 180px}
+.combat-editor-help{margin-left:auto}
+.combat-editor-help-popup{position:absolute;top:calc(100% + 8px);right:0;z-index:40;width:min(390px,calc(100vw - 32px));box-sizing:border-box;padding:14px;border:1px solid #536477;border-radius:9px;background:#192634;color:#e8edf4;box-shadow:0 12px 30px #0009}
+.combat-editor-help-popup p{font-size:13px;line-height:1.5;color:#c9d6e3;margin:10px 0 0}
+@media(max-width:740px){.combat-editor-help{margin-left:0}}
+
+.combat-live-marker.target,.combat-map-unit-tag.target,.combat-legend-icon.target{background:#8b4eb0;color:#fff}.combat-live-marker.objective,.combat-map-unit-tag.objective,.combat-legend-icon.objective{background:#176b55;color:#fff}.combat-live-marker.objective{cursor:default}
