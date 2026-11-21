@@ -524,13 +524,18 @@ export default function PlayerView({ token }: PlayerViewProps) {
     } catch { /* Invalid storage is treated as a fresh device. */ }
     hudWrite();
 
-    const validEvent = (event: { audience?: string; character_id?: string | null; category?: string; message?: string }) =>
-      (event.audience === 'campaign' || (event.audience === 'character' && event.character_id === character.id)) &&
-      (event.category === 'system' || event.category === 'text') &&
-      typeof event.message === 'string' && !!event.message.trim() &&
-      !/^(?:(?:TAROT REVEALED|TAROT CARD|FORTUNE REVEALED):|HEALTH [+-]\\d+ HP$)/i.test(event.message.trim()) &&
-      !/^GHOST\/\/LINK CALL:/i.test(event.message.trim()) &&
-      !/\\[UNAPPROVED\\]/i.test(event.message);
+    const validEvent = (event: { audience?: string; character_id?: string | null; category?: string; message?: string }) => {
+      if (!(event.audience === 'campaign' || (event.audience === 'character' && event.character_id === character.id))) return false;
+      if (event.category !== 'system' && event.category !== 'text') return false;
+      const message = event.message?.trim();
+      if (!message) return false;
+      // These events already have dedicated result/health displays on the player's screen.
+      if (/^(?:TAROT REVEALED|TAROT CARD|FORTUNE REVEALED):/i.test(message)) return false;
+      if (/^HEALTH [+-]\d+ HP$/i.test(message)) return false;
+      if (/^GHOST\/\/LINK CALL:/i.test(message)) return false;
+      if (/\[UNAPPROVED\]/i.test(message) && event.character_id === character.id) return false;
+      return true;
+    };
 
     const recover = async () => {
       if (!alive || hudRecovering.current) return;
