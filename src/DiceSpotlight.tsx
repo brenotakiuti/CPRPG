@@ -114,7 +114,6 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
           p_dice_sides: sides, p_results: next.values,
         });
         if (saveError) setError('Result shown, but could not be recorded: ' + saveError.message);
-        busy.current = false;
       }, 120);
     };
     const effect: Effect = (['normal','normal','normal','jam','blackout','matrix'] as const)[Math.floor(Math.random() * 6)];
@@ -125,6 +124,7 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
           updateDie(index, { face: String(value), style: 'coin-final' });
           setResult(next);
           setPhase('revealed');
+          busy.current = false;
           publish();
         }, 1700);
         return;
@@ -135,6 +135,7 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
           setSceneStyle('');
           setResult(next);
           setPhase('revealed');
+          busy.current = false;
           publish();
         }
       });
