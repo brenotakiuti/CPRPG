@@ -297,6 +297,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const [inventoryOpen, setInventoryOpen] = useState(initialScreen.inventory);
   const [phoneOpen, setPhoneOpen] = useState(initialScreen.phone === true);
   const [tacticalOpen, setTacticalOpen] = useState(initialScreen.tactical === true);
+  const [tacticalVisited, setTacticalVisited] = useState(initialScreen.tactical === true);
   const [transferOpen, setTransferOpen] = useState<'money' | 'item' | null>(initialScreen.transfer ?? null);
   const [inventorySelection, setInventorySelection] = useState<string | null>(initialScreen.selected);
   const [inventoryVisited, setInventoryVisited] = useState(initialScreen.inventory);
@@ -311,6 +312,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
     setTransferOpen(next.transfer ?? null);
     setPhoneOpen(next.phone === true);
     setTacticalOpen(next.tactical === true);
+    if (next.tactical) setTacticalVisited(true);
     setInventorySelection(next.selected);
     setLogsOpen(next.logs);
     setStatsOpen(next.stats === true);
@@ -1001,7 +1003,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <p>CHARACTER DASHBOARD</p>
         </header>
         {!diagnosticsOpen && character && phoneOpen && <PlayerPhone characterId={character.id} onBack={goBack} />}
-        {!diagnosticsOpen && character && tacticalOpen && <PlayerTacticalFeed characterId={character.id} onBack={goBack} onDice={() => setDiceOpen(true)}
+        {character && tacticalVisited && <div style={{ display: tacticalOpen && !diagnosticsOpen ? undefined : 'none' }}><PlayerTacticalFeed active={tacticalOpen && !diagnosticsOpen} characterId={character.id} onBack={goBack} onDice={() => setDiceOpen(true)}
           renderStats={onClose => <PlayerStats onBack={onClose} cyberware={cyberwareData} view={statsView} selectedPosition={statsPosition} onNavigate={(view,position)=>{setStatsView(view);setStatsPosition(position)}} />}
           renderInventory={onClose => <PlayerInventory inventory={inventoryData} onBack={onClose} onSelect={id=>setInventorySelection(id)} initialSelectedId={inventorySelection} />}
           onOpenInventory={() => setInventorySelection(null)} currentHp={hp} maxHp={maximum} weapons={(['weapon_1','weapon_2'] as const).map(slot => {
@@ -1012,7 +1014,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
           const magazine=(properties.magazine??{}) as Record<string,unknown>;
           const remaining=entry?.instance_data?.remaining_attacks;
           return entry&&item?{name:item.name,type:String(properties.weapon_class??'Weapon'),dice:typeof attack.dice==='number'?attack.dice+'d6':'—',accuracy:typeof attack.accuracy_threshold==='number'?attack.accuracy_threshold+'+':'—',damage:typeof attack.damage_per_success==='number'?String(attack.damage_per_success):'—',ammo:(typeof remaining==='number'?remaining:magazine.capacity)===undefined?'—':String(typeof remaining==='number'?remaining:magazine.capacity)+'/'+String(magazine.capacity??'—')}:null;
-        }).filter((weapon):weapon is NonNullable<typeof weapon>=>weapon!==null)} />}
+        }).filter((weapon):weapon is NonNullable<typeof weapon>=>weapon!==null)} /></div>}
         {!diagnosticsOpen && character && transferOpen && <PlayerTransfers key={transferOpen + character.id} kind={transferOpen} character={character} inventory={inventoryData} onBack={goBack} />}
         {!diagnosticsOpen && character && statsOpen && <PlayerStats onBack={goBack} cyberware={cyberwareData} view={statsView} selectedPosition={statsPosition} onNavigate={updateStats} />}
         {!diagnosticsOpen && character && inventoryVisited && <div style={{ display: inventoryOpen && !statsOpen && !transferOpen && !phoneOpen && !tacticalOpen ? undefined : 'none' }}><PlayerInventory inventory={inventoryData} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
