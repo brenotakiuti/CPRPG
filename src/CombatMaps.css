@@ -70,3 +70,19 @@
 .combat-visibility-button.is-visible{color:#67d9d2}
 .combat-visibility-button.is-hidden{color:#8c9aa9}
 .combat-visibility-button:hover{border-color:#78b9c6}
+
+/* Compact command bar controls: stable geometry regardless of broadcast state. */
+.tactical-command-bar{flex-wrap:nowrap;gap:12px}
+.tactical-map-picker{flex:1 1 220px;max-width:none}
+.tactical-map-picker-row .tactical-load-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:none;min-width:83px;background:#225875;border-color:#387b98;color:#f1ffff;font-weight:700;font-size:13px}
+.tactical-segmented button{display:inline-flex;align-items:center;justify-content:center;width:43px;min-width:43px;padding:0}
+.tactical-position-field>button{display:inline-flex;align-items:center;justify-content:center;width:40px;padding:0}
+.tactical-broadcast-field{margin-left:0}
+.tactical-broadcast-field>button{width:155px;display:inline-flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap}
+.tactical-status-field{margin-left:auto;flex:0 0 108px;width:108px}
+.tactical-fixed-status{display:flex;align-items:center;gap:8px;height:36px;white-space:nowrap;font-size:12px;font-weight:700;letter-spacing:.02em}
+.tactical-fixed-status svg{flex:0 0 18px}
+.tactical-fixed-status span{display:inline-block;width:65px}
+.tactical-fixed-status.is-live{color:#67d9a4}
+.tactical-fixed-status.is-offline{color:#e9c05e}
+@media(max-width:1050px){.tactical-command-bar{flex-wrap:wrap}.tactical-status-field{margin-left:auto}}
