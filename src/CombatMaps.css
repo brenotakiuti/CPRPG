@@ -133,3 +133,14 @@
 .combat-reveal-check.is-checked{border-color:#e9c05e;background:#34413c}
 .combat-reveal-check:hover{border-color:#fff0a0}
 @media(max-width:1000px){.tactical-workspace{grid-template-columns:minmax(0,1fr)}.tactical-workspace>.combat-map-scroll,.tactical-workspace>.combat-map-roster{max-height:none}}
+
+/* Compact five-layer matrix: consistent in automatic and manual modes. */
+.combat-reveal-matrix{width:max-content;min-width:540px;table-layout:fixed}
+.combat-reveal-matrix th:first-child{width:205px}
+.combat-reveal-matrix thead th:not(:first-child){width:67px}
+.combat-reveal-matrix thead th{padding:7px 2px}
+.combat-reveal-matrix td{padding:4px 2px}
+.combat-reveal-matrix tbody th{padding:5px 2px}
+.combat-reveal-check:disabled{opacity:.4;cursor:not-allowed}
+.combat-reveal-check:disabled:hover{border-color:#657383}
+.combat-reveal-check.is-checked:disabled:hover{border-color:#e9c05e}
