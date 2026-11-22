@@ -204,3 +204,24 @@
   .tactical-vision-startup,.tactical-vision-startup-sweep{animation:none!important;opacity:0!important}
   .optics-acquiring .tactical-feed-tile,.optics-acquiring .tactical-feed-unit{animation:none!important}
 }
+
+
+/* Unexplored geometry is completely masked; scanner filters cannot restore it. */
+.tactical-feed-tile.tactical-tile-occluded{
+ background:#02050a!important;border-color:#02050a!important;
+ box-shadow:none!important;filter:none!important;
+}
+.tactical-vision-night .tactical-feed-tile.tactical-tile-occluded,
+.tactical-vision-thermal .tactical-feed-tile.tactical-tile-occluded,
+.tactical-vision-sonic .tactical-feed-tile.tactical-tile-occluded{
+ background:#02050a!important;border-color:#02050a!important;box-shadow:none!important;
+}
+.tactical-sonic-direction{
+ position:absolute;z-index:12;display:flex;align-items:center;justify-content:center;
+ width:27px;height:27px;border-radius:50%;pointer-events:none;
+ color:#a3faff;background:#05313ddc;border:1px solid #6debf5;
+ text-shadow:0 0 8px #5befff;box-shadow:0 0 14px #28dff577;
+ font-size:19px;line-height:1;animation:sonic-bearing-pulse 2s ease-in-out infinite;
+}
+@keyframes sonic-bearing-pulse{50%{opacity:.65;box-shadow:0 0 22px #28dff5aa}}
+@media(prefers-reduced-motion:reduce){.tactical-sonic-direction{animation:none}}
