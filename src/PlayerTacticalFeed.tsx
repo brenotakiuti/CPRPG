@@ -17,6 +17,7 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
   const [expanded,setExpanded] = useState(false);
   const [panel,setPanel] = useState<'stats'|'inventory'|null>(null);
   const [scanning,setScanning] = useState(false);
+  const [vision,setVision] = useState<'normal'|'thermal'|'night'|'sonic'|'network'>('normal');
   const [selected,setSelected] = useState(false);
   const [offset,setOffset] = useState({x:0,y:0});
   const [moving,setMoving] = useState<{key:string;x:number;y:number}|null>(null);
@@ -145,7 +146,7 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
     for(let dy=0;dy<size[1];dy++)for(let dx=0;dx<size[0];dx++)objects.set((obj.x+dx)+','+(obj.y+dy),obj);
   }
   const minePosition=state.units?.find(u=>u.mine);
-  const dark=state.visibilityMode==='dark'&&!!minePosition;
+  const dark=state.visibilityMode==='dark'&&vision==='normal'&&!!minePosition;
   const sightRadius=Math.max(1,Math.min(8,state.visibilityRadius||3))*36;
   const displayUnits=(state.units||[]).map(u=>u.mine&&moving?{...u,x:moving.x,y:moving.y}:u.mine&&pendingMove?{...u,x:pendingMove.x,y:pendingMove.y}:u);
   const unitStacks=new Map<string,TacticalUnit[]>();for(const u of displayUnits){const key=u.x+','+u.y;unitStacks.set(key,[...(unitStacks.get(key)||[]),u]);}
@@ -157,7 +158,7 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
     </header>
     <div className="tactical-feed-meta"><span>SECTOR <strong>{live?'CONNECTED':'UNAVAILABLE'}</strong></span><span>{live?'SIGNAL ACTIVE':'NO SIGNAL'}</span></div>
     <div className="tactical-feed-screen">
-      {live&&map?(expanded&&active?createPortal(<div className={"tactical-feed-live-scroll"+(expanded?" tactical-feed-expanded":"")} ref={viewport} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}><div className="tactical-feed-live-board" style={{width:map.width*36,height:map.height*36,transform:`translate(${offset.x}px,${offset.y}px) scale(${zoom})`,transformOrigin:'top left'}}>
+      {live&&map?(expanded&&active?createPortal(<div className={"tactical-feed-live-scroll tactical-vision-"+vision+(expanded?" tactical-feed-expanded":"")} ref={viewport} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}><div className="tactical-feed-live-board" style={{width:map.width*36,height:map.height*36,transform:`translate(${offset.x}px,${offset.y}px) scale(${zoom})`,transformOrigin:'top left'}}>
         {Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),o=objects.get(x+','+y);return <div key={i} className={'tactical-feed-tile '+(o?.type||'')} style={{left:x*36,top:y*36,backgroundColor:o?.color||map.floorColors?.[x+','+y]||undefined}}/>})}
         {dark&&minePosition&&<svg aria-hidden="true" style={{position:'absolute',inset:0,width:map.width*36,height:map.height*36,pointerEvents:'none',zIndex:5}} viewBox={`0 0 ${map.width*36} ${map.height*36}`}><defs><mask id="tactical-fog-mask"><rect width="100%" height="100%" fill="white"/><circle cx={(minePosition.x+.5)*36} cy={(minePosition.y+.5)*36} r={sightRadius} fill="black"/></mask></defs><rect width="100%" height="100%" fill="#02050a" fillOpacity=".97" mask="url(#tactical-fog-mask)"/><circle cx={(minePosition.x+.5)*36} cy={(minePosition.y+.5)*36} r={sightRadius} fill="none" stroke="#67dce8" strokeOpacity=".35" strokeDasharray="5 6"/></svg>}
          {displayUnits.filter(u=>!dark||u.mine||u.type==='player'||(minePosition&&Math.hypot(u.x-minePosition.x,u.y-minePosition.y)*36<=sightRadius)).map(u=>{const stack=unitStacks.get(u.x+','+u.y)||[u];const index=stack.findIndex(v=>v.key===u.key);const spread=stack.length>1;const dx=spread?(index%2===0?-6:6):0;const dy=spread?(Math.floor(index/2)*10+(index%2===0?-6:6)):0;return <div key={u.key} title={u.name||u.label} className={'tactical-feed-unit '+u.type+(u.mine?' mine':'')+(u.mine&&selected?' selected':'')+(u.mine&&locked?' syncing':'')} style={{left:u.x*36+4+dx,top:u.y*36+4+dy,zIndex:spread?10+index:undefined}}>{u.mine?'YOU':u.label}</div>})}
@@ -168,7 +169,7 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
             <div className="tactical-feed-hud-weapon-name"><strong>{weapon.name}</strong><span>{weapon.type}</span></div>
             <div className="tactical-feed-hud-stats"><span title="Attack dice"><Dices size={13}/>{weapon.dice}</span><span title="Hit threshold"><Crosshair size={13}/>{weapon.accuracy}</span><span title="Damage per success"><Swords size={13}/>{weapon.damage}</span><span title="Ammo">▥ {weapon.ammo}</span></div>
           </button>):<div className="tactical-feed-hud-empty">NO WEAPONS EQUIPPED</div>}</div>
-        </aside></div>}{expanded&&scanning&&<div className="tactical-feed-scan-panel" onPointerDown={e=>e.stopPropagation()}><strong>SCAN // LAYERS</strong><p>No scan layers available yet.</p></div>}
+        </aside></div>}{expanded&&scanning&&<div className="tactical-feed-scan-panel" onPointerDown={e=>e.stopPropagation()}><strong>SCAN // LAYERS</strong><div className="tactical-feed-vision-options">{(['normal','night','thermal','sonic','network'] as const).map(mode=><button type="button" key={mode} aria-pressed={vision===mode} onClick={()=>{setVision(mode);setScanning(false)}}>{mode==='normal'?'NORMAL':mode==='night'?'NIGHT VISION':mode.toUpperCase()}</button>)}</div></div>}
         {expanded&&panel&&<div className="tactical-feed-subscreen" onPointerDown={e=>e.stopPropagation()} onPointerMove={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()}><div className="tactical-feed-subscreen-top"><button type="button" onClick={()=>setPanel(null)}><ArrowLeft size={19}/> BACK TO MAP</button></div>{panel==='stats'?renderStats(()=>setPanel(null)):renderInventory(()=>setPanel(null))}</div>}
         {selected&&<div className="tactical-feed-move-hint">MOVE MODE · DRAG YOUR MARKER</div>}{error&&<div className="tactical-feed-error">{error}</div>}</div>,document.body):<div className={"tactical-feed-live-scroll"+(expanded?" tactical-feed-expanded":"")} ref={viewport} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}><div className="tactical-feed-live-board" style={{width:map.width*36,height:map.height*36,transform:`translate(${offset.x}px,${offset.y}px) scale(${zoom})`,transformOrigin:'top left'}}>
         {Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),o=objects.get(x+','+y);return <div key={i} className={'tactical-feed-tile '+(o?.type||'')} style={{left:x*36,top:y*36,backgroundColor:o?.color||map.floorColors?.[x+','+y]||undefined}}/>})}
