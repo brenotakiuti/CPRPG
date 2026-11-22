@@ -120,3 +120,9 @@
 .tactical-vision-network .tactical-feed-unit.enemy{border-color:#f04aff;color:#ffe3ff;box-shadow:0 0 14px #f04aff}
 @keyframes tactical-sonar{50%{opacity:.3;transform:scale(1.1)}}
 @media(prefers-reduced-motion:reduce){.tactical-vision-sonic:after{animation:none}}
+
+/* Compact cyberware optics selector: icon-only controls with accessible labels. */
+.tactical-feed-vision-options{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.tactical-feed-expanded .tactical-feed-scan-panel{width:min(292px,calc(100vw - 90px))}
+.tactical-feed-vision-options button{display:flex;align-items:center;justify-content:center;min-width:0;height:43px;padding:7px}
+.tactical-feed-vision-options button[aria-pressed=true]{box-shadow:0 0 12px #f3dc3460}
