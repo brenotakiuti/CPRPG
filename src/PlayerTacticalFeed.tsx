@@ -22,7 +22,7 @@ function sightCells(ax:number,ay:number,bx:number,by:number):[number,number][]{
   }
   return cells;
 }
-type TacticalUnit = {key:string;label:string;type:'player'|'enemy'|'target'|'objective';x:number;y:number;name?:string;mine?:boolean;layers?:Record<string,boolean>};
+type TacticalUnit = {key:string;label:string;type:'player'|'enemy'|'target'|'objective';x:number;y:number;name?:string;mine?:boolean;visible?:boolean;layers?:Record<string,boolean>};
 type TacticalObject = {type:string;x:number;y:number;color?:string};
 type TacticalLayout = {width:number;height:number;objects:TacticalObject[];floorColors?:Record<string,string>;groups?:{id:string;cells:string[]}[];layerVisibility?:Record<string,Record<string,boolean>>};
 type TacticalState = {visibilityMode?:'full'|'dark';visibilityRadius?:number;broadcasting:boolean;mapId?:string;layout?:TacticalLayout;units?:TacticalUnit[]};
@@ -200,6 +200,7 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
   };
   const visibleUnit=(u:TacticalUnit)=>u.mine||(
     allowed(u.layers)&&
+    (vision!=='normal'||u.visible!==false)&&
     (vision==='network'||(vision==='sonic'?sonicResolution(u)==='full':clearSight(u.x,u.y)))&&
     (!dark||u.type==='player'||(minePosition&&Math.hypot(u.x-minePosition.x,u.y-minePosition.y)*36<=sightRadius))
   );
