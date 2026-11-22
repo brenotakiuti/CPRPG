@@ -156,20 +156,51 @@
 }
 
 
-/* Short, non-blocking calibration on scanner activation; no video assets. */
-.tactical-vision-startup{position:absolute;inset:0;z-index:7;pointer-events:none;overflow:hidden;animation:optics-calibrate .72s ease-out both}
+
+/* Optics acquisition: animate the actual terrain and markers, not just a tint.
+   All effects are visual and do not intercept map gestures or HUD controls. */
+.tactical-vision-startup{position:absolute;inset:0;z-index:7;pointer-events:none;overflow:hidden;animation:optics-screen .86s ease-out both}
 .tactical-vision-startup-sweep{position:absolute;inset:0;pointer-events:none}
-.tactical-vision-startup-night{background:radial-gradient(ellipse at center,#b6ffb322,transparent 72%);animation:optics-night .7s ease-out both}
-.tactical-vision-startup-night .tactical-vision-startup-sweep{background:repeating-linear-gradient(0deg,transparent 0 5px,#a2ffc016 6px 7px);animation:optics-focus .7s ease-out both}
-.tactical-vision-startup-thermal{background:radial-gradient(ellipse at center,#f79b4329,transparent 70%);animation:optics-thermal .8s ease-out both}
-.tactical-vision-startup-thermal .tactical-vision-startup-sweep{background:linear-gradient(90deg,transparent 0%,#f6b15a26 50%,transparent 100%);animation:optics-sweep .8s ease-out both}
-.tactical-vision-startup-sonic .tactical-vision-startup-sweep{background:radial-gradient(circle at center,transparent 0 25%,#53d9e838 27%,transparent 30%);animation:optics-sonic .8s ease-out both}
-.tactical-vision-startup-network .tactical-vision-startup-sweep{background:repeating-linear-gradient(90deg,transparent 0 23px,#5bdce11c 24px 25px),repeating-linear-gradient(0deg,transparent 0 23px,#5bdce11c 24px 25px);animation:optics-network .65s ease-out both}
-@keyframes optics-calibrate{0%{opacity:.5}65%{opacity:.25}100%{opacity:0}}
-@keyframes optics-night{0%{opacity:.8;filter:blur(8px)}45%{opacity:.45;filter:blur(3px)}100%{opacity:0;filter:blur(0)}}
-@keyframes optics-focus{0%{opacity:.65;transform:scale(1.025)}100%{opacity:0;transform:scale(1)}}
-@keyframes optics-thermal{0%{opacity:0;filter:blur(12px)}30%{opacity:.7}100%{opacity:0;filter:blur(0)}}
-@keyframes optics-sweep{0%{opacity:0;transform:translateX(-70%)}30%{opacity:.7}100%{opacity:0;transform:translateX(70%)}}
-@keyframes optics-sonic{0%{opacity:0;transform:scale(.12)}30%{opacity:.55}100%{opacity:0;transform:scale(2.8)}}
-@keyframes optics-network{0%{opacity:0;clip-path:inset(0 0 100% 0)}20%{opacity:.55}80%{opacity:.25;clip-path:inset(0 0 0 0)}100%{opacity:0;clip-path:inset(0 0 0 0)}}
-@media(prefers-reduced-motion:reduce){.tactical-vision-startup,.tactical-vision-startup-sweep{animation:none!important;opacity:0!important}}
+.tactical-vision-startup-thermal{background:#02040bd9;animation:optics-dark-adapt .86s ease-out both}
+.tactical-vision-startup-thermal .tactical-vision-startup-sweep{background:linear-gradient(90deg,transparent 0%,#ed6c2630 50%,transparent 100%);animation:optics-sweep .86s ease-out both}
+.tactical-vision-startup-night{background:#0018079c;animation:optics-night-overlay .86s ease-out both}
+.tactical-vision-startup-night .tactical-vision-startup-sweep{background:radial-gradient(ellipse,#b9ffb943,transparent 72%);animation:optics-screen .86s ease-out both}
+.tactical-vision-startup-sonic .tactical-vision-startup-sweep{background:radial-gradient(circle at center,transparent 0 26%,#4fe9f3a8 27%,transparent 31%);animation:optics-sonic-pulse .86s ease-out both}
+.tactical-vision-startup-network .tactical-vision-startup-sweep{background:repeating-linear-gradient(90deg,transparent 0 23px,#6ae9f34d 24px 25px),repeating-linear-gradient(0deg,transparent 0 23px,#6ae9f34d 24px 25px);animation:optics-network-sweep .86s ease-out both}
+
+/* Terrain and detected markers are resolved by the selected sensor. */
+.optics-acquiring-thermal .tactical-feed-tile{animation:optics-terrain-thermal .86s ease-out both}
+.optics-acquiring-thermal .tactical-feed-unit{animation:optics-heat-lock .86s cubic-bezier(.2,.65,.2,1) both}
+.optics-acquiring-night .tactical-feed-tile{animation:optics-terrain-night .86s ease-out both}
+.optics-acquiring-night .tactical-feed-unit{animation:optics-night-focus .86s ease-out both}
+.optics-acquiring-sonic .tactical-feed-tile{animation:optics-sonic-reveal .86s ease-out both}
+.optics-acquiring-sonic .tactical-feed-unit{animation:optics-sonic-lock .86s ease-out both}
+.optics-acquiring-network .tactical-feed-tile{animation:optics-network-resolve .86s ease-out both}
+.optics-acquiring-network .tactical-feed-unit{animation:optics-network-resolve .86s ease-out both}
+
+@keyframes optics-dark-adapt{
+  0%{opacity:1}18%{opacity:.98}52%{opacity:.45}100%{opacity:0}
+}
+@keyframes optics-night-overlay{
+  0%{opacity:.95}35%{opacity:.6}100%{opacity:0}
+}
+@keyframes optics-screen{0%{opacity:.85}100%{opacity:0}}
+@keyframes optics-sweep{0%{opacity:0;transform:translateX(-80%)}30%{opacity:1}100%{opacity:0;transform:translateX(80%)}}
+@keyframes optics-sonic-pulse{0%{opacity:0;transform:scale(.08)}25%{opacity:.95}100%{opacity:0;transform:scale(3)}}
+@keyframes optics-network-sweep{0%{opacity:0;clip-path:inset(0 0 100% 0)}20%{opacity:.85}80%{opacity:.35;clip-path:inset(0 0 0 0)}100%{opacity:0;clip-path:inset(0 0 0 0)}}
+@keyframes optics-terrain-thermal{0%,18%{opacity:.08;filter:brightness(.15) blur(6px)}55%{opacity:.6;filter:brightness(.5) blur(2px)}100%{opacity:1;filter:none}}
+@keyframes optics-heat-lock{
+  0%,14%{opacity:0;filter:blur(15px) brightness(2);transform:scale(1.9);box-shadow:0 0 35px 16px #ff6b29}
+  35%{opacity:.95;filter:blur(9px) brightness(2.1);transform:scale(1.65);box-shadow:0 0 32px 14px #ff8b36}
+  70%{opacity:1;filter:blur(3px) brightness(1.35);transform:scale(1.12)}
+  100%{opacity:1;filter:none;transform:scale(1)}
+}
+@keyframes optics-terrain-night{0%{opacity:.12;filter:brightness(.15) blur(7px)}38%{opacity:.8;filter:brightness(2.1) blur(4px)}100%{opacity:1;filter:none}}
+@keyframes optics-night-focus{0%{opacity:0;filter:blur(10px) brightness(2.4)}40%{opacity:1;filter:blur(5px) brightness(1.9)}100%{opacity:1;filter:none}}
+@keyframes optics-sonic-reveal{0%,18%{opacity:.08;filter:brightness(.3)}65%{opacity:1;filter:brightness(1.9)}100%{opacity:1;filter:none}}
+@keyframes optics-sonic-lock{0%,25%{opacity:0;filter:blur(6px);transform:scale(.8)}65%{opacity:1;filter:brightness(1.8);transform:scale(1.12)}100%{opacity:1;filter:none;transform:scale(1)}}
+@keyframes optics-network-resolve{0%,12%{opacity:0;filter:blur(7px);transform:scale(.94)}48%{opacity:.75;filter:blur(2px)}100%{opacity:1;filter:none;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){
+  .tactical-vision-startup,.tactical-vision-startup-sweep{animation:none!important;opacity:0!important}
+  .optics-acquiring .tactical-feed-tile,.optics-acquiring .tactical-feed-unit{animation:none!important}
+}
