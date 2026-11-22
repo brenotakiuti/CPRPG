@@ -109,3 +109,27 @@
 .combat-manual-reveal{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
 .combat-manual-reveal-field{display:flex;flex-direction:column;gap:3px;font-size:11px;min-width:88px;color:inherit}
 .combat-manual-reveal-field select{min-width:88px;max-width:130px;padding:5px 7px;font-size:12px}
+
+/* Wide GM combat workspace and independently scrollable reveal matrix. */
+.tactical-workspace{grid-template-columns:minmax(0,1.7fr) minmax(390px,1fr)}
+.tactical-workspace>.combat-map-roster{overflow:auto}
+.combat-roster-heading{display:flex;align-items:center;gap:8px;position:relative;margin-bottom:10px}
+.combat-roster-heading h3{margin:0}
+.combat-roster-help{position:absolute;z-index:30;top:100%;left:0;width:min(360px,90vw);padding:12px;background:#1a2a3b;border:1px solid #536477;border-radius:8px;box-shadow:0 8px 22px #0008;font-size:13px;line-height:1.5}
+.combat-player-assignments{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.combat-player-assignments .combat-map-unit-field{flex:1 1 160px}
+.combat-player-assignments select{min-width:0;flex:1;background:#172332;color:white;border:1px solid #536477;border-radius:5px;padding:8px}
+.combat-reveal-scroll{width:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:#607c93 #101b2b}
+.combat-reveal-matrix{width:100%;min-width:720px;border-collapse:collapse;table-layout:fixed}
+.combat-reveal-matrix th:first-child{width:210px;text-align:left}
+.combat-reveal-matrix thead th{padding:8px 4px;color:#d5e0eb;font-size:11px;font-weight:600;text-align:center;border-bottom:1px solid #526477}
+.combat-reveal-matrix thead th:not(:first-child) svg{display:block;margin:0 auto 4px;color:#e9c05e}
+.combat-reveal-matrix tbody tr{border-bottom:1px solid #293b4d}
+.combat-reveal-matrix tbody th{padding:6px 4px;white-space:nowrap}
+.combat-reveal-matrix tbody th .combat-map-unit-tag{display:inline-block;min-width:32px;margin-right:7px;padding:6px 4px}
+.combat-reveal-matrix tbody th input{width:125px;min-width:0;background:#0b1520;color:white;border:1px solid #536477;border-radius:5px;padding:7px;font:inherit;font-size:12px}
+.combat-reveal-matrix td{text-align:center;padding:5px 4px}
+.combat-reveal-check{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #657383;border-radius:5px;background:#111c28;color:#e9c05e;cursor:pointer;font-size:16px;font-weight:700}
+.combat-reveal-check.is-checked{border-color:#e9c05e;background:#34413c}
+.combat-reveal-check:hover{border-color:#fff0a0}
+@media(max-width:1000px){.tactical-workspace{grid-template-columns:minmax(0,1fr)}.tactical-workspace>.combat-map-scroll,.tactical-workspace>.combat-map-roster{max-height:none}}
