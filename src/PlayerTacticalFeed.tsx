@@ -4,6 +4,24 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import './PlayerTacticalFeed.css';
 
+// Supercover traversal includes corner-touching cells so diagonal cracks cannot expose targets.
+function sightCells(ax:number,ay:number,bx:number,by:number):[number,number][]{
+  const cells:[number,number][]=[];let x=Math.floor(ax),y=Math.floor(ay);
+  const ex=Math.floor(bx),ey=Math.floor(by),dx=bx-ax,dy=by-ay;
+  const sx=Math.sign(dx),sy=Math.sign(dy);
+  const tx=sx?(sx>0?x+1-ax:ax-x)/Math.abs(dx):Infinity;
+  const ty=sy?(sy>0?y+1-ay:ay-y)/Math.abs(dy):Infinity;
+  const stepx=sx?1/Math.abs(dx):Infinity,stepy=sy?1/Math.abs(dy):Infinity;
+  let nx=tx,ny=ty;
+  const push=(cx:number,cy:number)=>{if(!cells.some(c=>c[0]===cx&&c[1]===cy))cells.push([cx,cy]);};
+  push(x,y);
+  for(let i=0;i<2048&&(x!==ex||y!==ey);i++){
+    if(Math.abs(nx-ny)<1e-9){push(x+sx,y);push(x,y+sy);x+=sx;y+=sy;nx+=stepx;ny+=stepy;}
+    else if(nx<ny){x+=sx;nx+=stepx;}else{y+=sy;ny+=stepy;}
+    push(x,y);
+  }
+  return cells;
+}
 type TacticalUnit = {key:string;label:string;type:'player'|'enemy'|'target'|'objective';x:number;y:number;name?:string;mine?:boolean;layers?:Record<string,boolean>};
 type TacticalObject = {type:string;x:number;y:number;color?:string};
 type TacticalLayout = {width:number;height:number;objects:TacticalObject[];floorColors?:Record<string,string>;groups?:{id:string;cells:string[]}[];layerVisibility?:Record<string,Record<string,boolean>>};
@@ -143,6 +161,12 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
   const map=state.layout;
   const layerKey=vision==='normal'?'tactical':vision==='sonic'?'acoustic':vision;
   const allowed=(flags:Record<string,boolean>|undefined)=>flags?.[layerKey]??(layerKey==='tactical');
+  const walls=new Set<string>();
+  // Physical occlusion uses all walls, even when their group is hidden in the active layer.
+  if(live&&map)for(const obj of map.objects||[]){
+    if(obj.type==='wall')walls.add(obj.x+','+obj.y);
+    if(obj.type==='pillar')for(let dy=0;dy<2;dy++)for(let dx=0;dx<2;dx++)walls.add((obj.x+dx)+','+(obj.y+dy));
+  }
   const objects=new Map<string,TacticalObject>();
   if(live&&map)for(const obj of map.objects||[])if(!['player','enemy','target','poi','objective'].includes(obj.type)){
     const size=obj.type==='pillar'?[2,2]:obj.type==='coverH'?[2,1]:obj.type==='coverV'?[1,2]:[1,1];
@@ -156,6 +180,34 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
   const dark=state.visibilityMode==='dark'&&vision==='normal'&&!!minePosition;
   const sightRadius=Math.max(1,Math.min(8,state.visibilityRadius||3))*36;
   const displayUnits=(state.units||[]).map(u=>u.mine&&moving?{...u,x:moving.x,y:moving.y}:u.mine&&pendingMove?{...u,x:pendingMove.x,y:pendingMove.y}:u);
+  const origin=minePosition?{x:minePosition.x+.5,y:minePosition.y+.5}:null;
+  const lineWalls=(x:number,y:number)=>origin?sightCells(origin.x,origin.y,x+.5,y+.5).filter(([cx,cy])=>walls.has(cx+','+cy)):[];
+  const clearSight=(x:number,y:number)=>!origin||lineWalls(x,y).length===0;
+  const tileVisible=(x:number,y:number)=>{
+    if(vision==='network'||!origin)return true;
+    // Wall faces themselves are visible; the area beyond is not.
+    const crossed=lineWalls(x,y);
+    return crossed.length===0||(crossed.length===1&&crossed[0][0]===x&&crossed[0][1]===y);
+  };
+  const sonicResolution=(u:TacticalUnit)=>{
+    if(!origin)return 'full';
+    const crossed=lineWalls(u.x,u.y);
+    if(!crossed.length)return 'full';
+    if(crossed.length!==1)return 'direction';
+    const [wx,wy]=crossed[0];
+    // The listener must touch the first wall; the target can be arbitrarily far beyond it.
+    return Math.max(Math.abs(minePosition!.x-wx),Math.abs(minePosition!.y-wy))<=1?'full':'direction';
+  };
+  const visibleUnit=(u:TacticalUnit)=>u.mine||(
+    allowed(u.layers)&&
+    (vision==='network'||(vision==='sonic'?sonicResolution(u)==='full':clearSight(u.x,u.y)))&&
+    (!dark||u.type==='player'||(minePosition&&Math.hypot(u.x-minePosition.x,u.y-minePosition.y)*36<=sightRadius))
+  );
+  const soundDirections=vision==='sonic'&&origin?displayUnits.filter(u=>!u.mine&&allowed(u.layers)&&sonicResolution(u)==='direction').map(u=>{
+    const angle=Math.atan2(u.y+.5-origin.y,u.x+.5-origin.x);
+    // Fixed offset from listener: direction only, never the target's range.
+    return {key:u.key,x:origin.x*36+Math.cos(angle)*55,y:origin.y*36+Math.sin(angle)*55,angle:angle*180/Math.PI};
+  }):[];
   const unitStacks=new Map<string,TacticalUnit[]>();for(const u of displayUnits){const key=u.x+','+u.y;unitStacks.set(key,[...(unitStacks.get(key)||[]),u]);}
   return <section className="tactical-feed" aria-label="Tactical//Feed">
     <div className="tactical-feed-accent" />
@@ -166,9 +218,10 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
     <div className="tactical-feed-meta"><span>SECTOR <strong>{live?'CONNECTED':'UNAVAILABLE'}</strong></span><span>{live?'SIGNAL ACTIVE':'NO SIGNAL'}</span></div>
     <div className="tactical-feed-screen">
       {live&&map?(expanded&&active?createPortal(<div className={"tactical-feed-live-scroll tactical-vision-"+vision+(expanded?" tactical-feed-expanded":"")} ref={viewport} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}><div className={"tactical-feed-live-board"+(vision!=='normal'&&visionStartup>0?" optics-acquiring optics-acquiring-"+vision:"")} style={{width:map.width*36,height:map.height*36,transform:`translate(${offset.x}px,${offset.y}px) scale(${zoom})`,transformOrigin:'top left'}}>
-        {Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),o=objects.get(x+','+y);return <div key={i+"-"+visionStartup+"-"+vision} className={'tactical-feed-tile '+(o?.type||'')} style={{left:x*36,top:y*36,backgroundColor:o?.color||map.floorColors?.[x+','+y]||undefined}}/>})}
+        {Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),o=objects.get(x+','+y);return <div key={i+"-"+visionStartup+"-"+vision} className={'tactical-feed-tile '+(o?.type||'')+(tileVisible(x,y)?'':' tactical-tile-occluded')} style={{left:x*36,top:y*36,backgroundColor:o?.color||map.floorColors?.[x+','+y]||undefined}}/>})}
         {dark&&minePosition&&<svg aria-hidden="true" style={{position:'absolute',inset:0,width:map.width*36,height:map.height*36,pointerEvents:'none',zIndex:5}} viewBox={`0 0 ${map.width*36} ${map.height*36}`}><defs><mask id="tactical-fog-mask"><rect width="100%" height="100%" fill="white"/><circle cx={(minePosition.x+.5)*36} cy={(minePosition.y+.5)*36} r={sightRadius} fill="black"/></mask></defs><rect width="100%" height="100%" fill="#02050a" fillOpacity=".97" mask="url(#tactical-fog-mask)"/><circle cx={(minePosition.x+.5)*36} cy={(minePosition.y+.5)*36} r={sightRadius} fill="none" stroke="#67dce8" strokeOpacity=".35" strokeDasharray="5 6"/></svg>}
-         {displayUnits.filter(u=>u.mine||(allowed(u.layers)&&(!dark||u.type==='player'||(minePosition&&Math.hypot(u.x-minePosition.x,u.y-minePosition.y)*36<=sightRadius)))).map(u=>{const stack=unitStacks.get(u.x+','+u.y)||[u];const index=stack.findIndex(v=>v.key===u.key);const spread=stack.length>1;const dx=spread?(index%2===0?-6:6):0;const dy=spread?(Math.floor(index/2)*10+(index%2===0?-6:6)):0;return <div key={u.key+"-"+visionStartup+"-"+vision} title={u.name||u.label} className={'tactical-feed-unit '+u.type+(u.mine?' mine':'')+(u.mine&&selected?' selected':'')+(u.mine&&locked?' syncing':'')} style={{left:u.x*36+4+dx,top:u.y*36+4+dy,zIndex:spread?10+index:undefined}}>{u.mine?'YOU':u.label}</div>})}
+         {displayUnits.filter(visibleUnit).map(u=>{const stack=unitStacks.get(u.x+','+u.y)||[u];const index=stack.findIndex(v=>v.key===u.key);const spread=stack.length>1;const dx=spread?(index%2===0?-6:6):0;const dy=spread?(Math.floor(index/2)*10+(index%2===0?-6:6)):0;return <div key={u.key+"-"+visionStartup+"-"+vision} title={u.name||u.label} className={'tactical-feed-unit '+u.type+(u.mine?' mine':'')+(u.mine&&selected?' selected':'')+(u.mine&&locked?' syncing':'')} style={{left:u.x*36+4+dx,top:u.y*36+4+dy,zIndex:spread?10+index:undefined}}>{u.mine?'YOU':u.label}</div>})}
+        {soundDirections.map(d=><div key={'sound-'+d.key} className="tactical-sonic-direction" aria-label="Unresolved sound direction" style={{left:d.x,top:d.y,transform:'translate(-50%,-50%) rotate('+d.angle+'deg)'}}>➤</div>)}
       </div>{vision!=='normal'&&visionStartup>0&&<div key={vision+visionStartup} className={"tactical-vision-startup tactical-vision-startup-"+vision} aria-hidden="true"><span className="tactical-vision-startup-sweep"/></div>}<div className="tactical-feed-map-controls" onPointerDown={e=>e.stopPropagation()}><button type="button" aria-label={expanded?"Exit expanded map":"Expand map"} title={expanded?"Exit expanded map":"Expand map"} onClick={()=>setExpanded(v=>!v)}>{expanded?<Shrink size={21}/>:<Expand size={21}/>}</button><button type="button" aria-label="Zoom in" onClick={()=>setZoom(z=>clampZoom(z*1.25))}>+</button><button type="button" aria-label="Zoom out" onClick={()=>setZoom(z=>clampZoom(z/1.25))}>−</button><button type="button" aria-label="Center on character" onClick={recenter}>⌖</button></div>{<div className="tactical-feed-hud-stack"><div className="tactical-feed-hud-actions" onPointerDown={e=>e.stopPropagation()}><button type="button" aria-label={scanning?'Exit scan mode':'Enter scan mode'} title={scanning?'Exit scan mode':'Scan layers'} aria-pressed={scanning} onClick={()=>{setScanning(v=>{if(v){setVision('normal');setVisionStartup(0)}return !v})}}><ScanEye size={20}/></button><button type="button" aria-label="Open dice spotlight" title="Roll dice" onClick={onDice}><Dices size={20}/></button></div>
         <aside className="tactical-feed-compact-hud" aria-label="Character tactical stats" onPointerDown={e=>e.stopPropagation()} onPointerMove={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()}>
           <button type="button" className="tactical-feed-hud-health" onClick={()=>setPanel('stats')} aria-label="Open character stats"><div className="tactical-feed-hud-heading"><span><HeartPulse size={15}/> HEALTH</span><strong>{currentHp!==null&&maxHp!==null?`${currentHp} / ${maxHp} HP`:'HP —'}</strong></div><div className="tactical-feed-hud-track"><div style={{width:maxHp&&currentHp!==null?`${Math.max(0,Math.min(100,currentHp/maxHp*100))}%`:'0%'}}/></div></button>
@@ -179,9 +232,10 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
         </aside></div>}{scanning&&<div className="tactical-feed-scan-panel" onPointerDown={e=>e.stopPropagation()}><strong>SCAN // LAYERS</strong><div className="tactical-feed-vision-options">{(['normal','night','thermal','sonic','network'] as const).map(mode=><button type="button" key={mode} aria-pressed={vision===mode} onClick={()=>{setVision(mode);setVisionStartup(mode==='normal'?0:v=>v+1)}} title={mode==='normal'?'Normal vision':mode==='night'?'Night vision':mode==='sonic'?'Sonic vision':mode==='thermal'?'Thermal vision':'Network vision'} aria-label={mode+' vision'}>{mode==='normal'?<Eye size={23}/>:mode==='night'?<Moon size={23}/>:mode==='thermal'?<Flame size={23}/>:mode==='sonic'?<AudioLines size={23}/>:<Network size={23}/>}</button>)}</div></div>}
         {panel&&<div className="tactical-feed-subscreen" onPointerDown={e=>e.stopPropagation()} onPointerMove={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()}><div className="tactical-feed-subscreen-top"><button type="button" onClick={()=>setPanel(null)}><ArrowLeft size={19}/> BACK TO MAP</button></div>{panel==='stats'?renderStats(()=>setPanel(null)):renderInventory(()=>setPanel(null))}</div>}
         {selected&&<div className="tactical-feed-move-hint">MOVE MODE · DRAG YOUR MARKER</div>}{error&&<div className="tactical-feed-error">{error}</div>}</div>,document.body):<div className={"tactical-feed-live-scroll tactical-vision-"+vision+(expanded?" tactical-feed-expanded":"")} ref={viewport} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}><div className={"tactical-feed-live-board"+(vision!=='normal'&&visionStartup>0?" optics-acquiring optics-acquiring-"+vision:"")} style={{width:map.width*36,height:map.height*36,transform:`translate(${offset.x}px,${offset.y}px) scale(${zoom})`,transformOrigin:'top left'}}>
-        {Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),o=objects.get(x+','+y);return <div key={i+"-"+visionStartup+"-"+vision} className={'tactical-feed-tile '+(o?.type||'')} style={{left:x*36,top:y*36,backgroundColor:o?.color||map.floorColors?.[x+','+y]||undefined}}/>})}
+        {Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),o=objects.get(x+','+y);return <div key={i+"-"+visionStartup+"-"+vision} className={'tactical-feed-tile '+(o?.type||'')+(tileVisible(x,y)?'':' tactical-tile-occluded')} style={{left:x*36,top:y*36,backgroundColor:o?.color||map.floorColors?.[x+','+y]||undefined}}/>})}
         {dark&&minePosition&&<svg aria-hidden="true" style={{position:'absolute',inset:0,width:map.width*36,height:map.height*36,pointerEvents:'none',zIndex:5}} viewBox={`0 0 ${map.width*36} ${map.height*36}`}><defs><mask id="tactical-fog-mask"><rect width="100%" height="100%" fill="white"/><circle cx={(minePosition.x+.5)*36} cy={(minePosition.y+.5)*36} r={sightRadius} fill="black"/></mask></defs><rect width="100%" height="100%" fill="#02050a" fillOpacity=".97" mask="url(#tactical-fog-mask)"/><circle cx={(minePosition.x+.5)*36} cy={(minePosition.y+.5)*36} r={sightRadius} fill="none" stroke="#67dce8" strokeOpacity=".35" strokeDasharray="5 6"/></svg>}
-         {displayUnits.filter(u=>u.mine||(allowed(u.layers)&&(!dark||u.type==='player'||(minePosition&&Math.hypot(u.x-minePosition.x,u.y-minePosition.y)*36<=sightRadius)))).map(u=>{const stack=unitStacks.get(u.x+','+u.y)||[u];const index=stack.findIndex(v=>v.key===u.key);const spread=stack.length>1;const dx=spread?(index%2===0?-6:6):0;const dy=spread?(Math.floor(index/2)*10+(index%2===0?-6:6)):0;return <div key={u.key+"-"+visionStartup+"-"+vision} title={u.name||u.label} className={'tactical-feed-unit '+u.type+(u.mine?' mine':'')+(u.mine&&selected?' selected':'')+(u.mine&&locked?' syncing':'')} style={{left:u.x*36+4+dx,top:u.y*36+4+dy,zIndex:spread?10+index:undefined}}>{u.mine?'YOU':u.label}</div>})}
+         {displayUnits.filter(visibleUnit).map(u=>{const stack=unitStacks.get(u.x+','+u.y)||[u];const index=stack.findIndex(v=>v.key===u.key);const spread=stack.length>1;const dx=spread?(index%2===0?-6:6):0;const dy=spread?(Math.floor(index/2)*10+(index%2===0?-6:6)):0;return <div key={u.key+"-"+visionStartup+"-"+vision} title={u.name||u.label} className={'tactical-feed-unit '+u.type+(u.mine?' mine':'')+(u.mine&&selected?' selected':'')+(u.mine&&locked?' syncing':'')} style={{left:u.x*36+4+dx,top:u.y*36+4+dy,zIndex:spread?10+index:undefined}}>{u.mine?'YOU':u.label}</div>})}
+        {soundDirections.map(d=><div key={'sound-'+d.key} className="tactical-sonic-direction" aria-label="Unresolved sound direction" style={{left:d.x,top:d.y,transform:'translate(-50%,-50%) rotate('+d.angle+'deg)'}}>➤</div>)}
       </div>{vision!=='normal'&&visionStartup>0&&<div key={vision+visionStartup} className={"tactical-vision-startup tactical-vision-startup-"+vision} aria-hidden="true"><span className="tactical-vision-startup-sweep"/></div>}<div className="tactical-feed-map-controls" onPointerDown={e=>e.stopPropagation()}><button type="button" aria-label={expanded?"Exit expanded map":"Expand map"} title={expanded?"Exit expanded map":"Expand map"} onClick={()=>setExpanded(v=>!v)}>{expanded?<Shrink size={21}/>:<Expand size={21}/>}</button><button type="button" aria-label="Zoom in" onClick={()=>setZoom(z=>clampZoom(z*1.25))}>+</button><button type="button" aria-label="Zoom out" onClick={()=>setZoom(z=>clampZoom(z/1.25))}>−</button><button type="button" aria-label="Center on character" onClick={recenter}>⌖</button></div>{<div className="tactical-feed-hud-stack"><div className="tactical-feed-hud-actions" onPointerDown={e=>e.stopPropagation()}><button type="button" aria-label={scanning?'Exit scan mode':'Enter scan mode'} title={scanning?'Exit scan mode':'Scan layers'} aria-pressed={scanning} onClick={()=>{setScanning(v=>{if(v){setVision('normal');setVisionStartup(0)}return !v})}}><ScanEye size={20}/></button><button type="button" aria-label="Open dice spotlight" title="Roll dice" onClick={onDice}><Dices size={20}/></button></div>
         <aside className="tactical-feed-compact-hud" aria-label="Character tactical stats" onPointerDown={e=>e.stopPropagation()} onPointerMove={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()}>
           <button type="button" className="tactical-feed-hud-health" onClick={()=>setPanel('stats')} aria-label="Open character stats"><div className="tactical-feed-hud-heading"><span><HeartPulse size={15}/> HEALTH</span><strong>{currentHp!==null&&maxHp!==null?`${currentHp} / ${maxHp} HP`:'HP —'}</strong></div><div className="tactical-feed-hud-track"><div style={{width:maxHp&&currentHp!==null?`${Math.max(0,Math.min(100,currentHp/maxHp*100))}%`:'0%'}}/></div></button>
