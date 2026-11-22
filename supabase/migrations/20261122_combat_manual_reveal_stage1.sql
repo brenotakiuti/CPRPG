@@ -17,6 +17,9 @@ begin
   end if;
 end $$;
 
+-- The internal automatic implementation must not be callable directly by players.
+revoke execute on function public.get_player_tactical_feed_automatic(uuid) from public, anon, authenticated;
+
 create or replace function public.get_player_tactical_feed(p_character_id uuid)
 returns jsonb
 language plpgsql
