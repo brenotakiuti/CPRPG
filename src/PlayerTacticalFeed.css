@@ -154,3 +154,22 @@
  position:absolute;inset:0;z-index:30;background:#0a111cf7;
  overflow:auto;padding:12px;touch-action:pan-y;overscroll-behavior:contain;
 }
+
+
+/* Short, non-blocking calibration on scanner activation; no video assets. */
+.tactical-vision-startup{position:absolute;inset:0;z-index:7;pointer-events:none;overflow:hidden;animation:optics-calibrate .72s ease-out both}
+.tactical-vision-startup-sweep{position:absolute;inset:0;pointer-events:none}
+.tactical-vision-startup-night{background:radial-gradient(ellipse at center,#b6ffb322,transparent 72%);animation:optics-night .7s ease-out both}
+.tactical-vision-startup-night .tactical-vision-startup-sweep{background:repeating-linear-gradient(0deg,transparent 0 5px,#a2ffc016 6px 7px);animation:optics-focus .7s ease-out both}
+.tactical-vision-startup-thermal{background:radial-gradient(ellipse at center,#f79b4329,transparent 70%);animation:optics-thermal .8s ease-out both}
+.tactical-vision-startup-thermal .tactical-vision-startup-sweep{background:linear-gradient(90deg,transparent 0%,#f6b15a26 50%,transparent 100%);animation:optics-sweep .8s ease-out both}
+.tactical-vision-startup-sonic .tactical-vision-startup-sweep{background:radial-gradient(circle at center,transparent 0 25%,#53d9e838 27%,transparent 30%);animation:optics-sonic .8s ease-out both}
+.tactical-vision-startup-network .tactical-vision-startup-sweep{background:repeating-linear-gradient(90deg,transparent 0 23px,#5bdce11c 24px 25px),repeating-linear-gradient(0deg,transparent 0 23px,#5bdce11c 24px 25px);animation:optics-network .65s ease-out both}
+@keyframes optics-calibrate{0%{opacity:.5}65%{opacity:.25}100%{opacity:0}}
+@keyframes optics-night{0%{opacity:.8;filter:blur(8px)}45%{opacity:.45;filter:blur(3px)}100%{opacity:0;filter:blur(0)}}
+@keyframes optics-focus{0%{opacity:.65;transform:scale(1.025)}100%{opacity:0;transform:scale(1)}}
+@keyframes optics-thermal{0%{opacity:0;filter:blur(12px)}30%{opacity:.7}100%{opacity:0;filter:blur(0)}}
+@keyframes optics-sweep{0%{opacity:0;transform:translateX(-70%)}30%{opacity:.7}100%{opacity:0;transform:translateX(70%)}}
+@keyframes optics-sonic{0%{opacity:0;transform:scale(.12)}30%{opacity:.55}100%{opacity:0;transform:scale(2.8)}}
+@keyframes optics-network{0%{opacity:0;clip-path:inset(0 0 100% 0)}20%{opacity:.55}80%{opacity:.25;clip-path:inset(0 0 0 0)}100%{opacity:0;clip-path:inset(0 0 0 0)}}
+@media(prefers-reduced-motion:reduce){.tactical-vision-startup,.tactical-vision-startup-sweep{animation:none!important;opacity:0!important}}
