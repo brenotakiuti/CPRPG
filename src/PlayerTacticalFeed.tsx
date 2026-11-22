@@ -25,7 +25,7 @@ function sightCells(ax:number,ay:number,bx:number,by:number):[number,number][]{
 type TacticalUnit = {key:string;label:string;type:'player'|'enemy'|'target'|'objective';x:number;y:number;name?:string;mine?:boolean;visible?:boolean;manualReveal?:Record<string,'hidden'|'direction'|'revealed'>;layers?:Record<string,boolean>};
 type TacticalObject = {type:string;x:number;y:number;color?:string};
 type TacticalLayout = {width:number;height:number;objects:TacticalObject[];floorColors?:Record<string,string>;groups?:{id:string;cells:string[]}[];layerVisibility?:Record<string,Record<string,boolean>>};
-type TacticalState = {revealMode?:'automatic'|'manual';visibilityMode?:'full'|'dark';visibilityRadius?:number;broadcasting:boolean;mapId?:string;layout?:TacticalLayout;units?:TacticalUnit[]};
+type TacticalState = {revealMode?:'automatic'|'manual';visibilityMode?:'full'|'dark'|'light';visibilityRadius?:number;broadcasting:boolean;mapId?:string;layout?:TacticalLayout;units?:TacticalUnit[]};
 type TacticalWeaponStats={name:string;type:string;dice:string;accuracy:string;damage:string;ammo:string};
 export default function PlayerTacticalFeed({ active, onBack, characterId, currentHp, maxHp, weapons, onDice, renderStats, renderInventory, onOpenInventory }: { active:boolean; onBack: () => void; characterId: string; currentHp:number|null; maxHp:number|null; weapons:TacticalWeaponStats[]; onDice:()=>void; renderStats:(onClose:()=>void)=>React.ReactNode; renderInventory:(onClose:()=>void)=>React.ReactNode; onOpenInventory:()=>void }) {
   const [state,setState] = useState<TacticalState>({broadcasting:false});
@@ -184,7 +184,7 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
   const lineWalls=(x:number,y:number)=>origin?sightCells(origin.x,origin.y,x+.5,y+.5).filter(([cx,cy])=>walls.has(cx+','+cy)):[];
   const clearSight=(x:number,y:number)=>!origin||lineWalls(x,y).length===0;
   const tileVisible=(x:number,y:number)=>{
-    if(vision==='network'||!origin)return true;
+    if(state.visibilityMode==='full'||vision==='network'||!origin)return true;
     // Wall faces themselves are visible; the area beyond is not.
     const crossed=lineWalls(x,y);
     return crossed.length===0||(crossed.length===1&&crossed[0][0]===x&&crossed[0][1]===y);
