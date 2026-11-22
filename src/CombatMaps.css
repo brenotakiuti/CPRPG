@@ -104,3 +104,8 @@
 @media(max-width:740px){.combat-editor-help{margin-left:0}}
 
 .combat-live-marker.target,.combat-map-unit-tag.target,.combat-legend-icon.target{background:#8b4eb0;color:#fff}.combat-live-marker.objective,.combat-map-unit-tag.objective,.combat-legend-icon.objective{background:#176b55;color:#fff}.combat-live-marker.objective{cursor:default}
+
+/* Manual scanner reveal controls */
+.combat-manual-reveal{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
+.combat-manual-reveal-field{display:flex;flex-direction:column;gap:3px;font-size:11px;min-width:88px;color:inherit}
+.combat-manual-reveal-field select{min-width:88px;max-width:130px;padding:5px 7px;font-size:12px}
