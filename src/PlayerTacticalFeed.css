@@ -92,3 +92,31 @@
  .tactical-feed-expanded .tactical-feed-hud-stack .tactical-feed-hud-actions{position:static;bottom:auto}
  .tactical-feed-expanded .tactical-feed-hud-stack .tactical-feed-compact-hud{max-height:none}
 }
+
+
+/* Scanner appearance is scoped to the battlefield; HUD controls keep their usual colors. */
+.tactical-feed-vision-options{display:grid;grid-template-columns:1fr;gap:6px;margin-top:10px}
+.tactical-feed-vision-options button{padding:9px 10px;text-align:left;border:1px solid #426275;background:#0b1b29;color:#cde9ee;border-radius:5px;font-size:11px;font-weight:800;letter-spacing:.7px}
+.tactical-feed-vision-options button[aria-pressed=true]{border-color:#f3dc34;color:#f3dc34;background:#283342}
+.tactical-vision-night{background:#031308!important}
+.tactical-vision-night .tactical-feed-live-board{filter:grayscale(1) sepia(1) hue-rotate(65deg) saturate(5) brightness(1.25) contrast(1.3);box-shadow:0 0 0 2px #6dff8a,0 0 20px #2fff5b55}
+.tactical-vision-night:after{content:"";position:absolute;inset:0;pointer-events:none;z-index:8;background:repeating-linear-gradient(0deg,transparent 0 3px,#04140926 4px 5px),radial-gradient(ellipse,transparent 45%,#001a0b99 100%)}
+.tactical-vision-thermal{background:#080817!important}
+.tactical-vision-thermal .tactical-feed-live-board{filter:saturate(.65) brightness(.55);background:#101126}
+.tactical-vision-thermal .tactical-feed-unit{filter:brightness(2) saturate(2);box-shadow:0 0 15px #ff9a2a,0 0 30px #ff501a88;background:#ff7a1d;color:#fff8aa;border-color:#ffe77a;text-shadow:0 0 7px #fff}
+.tactical-vision-thermal .tactical-feed-unit.enemy{background:#ffdf38;border-color:#fff9bd;color:#aa2c00;box-shadow:0 0 13px 4px #ff5a1c,0 0 28px 8px #ffb32b66}
+.tactical-vision-thermal .tactical-feed-unit.mine{background:#ffe75b;border-color:#fff;color:#7d2400}
+.tactical-vision-sonic{background:#020e19!important}
+.tactical-vision-sonic .tactical-feed-live-board{filter:saturate(.5) brightness(.65);box-shadow:0 0 0 2px #42dfff}
+.tactical-vision-sonic .tactical-feed-tile{background:#061824!important;border-color:#0c5266!important}
+.tactical-vision-sonic .tactical-feed-tile.wall,.tactical-vision-sonic .tactical-feed-tile.pillar,.tactical-vision-sonic .tactical-feed-tile.cover,.tactical-vision-sonic .tactical-feed-tile.coverH,.tactical-vision-sonic .tactical-feed-tile.coverV{border-color:#3ae4ff!important;box-shadow:inset 0 0 9px #25e8ff55}
+.tactical-vision-sonic .tactical-feed-unit{background:#073447;border-color:#6ceeff;color:#e1ffff;box-shadow:0 0 12px #32eaff}
+.tactical-vision-sonic:after{content:"";position:absolute;inset:0;pointer-events:none;z-index:8;background:repeating-radial-gradient(circle at center,transparent 0 65px,#39dfff19 67px,transparent 70px);animation:tactical-sonar 3s ease-in-out infinite}
+.tactical-vision-network{background:#070b20!important}
+.tactical-vision-network .tactical-feed-live-board{background:#090f2b;box-shadow:0 0 0 2px #b64dff,0 0 24px #7e4aff55}
+.tactical-vision-network .tactical-feed-tile{background:#0a1530!important;border:1px solid #293d87!important}
+.tactical-vision-network .tactical-feed-tile.wall,.tactical-vision-network .tactical-feed-tile.pillar{border-color:#aa58fa!important;box-shadow:inset 0 0 9px #b04bff55}
+.tactical-vision-network .tactical-feed-unit{background:#12285b;border-color:#48f1ff;color:#d4ffff;box-shadow:0 0 14px #45dfff}
+.tactical-vision-network .tactical-feed-unit.enemy{border-color:#f04aff;color:#ffe3ff;box-shadow:0 0 14px #f04aff}
+@keyframes tactical-sonar{50%{opacity:.3;transform:scale(1.1)}}
+@media(prefers-reduced-motion:reduce){.tactical-vision-sonic:after{animation:none}}
