@@ -189,14 +189,47 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
     const crossed=lineWalls(x,y);
     return crossed.length===0||(crossed.length===1&&crossed[0][0]===x&&crossed[0][1]===y);
   };
+  // Sonic resolves connected walkable areas rather than tracing a ray to each target.
+  // A listener next to a wall can hear into the entire area immediately beyond it.
+  const sonicAreas=new Map<string,number>();
+  if(vision==='sonic'&&live&&map){
+    let nextArea=0;
+    for(let y=0;y<map.height;y++)for(let x=0;x<map.width;x++){
+      const start=x+','+y;
+      if(walls.has(start)||sonicAreas.has(start))continue;
+      const queue:[[number,number]]=[[x,y]];
+      sonicAreas.set(start,nextArea);
+      for(let i=0;i<queue.length;i++){
+        const [cx,cy]=queue[i];
+        for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+          const nx=cx+dx,ny=cy+dy,key=nx+','+ny;
+          if(nx<0||ny<0||nx>=map.width||ny>=map.height||walls.has(key)||sonicAreas.has(key))continue;
+          sonicAreas.set(key,nextArea);
+          queue.push([nx,ny]);
+        }
+      }
+      nextArea++;
+    }
+  }
+  const sonicReachable=new Set<number>();
+  if(vision==='sonic'&&minePosition&&map){
+    const playerArea=sonicAreas.get(minePosition.x+','+minePosition.y);
+    if(playerArea!==undefined)sonicReachable.add(playerArea);
+    // Only the player's side of an adjacent wall qualifies as a listening surface.
+    // Resolve areas directly opposite a single wall cell, including long rooms.
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const wx=minePosition.x+dx,wy=minePosition.y+dy;
+      if(!walls.has(wx+','+wy))continue;
+      const tx=wx+dx,ty=wy+dy;
+      if(tx<0||ty<0||tx>=map.width||ty>=map.height)continue;
+      const opposite=sonicAreas.get(tx+','+ty);
+      if(opposite!==undefined)sonicReachable.add(opposite);
+    }
+  }
   const sonicResolution=(u:TacticalUnit)=>{
     if(!origin)return 'full';
-    const crossed=lineWalls(u.x,u.y);
-    if(!crossed.length)return 'full';
-    if(crossed.length!==1)return 'direction';
-    const [wx,wy]=crossed[0];
-    // The listener must touch the first wall; the target can be arbitrarily far beyond it.
-    return Math.max(Math.abs(minePosition!.x-wx),Math.abs(minePosition!.y-wy))<=1?'full':'direction';
+    const area=sonicAreas.get(u.x+','+u.y);
+    return area!==undefined&&sonicReachable.has(area)?'full':'direction';
   };
   const visibleUnit=(u:TacticalUnit)=>u.mine||(
     allowed(u.layers)&&
