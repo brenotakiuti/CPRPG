@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CircleHelp, Eye, EyeOff, Sun, Moon, Flame, AudioLines, Network, Check, RefreshCw, FolderOpen, RadioTower, Wifi, WifiOff, FilePlus2, Save } from 'lucide-react';
+import { CircleHelp, Eye, Sun, Moon, Flame, AudioLines, Network, Check, RefreshCw, FolderOpen, RadioTower, Wifi, WifiOff, FilePlus2, Save } from 'lucide-react';
 import { supabase } from './supabase';
 import './CombatMaps.css';
 
