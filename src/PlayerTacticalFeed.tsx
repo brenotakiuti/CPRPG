@@ -22,10 +22,10 @@ function sightCells(ax:number,ay:number,bx:number,by:number):[number,number][]{
   }
   return cells;
 }
-type TacticalUnit = {key:string;label:string;type:'player'|'enemy'|'target'|'objective';x:number;y:number;name?:string;mine?:boolean;visible?:boolean;layers?:Record<string,boolean>};
+type TacticalUnit = {key:string;label:string;type:'player'|'enemy'|'target'|'objective';x:number;y:number;name?:string;mine?:boolean;visible?:boolean;manualReveal?:Record<string,'hidden'|'direction'|'revealed'>;layers?:Record<string,boolean>};
 type TacticalObject = {type:string;x:number;y:number;color?:string};
 type TacticalLayout = {width:number;height:number;objects:TacticalObject[];floorColors?:Record<string,string>;groups?:{id:string;cells:string[]}[];layerVisibility?:Record<string,Record<string,boolean>>};
-type TacticalState = {visibilityMode?:'full'|'dark';visibilityRadius?:number;broadcasting:boolean;mapId?:string;layout?:TacticalLayout;units?:TacticalUnit[]};
+type TacticalState = {revealMode?:'automatic'|'manual';visibilityMode?:'full'|'dark';visibilityRadius?:number;broadcasting:boolean;mapId?:string;layout?:TacticalLayout;units?:TacticalUnit[]};
 type TacticalWeaponStats={name:string;type:string;dice:string;accuracy:string;damage:string;ammo:string};
 export default function PlayerTacticalFeed({ active, onBack, characterId, currentHp, maxHp, weapons, onDice, renderStats, renderInventory, onOpenInventory }: { active:boolean; onBack: () => void; characterId: string; currentHp:number|null; maxHp:number|null; weapons:TacticalWeaponStats[]; onDice:()=>void; renderStats:(onClose:()=>void)=>React.ReactNode; renderInventory:(onClose:()=>void)=>React.ReactNode; onOpenInventory:()=>void }) {
   const [state,setState] = useState<TacticalState>({broadcasting:false});
@@ -232,12 +232,14 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
     return area!==undefined&&sonicReachable.has(area)?'full':'direction';
   };
   const visibleUnit=(u:TacticalUnit)=>u.mine||(
+    (state.revealMode!=='manual'||u.type==='player'||u.manualReveal?.[layerKey]==='revealed')&&
+    (state.revealMode==='manual'||
     allowed(u.layers)&&
     (vision!=='normal'||u.visible!==false)&&
     (vision==='network'||(vision==='sonic'?sonicResolution(u)==='full':clearSight(u.x,u.y)))&&
-    (!dark||u.type==='player'||(minePosition&&Math.hypot(u.x-minePosition.x,u.y-minePosition.y)*36<=sightRadius))
+    (!dark||u.type==='player'||(minePosition&&Math.hypot(u.x-minePosition.x,u.y-minePosition.y)*36<=sightRadius)))
   );
-  const soundDirections=vision==='sonic'&&origin?displayUnits.filter(u=>!u.mine&&allowed(u.layers)&&sonicResolution(u)==='direction').map(u=>{
+  const soundDirections=vision==='sonic'&&origin?displayUnits.filter(u=>!u.mine&&(state.revealMode==='manual'?u.manualReveal?.acoustic==='direction':allowed(u.layers)&&sonicResolution(u)==='direction')).map(u=>{
     const angle=Math.atan2(u.y+.5-origin.y,u.x+.5-origin.x);
     // Fixed offset from listener: direction only, never the target's range.
     return {key:u.key,x:origin.x*36+Math.cos(angle)*55,y:origin.y*36+Math.sin(angle)*55,angle:angle*180/Math.PI};
