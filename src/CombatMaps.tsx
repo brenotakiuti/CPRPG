@@ -88,7 +88,7 @@ function MapGrid({map,units,onMove}:{map:Layout;units:LiveUnit[];onMove:(key:str
   {gates.map((g,i)=>{const horizontal=g.side==='top'||g.side==='bottom';return <div key={i} className={'combat-map-gate '+g.side} title={'Gate · '+g.length+' cell edges'} style={horizontal?{left:10+g.start*cellSize,width:g.length*cellSize-2,[g.side]:0}:{top:10+g.start*cellSize,height:g.length*cellSize-2,[g.side]:0}}/>})}
  </div></div>;
 }
-export default function CombatMaps({campaignId,mode,campaignName}:{campaignId:string;mode:'editor'|'combat';campaignName?:string}){
+export default function CombatMaps({campaignId,mode}:{campaignId:string;mode:'editor'|'combat'}){
  const [maps,setMaps]=useState<SavedMap[]>([]);
  const [selected,setSelected]=useState('');
  const [name,setName]=useState('');
@@ -218,7 +218,7 @@ export default function CombatMaps({campaignId,mode,campaignName}:{campaignId:st
   if(mode==='combat')return;
  }
  const current=maps.find(m=>m.id===selected);
- return <section className="combat-maps-panel">{mode==='combat'&&<header className="tactical-gm-brand"><div className="tactical-gm-brand-identity"><img src="/tactical-feed-icon.svg" alt="" /><div><strong>TACTICAL//FEED</strong><small>A GHOST//LINK SYSTEMS DIVISION</small></div></div><div className="tactical-gm-network">● NETWORK TERMINAL <small>{campaignName}</small></div></header>}
+ return <section className="combat-maps-panel">
   {mode==='editor'?<div className="combat-editor-toolbar-shell"><div className="combat-maps-toolbar">
 <div className="combat-editor-field"><span>NEW MAP</span><button type="button" aria-label="New map" title="New map" disabled={!editorReady||busy} onClick={newEditorMap}><FilePlus2 size={19}/></button></div>
 <label className="combat-editor-field combat-editor-picker"><span>SAVED MAPS</span><select aria-label="Saved maps" value={selected} onChange={e=>openMap(e.target.value)}><option value="">Select a map</option>{maps.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
