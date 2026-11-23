@@ -190,3 +190,9 @@
 .combat-live-marker .combat-status-badge{position:absolute;right:-9px;top:-9px;z-index:2}
 .combat-status-badge{width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#172637;border:1.5px solid #e8c46d;color:#f1d68b;font-size:10px;font-weight:900;line-height:1;pointer-events:none;box-sizing:border-box}
 .combat-status-badge.dead{border-color:#e16c72;color:#f3d4d5}
+
+/* Tactical//Feed primary mode tabs: Broadcast opens by default. */
+.gm-tactical-mode-tabs{display:flex;gap:8px;margin:0 0 12px;padding:0 0 10px;border-bottom:1px solid #344657}
+.gm-tactical-mode-tabs button{border:1px solid #425466;border-radius:6px;background:#152433;color:#b9cbd7;padding:10px 20px;font:inherit;font-weight:700;cursor:pointer}
+.gm-tactical-mode-tabs button.active{background:#e8bd4a;color:#121a23;border-color:#e8bd4a}
+.gm-tactical-mode-tabs button:focus-visible{outline:2px solid #63d8e4;outline-offset:2px}
