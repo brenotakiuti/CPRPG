@@ -192,7 +192,8 @@
 .combat-status-badge.dead{border-color:#e16c72;color:#f3d4d5}
 
 /* Tactical//Feed primary mode tabs: Broadcast opens by default. */
-.gm-tactical-mode-tabs{display:flex;gap:8px;margin:0 0 12px;padding:0 0 10px;border-bottom:1px solid #344657}
-.gm-tactical-mode-tabs button{border:1px solid #425466;border-radius:6px;background:#152433;color:#b9cbd7;padding:10px 20px;font:inherit;font-weight:700;cursor:pointer}
-.gm-tactical-mode-tabs button.active{background:#e8bd4a;color:#121a23;border-color:#e8bd4a}
+.gm-tactical-mode-tabs{display:flex;align-items:center;gap:8px;margin:0 0 14px;padding:0 0 12px;border-bottom:1px solid #344657}
+.gm-tactical-mode-tabs button{border:1px solid #425466;border-radius:6px;background:#152433;color:#b9cbd7;padding:10px 15px;font:inherit;font-size:13px;font-weight:600;line-height:20px;cursor:pointer;min-height:42px}
+.gm-tactical-mode-tabs button.active{background:#3b3320;color:#f2cf5e;border-color:#e8bd4a;box-shadow:inset 0 0 0 1px #e8bd4a33}
+.gm-tactical-mode-tabs button:hover:not(.active){border-color:#698297;background:#1a2b3c}
 .gm-tactical-mode-tabs button:focus-visible{outline:2px solid #63d8e4;outline-offset:2px}
