@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react';
 import { Landmark, Package, Settings, Slice, ChevronLeft, ChevronRight, PanelLeftClose, PanelRightClose, Minus, X } from 'lucide-react';
 import './GMControlDock.css';
 
@@ -26,7 +26,7 @@ export function GMUtilityWindow({ title, children, onClose, active, onFocus, off
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [minimized, setMinimized] = useState(false);
   const [size, setSize] = useState({ width: 860, height: 620 });
-  const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+  const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest('button')) return;
     if (event.button !== 0) return;
     onFocus();
