@@ -80,7 +80,7 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
       setState(confirmed);
       setMoveFlash(false);
       if(moveFlashTimer.current)clearTimeout(moveFlashTimer.current);
-      moveFlashTimer.current=setTimeout(()=>{setMoveFlash(true);moveFlashTimer.current=setTimeout(()=>setMoveFlash(false),260)},0);
+      moveFlashTimer.current=setTimeout(()=>{setMoveFlash(true);moveFlashTimer.current=setTimeout(()=>setMoveFlash(false),480)},0);
     } catch (e) {
       setError(e instanceof Error?e.message:'Movement failed');
     } finally {
