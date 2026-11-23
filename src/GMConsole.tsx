@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useGMArtworkCache } from './useGMArtworkCache';
 import { QRCodeSVG } from 'qrcode.react';
-import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Users, Wrench, Zap, Slice, Map as MapIcon } from 'lucide-react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Users, Wrench, Zap, Slice } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
@@ -84,21 +84,23 @@ export default function GMConsole({
   onSwitchCampaign,
 }: GMConsoleProps) {
   useGMArtworkCache();
-  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'ripperdoc' | 'logs' | 'phone' | 'map-editor' | 'combat'>(() => {
+  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'ripperdoc' | 'logs' | 'phone' | 'combat'>(() => {
     const saved = sessionStorage.getItem('gm-page:' + campaign.id);
-    return saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'ripperdoc' || saved === 'logs' || saved === 'phone' || saved === 'map-editor' || saved === 'combat' ? saved : 'live';
+    return saved === 'map-editor' ? 'combat' : saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'ripperdoc' || saved === 'logs' || saved === 'phone' || saved === 'combat' ? saved : 'live';
   });
   // Mount data-heavy tools on first visit, then retain their data and Realtime subscriptions.
   const [visitedTools, setVisitedTools] = useState<string[]>(() => {
     const saved = sessionStorage.getItem('gm-page:' + campaign.id) ?? 'live';
-    return ['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone', 'map-editor', 'combat'].includes(saved) ? [saved] : [];
+    return ['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone', 'combat', 'map-editor'].includes(saved) ? [saved === 'map-editor' ? 'combat' : saved] : [];
   });
   const openPage = (next: typeof page) => {
     setPage(next);
-    if (['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone', 'map-editor', 'combat'].includes(next)) {
+    if (['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone', 'combat'].includes(next)) {
       setVisitedTools(previous => previous.includes(next) ? previous : [...previous, next]);
     }
   };
+  const [tacticalTab, setTacticalTab] = useState<'broadcast' | 'editor'>('broadcast');
+  const [editorVisited, setEditorVisited] = useState(false);
   const [phoneUnread, setPhoneUnread] = useState(0);
   const refreshPhoneUnread = useCallback(async () => {
     const result = await supabase.rpc('phone_gm_unread', { p_campaign_id: campaign.id });
@@ -468,7 +470,6 @@ export default function GMConsole({
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'phone', label: 'Ghost//Link', icon: null },
     { id: 'ripperdoc', label: 'Ripperdoc', icon: Slice },
-    { id: 'map-editor', label: 'Map Editor', icon: MapIcon },
     { id: 'combat', label: 'Tactical//Feed', icon: null },
   ] as const;
   const creationControls = (
@@ -720,8 +721,14 @@ export default function GMConsole({
       {visitedTools.includes('inventory') && <div style={{ display: page === 'inventory' ? undefined : 'none' }}><GMInventory campaignId={campaign.id} /></div>}
       {visitedTools.includes('phone') && <div style={{ display: page === 'phone' ? undefined : 'none' }}><GMPhone campaignId={campaign.id} campaignName={campaign.name} onRead={refreshPhoneUnread} /></div>}
       {visitedTools.includes('ripperdoc') && <div style={{ display: page === 'ripperdoc' ? undefined : 'none' }}><Ripperdoc characters={characters} /></div>}
-      {visitedTools.includes('map-editor') && <div style={{ display: page === 'map-editor' ? undefined : 'none' }}><CombatMaps key={'editor-'+campaign.id} campaignId={campaign.id} mode="editor" /></div>}
-      {visitedTools.includes('combat') && <div style={{ display: page === 'combat' ? undefined : 'none' }}><CombatMaps key={'combat-'+campaign.id} campaignId={campaign.id} campaignName={campaign.name} mode="combat" /></div>}
+      {visitedTools.includes('combat') && <div style={{ display: page === 'combat' ? undefined : 'none' }}>
+        <div className="gm-tactical-mode-tabs" role="tablist" aria-label="Tactical Feed mode">
+          <button type="button" role="tab" aria-selected={tacticalTab === 'broadcast'} className={tacticalTab === 'broadcast' ? 'active' : ''} onClick={() => setTacticalTab('broadcast')}>Map Broadcast</button>
+          <button type="button" role="tab" aria-selected={tacticalTab === 'editor'} className={tacticalTab === 'editor' ? 'active' : ''} onClick={() => { setEditorVisited(true); setTacticalTab('editor'); }}>Map Editor</button>
+        </div>
+        <div role="tabpanel" aria-label="Map Broadcast" style={{ display: tacticalTab === 'broadcast' ? undefined : 'none' }}><CombatMaps key={'combat-'+campaign.id} campaignId={campaign.id} campaignName={campaign.name} mode="combat" /></div>
+        {editorVisited && <div role="tabpanel" aria-label="Map Editor" style={{ display: tacticalTab === 'editor' ? undefined : 'none' }}><CombatMaps key={'editor-'+campaign.id} campaignId={campaign.id} mode="editor" /></div>}
+      </div>}
       <GMCallSpotlight campaignId={campaign.id} />
     </div>
   );
