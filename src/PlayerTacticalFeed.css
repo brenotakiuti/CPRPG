@@ -225,3 +225,7 @@
 }
 @keyframes sonic-bearing-pulse{50%{opacity:.65;box-shadow:0 0 22px #28dff5aa}}
 @media(prefers-reduced-motion:reduce){.tactical-sonic-direction{animation:none}}
+
+.tactical-feed-unit .tactical-status-badge{position:absolute;right:-9px;top:-9px;z-index:2}
+.tactical-status-badge{width:19px;height:19px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#172637;border:1.5px solid #e8c46d;color:#f1d68b;font-size:10px;font-weight:900;line-height:1;pointer-events:none;box-sizing:border-box;text-shadow:none}
+.tactical-status-badge.dead{border-color:#e16c72;color:#f3d4d5}
