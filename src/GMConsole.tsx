@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useGMArtworkCache } from './useGMArtworkCache';
+import { GMControlDock, GMUtilityWindow, type UtilityId } from './GMControlDock';
 import { QRCodeSVG } from 'qrcode.react';
 import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Settings, LockKeyhole, Copy, Settings2, ScrollText, Package, Users, Wrench, Zap, Slice } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
@@ -99,6 +100,20 @@ export default function GMConsole({
       setVisitedTools(previous => previous.includes(next) ? previous : [...previous, next]);
     }
   };
+  const [utilityWindows, setUtilityWindows] = useState<UtilityId[]>([]);
+  const [focusedUtility, setFocusedUtility] = useState<UtilityId | null>(null);
+  const openUtility = (id: UtilityId) => {
+    setUtilityWindows(previous => previous.includes(id) ? previous : [...previous, id]);
+    setFocusedUtility(id);
+    if (['bank', 'inventory', 'ripperdoc'].includes(id)) setVisitedTools(previous => previous.includes(id) ? previous : [...previous, id]);
+  };
+  const closeUtility = (id: UtilityId) => {
+    setUtilityWindows(previous => previous.filter(item => item !== id));
+    setFocusedUtility(previous => previous === id ? null : previous);
+  };
+  const utilityWindow = (id: UtilityId, children: ReactNode) => utilityWindows.includes(id) ? (
+    <GMUtilityWindow key={id} title={{bank:'Bank',ripperdoc:'Ripperdoc',inventory:'Inventory',overview:'Campaign Settings'}[id]} active={focusedUtility === id} onFocus={() => setFocusedUtility(id)} onClose={() => closeUtility(id)} offset={utilityWindows.indexOf(id)}>{children}</GMUtilityWindow>
+  ) : null;
   const [tacticalTab, setTacticalTab] = useState<'broadcast' | 'editor'>('broadcast');
   const [editorVisited, setEditorVisited] = useState(false);
   const [phoneUnread, setPhoneUnread] = useState(0);
@@ -524,6 +539,55 @@ export default function GMConsole({
     </div>
   );
 
+  const campaignSettingsContent = (
+        <div className="gm-dashboard-panel gm-overview">
+          {creationControls}
+          <section className="gm-invitations-settings" aria-label="Character creation settings">
+            <div className="gm-invitations-settings-heading">
+              <h3><Settings2 size={18} aria-hidden="true" /> Character Creation Settings</h3>
+              <p>Starting conditions for new characters in this campaign.</p>
+            </div>
+            <div className="gm-invitations-settings-fields">
+              <label>
+                <span>Attribute Point Pool</span>
+                <div className="gm-invitations-points-row">
+                  <input type="range" min="15" max="100" value={startingPoints}
+                    disabled={rulesLoading || rulesSaving}
+                    onChange={e => { setStartingPoints(Number(e.target.value)); setRulesMessage(''); }} />
+                  <strong>{startingPoints}</strong>
+                </div>
+                <small>Total points available across five attributes.</small>
+              </label>
+              <label>
+                <span>Starting Money</span>
+                <div className="gm-invitations-money-row">
+                  <input type="number" min="0" step="1" value={startingMoney}
+                    disabled={rulesLoading || rulesSaving}
+                    onChange={e => { setStartingMoney(e.target.value); setRulesMessage(''); }} />
+                  <strong>E$</strong>
+                </div>
+                <small>Initial balance assigned when a character is created.</small>
+              </label>
+            </div>
+            <div className="gm-invitations-settings-footer">
+              {rulesMessage && <p role="status">{rulesMessage}</p>}
+              <button type="button" disabled={rulesLoading || rulesSaving ||
+                !/^\d+$/.test(startingMoney.trim()) ||
+                !Number.isSafeInteger(Number(startingMoney)) || Number(startingMoney) < 0}
+                onClick={() => void saveCreationRules()}>
+                {rulesSaving ? 'Saving...' : 'Save Settings'}
+              </button>
+            </div>
+          </section>
+          <section className="gm-invitations-controls">
+            <div><h3>Campaign Controls</h3><p>Switch campaigns or end your GM session</p></div>
+            <div className="gm-account-actions">
+              <button onClick={onSwitchCampaign}>Switch Campaign</button>
+              <button onClick={() => void supabase.auth.signOut()}>Log Out</button>
+            </div>
+          </section>
+        </div>
+      );
   return (
     <div className="gm-dashboard">
       <header className="gm-dashboard-header">
@@ -665,62 +729,13 @@ export default function GMConsole({
             ) : <p className="gm-muted">No characters in this campaign yet.</p>}
           </main>
         </div>
-      ) : page === 'bank' || page === 'logs' ? null : page === 'overview' ? (
-        <div className="gm-dashboard-panel gm-overview">
-          <p className="gm-invitations-intro">Manage how new players join this campaign.</p>
-          {creationControls}
-          <section className="gm-invitations-settings" aria-label="Character creation settings">
-            <div className="gm-invitations-settings-heading">
-              <h3><Settings2 size={18} aria-hidden="true" /> Character Creation Settings</h3>
-              <p>Starting conditions for new characters in this campaign.</p>
-            </div>
-            <div className="gm-invitations-settings-fields">
-              <label>
-                <span>Attribute Point Pool</span>
-                <div className="gm-invitations-points-row">
-                  <input type="range" min="15" max="100" value={startingPoints}
-                    disabled={rulesLoading || rulesSaving}
-                    onChange={e => { setStartingPoints(Number(e.target.value)); setRulesMessage(''); }} />
-                  <strong>{startingPoints}</strong>
-                </div>
-                <small>Total points available across five attributes.</small>
-              </label>
-              <label>
-                <span>Starting Money</span>
-                <div className="gm-invitations-money-row">
-                  <input type="number" min="0" step="1" value={startingMoney}
-                    disabled={rulesLoading || rulesSaving}
-                    onChange={e => { setStartingMoney(e.target.value); setRulesMessage(''); }} />
-                  <strong>E$</strong>
-                </div>
-                <small>Initial balance assigned when a character is created.</small>
-              </label>
-            </div>
-            <div className="gm-invitations-settings-footer">
-              {rulesMessage && <p role="status">{rulesMessage}</p>}
-              <button type="button" disabled={rulesLoading || rulesSaving ||
-                !/^\d+$/.test(startingMoney.trim()) ||
-                !Number.isSafeInteger(Number(startingMoney)) || Number(startingMoney) < 0}
-                onClick={() => void saveCreationRules()}>
-                {rulesSaving ? 'Saving...' : 'Save Settings'}
-              </button>
-            </div>
-          </section>
-          <section className="gm-invitations-controls">
-            <div><h3>Campaign Controls</h3><p>Switch campaigns or end your GM session</p></div>
-            <div className="gm-account-actions">
-              <button onClick={onSwitchCampaign}>Switch Campaign</button>
-              <button onClick={() => void supabase.auth.signOut()}>Log Out</button>
-            </div>
-          </section>
-        </div>
-      ) : page === 'inventory' || page === 'ripperdoc' || page === 'phone' ? null : null}
+      ) : page === 'bank' || page === 'logs' ? null : page === 'overview' ? (utilityWindows.includes('overview') ? null : campaignSettingsContent) : page === 'inventory' || page === 'ripperdoc' || page === 'phone' ? null : null}
       {visitedTools.includes('live') && <div style={{ display: page === 'live' ? undefined : 'none' }}><LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} /></div>}
-      {visitedTools.includes('bank') && <div style={{ display: page === 'bank' ? undefined : 'none' }} className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>}
+      {visitedTools.includes('bank') && (utilityWindows.includes('bank') ? utilityWindow('bank', <div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>) : <div style={{ display: page === 'bank' ? undefined : 'none' }}><div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div></div>)}
       {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
-      {visitedTools.includes('inventory') && <div style={{ display: page === 'inventory' ? undefined : 'none' }}><GMInventory campaignId={campaign.id} /></div>}
+      {visitedTools.includes('inventory') && (utilityWindows.includes('inventory') ? utilityWindow('inventory', <GMInventory campaignId={campaign.id} />) : <div style={{ display: page === 'inventory' ? undefined : 'none' }}><GMInventory campaignId={campaign.id} /></div>)}
       {visitedTools.includes('phone') && <div style={{ display: page === 'phone' ? undefined : 'none' }}><GMPhone campaignId={campaign.id} campaignName={campaign.name} onRead={refreshPhoneUnread} /></div>}
-      {visitedTools.includes('ripperdoc') && <div style={{ display: page === 'ripperdoc' ? undefined : 'none' }}><Ripperdoc characters={characters} /></div>}
+      {visitedTools.includes('ripperdoc') && (utilityWindows.includes('ripperdoc') ? utilityWindow('ripperdoc', <Ripperdoc characters={characters} />) : <div style={{ display: page === 'ripperdoc' ? undefined : 'none' }}><Ripperdoc characters={characters} /></div>)}
       {visitedTools.includes('combat') && <div style={{ display: page === 'combat' ? undefined : 'none' }}>
         <header className="tactical-gm-brand"><div className="tactical-gm-brand-identity"><img src="/tactical-feed-icon.svg" alt="" /><div><strong>TACTICAL//FEED</strong><small>A GHOST//LINK SYSTEMS DIVISION</small></div></div><div className="tactical-gm-network">● NETWORK TERMINAL <small>{campaign.name}</small></div></header>
         <div className="gm-tactical-mode-tabs" role="tablist" aria-label="Tactical Feed mode">
@@ -730,6 +745,8 @@ export default function GMConsole({
         <div role="tabpanel" aria-label="Map Broadcast" style={{ display: tacticalTab === 'broadcast' ? undefined : 'none' }}><CombatMaps key={'combat-'+campaign.id} campaignId={campaign.id} mode="combat" /></div>
         {editorVisited && <div role="tabpanel" aria-label="Map Editor" style={{ display: tacticalTab === 'editor' ? undefined : 'none' }}><CombatMaps key={'editor-'+campaign.id} campaignId={campaign.id} mode="editor" /></div>}
       </div>}
+      <GMControlDock open={utilityWindows} onOpen={openUtility} />
+      {utilityWindow('overview', campaignSettingsContent)}
       <GMCallSpotlight campaignId={campaign.id} />
     </div>
   );
