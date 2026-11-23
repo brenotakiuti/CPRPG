@@ -148,3 +148,8 @@
 .combat-apply-button{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:7px;border:1px solid #d3b65c;background:#a88723;color:#101820;font-weight:700;cursor:pointer}
 .combat-apply-button:disabled{opacity:.4;cursor:not-allowed;background:#27333d;color:#c6cdd3;border-color:#536477}
 .combat-player-assignments select:disabled{opacity:.65;cursor:not-allowed}
+
+/* The matrix scrolls independently; Apply stays pinned beneath it. */
+.combat-apply-footer{display:flex;justify-content:flex-end;align-items:center;margin-top:10px}
+.combat-reveal-matrix tbody th select{width:125px;min-width:0;background:#172332;color:white;border:1px solid #536477;border-radius:5px;padding:7px;font:inherit;font-size:12px}
+.combat-reveal-matrix tbody th select:disabled{opacity:.6;cursor:not-allowed}
