@@ -727,7 +727,7 @@ export default function GMConsole({
           <button type="button" role="tab" aria-selected={tacticalTab === 'broadcast'} className={tacticalTab === 'broadcast' ? 'active' : ''} onClick={() => setTacticalTab('broadcast')}>Map Broadcast</button>
           <button type="button" role="tab" aria-selected={tacticalTab === 'editor'} className={tacticalTab === 'editor' ? 'active' : ''} onClick={() => { setEditorVisited(true); setTacticalTab('editor'); }}>Map Editor</button>
         </div>
-        <div role="tabpanel" aria-label="Map Broadcast" style={{ display: tacticalTab === 'broadcast' ? undefined : 'none' }}><CombatMaps key={'combat-'+campaign.id} campaignId={campaign.id} campaignName={campaign.name} mode="combat" /></div>
+        <div role="tabpanel" aria-label="Map Broadcast" style={{ display: tacticalTab === 'broadcast' ? undefined : 'none' }}><CombatMaps key={'combat-'+campaign.id} campaignId={campaign.id} mode="combat" /></div>
         {editorVisited && <div role="tabpanel" aria-label="Map Editor" style={{ display: tacticalTab === 'editor' ? undefined : 'none' }}><CombatMaps key={'editor-'+campaign.id} campaignId={campaign.id} mode="editor" /></div>}
       </div>}
       <GMCallSpotlight campaignId={campaign.id} />
