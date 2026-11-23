@@ -722,6 +722,7 @@ export default function GMConsole({
       {visitedTools.includes('phone') && <div style={{ display: page === 'phone' ? undefined : 'none' }}><GMPhone campaignId={campaign.id} campaignName={campaign.name} onRead={refreshPhoneUnread} /></div>}
       {visitedTools.includes('ripperdoc') && <div style={{ display: page === 'ripperdoc' ? undefined : 'none' }}><Ripperdoc characters={characters} /></div>}
       {visitedTools.includes('combat') && <div style={{ display: page === 'combat' ? undefined : 'none' }}>
+        <header className="tactical-gm-brand"><div className="tactical-gm-brand-identity"><img src="/tactical-feed-icon.svg" alt="" /><div><strong>TACTICAL//FEED</strong><small>A GHOST//LINK SYSTEMS DIVISION</small></div></div><div className="tactical-gm-network">● NETWORK TERMINAL <small>{campaign.name}</small></div></header>
         <div className="gm-tactical-mode-tabs" role="tablist" aria-label="Tactical Feed mode">
           <button type="button" role="tab" aria-selected={tacticalTab === 'broadcast'} className={tacticalTab === 'broadcast' ? 'active' : ''} onClick={() => setTacticalTab('broadcast')}>Map Broadcast</button>
           <button type="button" role="tab" aria-selected={tacticalTab === 'editor'} className={tacticalTab === 'editor' ? 'active' : ''} onClick={() => { setEditorVisited(true); setTacticalTab('editor'); }}>Map Editor</button>
