@@ -232,7 +232,7 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
     return area!==undefined&&sonicReachable.has(area)?'full':'direction';
   };
   const visibleUnit=(u:TacticalUnit)=>u.mine||(
-    (state.revealMode!=='manual'||u.type==='player'||u.manualReveal?.[layerKey]==='revealed')&&
+    (state.revealMode!=='manual'||u.manualReveal?.[layerKey]==='revealed')&&
     (state.revealMode==='manual'||
     allowed(u.layers)&&
     (vision!=='normal'||u.visible!==false)&&
