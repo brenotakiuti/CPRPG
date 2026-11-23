@@ -39,19 +39,23 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
   const [visionStartup,setVisionStartup] = useState(0);
   const [selected,setSelected] = useState(false);
   const [offset,setOffset] = useState({x:0,y:0});
-  const [moving,setMoving] = useState<{key:string;x:number;y:number}|null>(null);
+  const [destination,setDestination] = useState<{x:number;y:number}|null>(null);
   const [pendingMove,setPendingMove]=useState<{key:string;x:number;y:number}|null>(null);
   const pendingRef=useRef<{key:string;x:number;y:number}|null>(null);
   const [locked,setLocked]=useState(false);
   const viewport=useRef<HTMLDivElement>(null);
-  const gesture=useRef<{mode:'pan'|'move'|'pinch';x:number;y:number;ox:number;oy:number;distance?:number;zoom?:number}|null>(null);
+  const gesture=useRef<{mode:'pan'|'aim'|'pinch';x:number;y:number;ox:number;oy:number;distance?:number;zoom?:number}|null>(null);
   const pointers=useRef(new Map<number,{x:number;y:number}>());
+  const destinationRef=useRef<{x:number;y:number}|null>(null);
+  const chooseDestination=(cell:{x:number;y:number}|null)=>{destinationRef.current=cell;setDestination(cell)};
+  const cellAt=(clientX:number,clientY:number)=>{const rect=viewport.current?.getBoundingClientRect();const layout=state.layout;if(!rect||!layout)return null;const x=Math.floor((clientX-rect.left-offset.x-24)/(36*zoom));const y=Math.floor((clientY-rect.top-offset.y-24)/(36*zoom));return x>=0&&y>=0&&x<layout.width&&y<layout.height?{x,y}:null;};
+  const colLabel=(x:number)=>{let n=x+1,out='';while(n>0){n--;out=String.fromCharCode(65+n%26)+out;n=Math.floor(n/26)}return out;};
   const clampZoom=(z:number)=>Math.max(.5,Math.min(3,z));
   const recenter=()=>{
     const mine=state.units?.find(u=>u.mine);
     const rect=viewport.current?.getBoundingClientRect();
     if(!mine||!rect)return;
-    setOffset({x:rect.width/2-(mine.x+.5)*36*zoom,y:rect.height/2-(mine.y+.5)*36*zoom});
+    setOffset({x:rect.width/2-(mine.x+.5)*36*zoom-24,y:rect.height/2-(mine.y+.5)*36*zoom-24});
   };
   useEffect(()=>{if(!expanded)return;const onKey=(e:KeyboardEvent)=>{if(e.key==='Escape')setExpanded(false)};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey)},[expanded]);
   const saveMove=async(key:string,x:number,y:number)=>{
@@ -83,19 +87,25 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
     if(!state.layout)return;
     e.currentTarget.setPointerCapture(e.pointerId);
     pointers.current.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    const mine=state.units?.find(u=>u.mine);
     const target=e.target as HTMLElement;
     if(pointers.current.size===2){
+      chooseDestination(null);
       const [a,b]=Array.from(pointers.current.values());
       gesture.current={mode:'pinch',x:0,y:0,ox:offset.x,oy:offset.y,distance:Math.hypot(a.x-b.x,a.y-b.y),zoom};
       return;
     }
-    if(target.closest('.tactical-feed-unit.mine') && locked){gesture.current=null;return;}
     if(target.closest('.tactical-feed-unit.mine')){
-      if(!selected){setSelected(true);gesture.current=null;return;}
-      if(mine){gesture.current={mode:'move',x:e.clientX,y:e.clientY,ox:mine.x,oy:mine.y};setMoving({key:mine.key,x:mine.x,y:mine.y});}
-    }else if(selected){setSelected(false);gesture.current=null;}
-    else gesture.current={mode:'pan',x:e.clientX,y:e.clientY,ox:offset.x,oy:offset.y};
+      gesture.current=null;
+      if(!locked){setSelected(v=>!v);chooseDestination(null);}
+      return;
+    }
+    if(selected&&!locked){
+      const cell=cellAt(e.clientX,e.clientY);
+      if(cell){chooseDestination(cell);gesture.current={mode:'aim',x:e.clientX,y:e.clientY,ox:0,oy:0};}
+      else gesture.current=null;
+      return;
+    }
+    gesture.current={mode:'pan',x:e.clientX,y:e.clientY,ox:offset.x,oy:offset.y};
   };
   const pointerMove=(e:React.PointerEvent<HTMLDivElement>)=>{
     if(!pointers.current.has(e.pointerId))return;
@@ -107,23 +117,25 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
       const next=clampZoom((g.zoom||1)*Math.hypot(a.x-b.x,a.y-b.y)/(g.distance||1));
       const rect=viewport.current?.getBoundingClientRect();
       if(rect){const cx=(a.x+b.x)/2-rect.left,cy=(a.y+b.y)/2-rect.top;
-        setOffset({x:cx-(cx-g.ox)*next/(g.zoom||1),y:cy-(cy-g.oy)*next/(g.zoom||1)});}
+        setOffset({x:cx-(cx-g.ox-24)*next/(g.zoom||1)-24,y:cy-(cy-g.oy-24)*next/(g.zoom||1)-24});}
       setZoom(next);
     }else if(g.mode==='pan'){setOffset({x:g.ox+e.clientX-g.x,y:g.oy+e.clientY-g.y});}
-    else if(g.mode==='move'&&state.layout){
-      const x=Math.max(0,Math.min(state.layout.width-1,Math.round(g.ox+(e.clientX-g.x)/(36*zoom))));
-      const y=Math.max(0,Math.min(state.layout.height-1,Math.round(g.oy+(e.clientY-g.y)/(36*zoom))));
-      const mine=state.units?.find(u=>u.mine);
-      if(mine)setMoving({key:mine.key,x,y});
-    }
+    else if(g.mode==='aim'){chooseDestination(cellAt(e.clientX,e.clientY));}
   };
   const pointerUp=(e:React.PointerEvent<HTMLDivElement>)=>{
     pointers.current.delete(e.pointerId);
-    if(gesture.current?.mode==='move'&&moving){
-      void saveMove(moving.key,moving.x,moving.y);
-      setMoving(null);
+    const g=gesture.current;
+    if(g?.mode==='aim'&&pointers.current.size===0){
+      const cell=cellAt(e.clientX,e.clientY);
+      const mine=state.units?.find(u=>u.mine);
+      if(cell&&mine&&!locked){setSelected(false);void saveMove(mine.key,cell.x,cell.y);}
+      chooseDestination(null);
     }
+    if(g?.mode==='pinch'&&pointers.current.size>0){gesture.current=null;return;}
     gesture.current=null;
+  };
+  const pointerCancel=(e:React.PointerEvent<HTMLDivElement>)=>{
+    pointers.current.delete(e.pointerId);gesture.current=null;chooseDestination(null);
   };
   useEffect(()=>{
     let active=true, inflight=false, transition:ReturnType<typeof setTimeout>|undefined;
@@ -179,7 +191,7 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
   const minePosition=state.units?.find(u=>u.mine);
   const dark=state.visibilityMode==='dark'&&vision==='normal'&&!!minePosition;
   const sightRadius=Math.max(1,Math.min(8,state.visibilityRadius||3))*36;
-  const displayUnits=(state.units||[]).map(u=>u.mine&&moving?{...u,x:moving.x,y:moving.y}:u.mine&&pendingMove?{...u,x:pendingMove.x,y:pendingMove.y}:u);
+  const displayUnits=(state.units||[]).map(u=>u.mine&&pendingMove?{...u,x:pendingMove.x,y:pendingMove.y}:u);
   const origin=minePosition?{x:minePosition.x+.5,y:minePosition.y+.5}:null;
   const lineWalls=(x:number,y:number)=>origin?sightCells(origin.x,origin.y,x+.5,y+.5).filter(([cx,cy])=>walls.has(cx+','+cy)):[];
   const clearSight=(x:number,y:number)=>!origin||lineWalls(x,y).length===0;
@@ -253,8 +265,10 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
     </header>
     <div className="tactical-feed-meta"><span>SECTOR <strong>{live?'CONNECTED':'UNAVAILABLE'}</strong></span><span>{live?'SIGNAL ACTIVE':'NO SIGNAL'}</span></div>
     <div className="tactical-feed-screen">
-      {live&&map?(expanded&&active?createPortal(<div className={"tactical-feed-live-scroll tactical-vision-"+vision+(expanded?" tactical-feed-expanded":"")} ref={viewport} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}><div className={"tactical-feed-live-board"+(vision!=='normal'&&visionStartup>0?" optics-acquiring optics-acquiring-"+vision:"")} style={{width:map.width*36,height:map.height*36,transform:`translate(${offset.x}px,${offset.y}px) scale(${zoom})`,transformOrigin:'top left'}}>
-        {Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),o=objects.get(x+','+y);return <div key={i+"-"+visionStartup+"-"+vision} className={'tactical-feed-tile '+(o?.type||'')+(tileVisible(x,y)?'':' tactical-tile-occluded')} style={{left:x*36,top:y*36,backgroundColor:o?.color||map.floorColors?.[x+','+y]||undefined}}/>})}
+      {live&&map?(expanded&&active?createPortal(<div className={"tactical-feed-live-scroll tactical-vision-"+vision+(expanded?" tactical-feed-expanded":"")} ref={viewport} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerCancel}><div className={"tactical-feed-live-board"+(vision!=='normal'&&visionStartup>0?" optics-acquiring optics-acquiring-"+vision:"")} style={{width:map.width*36,height:map.height*36,transform:`translate(${offset.x+24}px,${offset.y+24}px) scale(${zoom})`,transformOrigin:'top left'}}>
+        {Array.from({length:map.width},(_,x)=><div key={'col-'+x} className={'tactical-map-coordinate tactical-map-col'+(destination?.x===x?' tactical-coordinate-active':'')} style={{left:x*36,top:-22,width:36}}>{colLabel(x)}</div>)}
+        {Array.from({length:map.height},(_,y)=><div key={'row-'+y} className={'tactical-map-coordinate tactical-map-row'+(destination?.y===y?' tactical-coordinate-active':'')} style={{top:y*36,left:-23,height:36}}>{y+1}</div>)}
+        {Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),o=objects.get(x+','+y);return <div key={i+"-"+visionStartup+"-"+vision} className={'tactical-feed-tile '+(o?.type||'')+(tileVisible(x,y)?'':' tactical-tile-occluded')+(destination&&(destination.x===x||destination.y===y)?' tactical-aim-line':'')+(destination?.x===x&&destination?.y===y?' tactical-aim-target':'')} style={{left:x*36,top:y*36,backgroundColor:o?.color||map.floorColors?.[x+','+y]||undefined}}/>})}
         {dark&&minePosition&&<svg aria-hidden="true" style={{position:'absolute',inset:0,width:map.width*36,height:map.height*36,pointerEvents:'none',zIndex:5}} viewBox={`0 0 ${map.width*36} ${map.height*36}`}><defs><mask id="tactical-fog-mask"><rect width="100%" height="100%" fill="white"/><circle cx={(minePosition.x+.5)*36} cy={(minePosition.y+.5)*36} r={sightRadius} fill="black"/></mask></defs><rect width="100%" height="100%" fill="#02050a" fillOpacity=".97" mask="url(#tactical-fog-mask)"/><circle cx={(minePosition.x+.5)*36} cy={(minePosition.y+.5)*36} r={sightRadius} fill="none" stroke="#67dce8" strokeOpacity=".35" strokeDasharray="5 6"/></svg>}
          {displayUnits.filter(visibleUnit).map(u=>{const stack=unitStacks.get(u.x+','+u.y)||[u];const index=stack.findIndex(v=>v.key===u.key);const spread=stack.length>1;const dx=spread?(index%2===0?-6:6):0;const dy=spread?(Math.floor(index/2)*10+(index%2===0?-6:6)):0;return <div key={u.key+"-"+visionStartup+"-"+vision} title={u.name||u.label} className={'tactical-feed-unit '+u.type+(u.mine?' mine':'')+(u.mine&&selected?' selected':'')+(u.mine&&locked?' syncing':'')} style={{left:u.x*36+4+dx,top:u.y*36+4+dy,zIndex:spread?10+index:undefined}}>{u.mine?'YOU':u.label}{u.type==='enemy'&&u.status&&u.status!=='normal'&&<span className={'tactical-status-badge '+u.status} aria-label={u.status==='unconscious'?'Unconscious':'Dead'}>{u.status==='unconscious'?'Zz':<Skull size={11}/>}</span>}</div>})}
         {soundDirections.map(d=><div key={'sound-'+d.key} className="tactical-sonic-direction" aria-label="Unresolved sound direction" style={{left:d.x,top:d.y,transform:'translate(-50%,-50%) rotate('+d.angle+'deg)'}}>➤</div>)}
@@ -267,8 +281,10 @@ export default function PlayerTacticalFeed({ active, onBack, characterId, curren
           </button>):<div className="tactical-feed-hud-empty">NO WEAPONS EQUIPPED</div>}</div>
         </aside></div>}{scanning&&<div className="tactical-feed-scan-panel" onPointerDown={e=>e.stopPropagation()}><strong>SCAN // LAYERS</strong><div className="tactical-feed-vision-options">{(['normal','night','thermal','sonic','network'] as const).map(mode=><button type="button" key={mode} aria-pressed={vision===mode} onClick={()=>{setVision(mode);setVisionStartup(mode==='normal'?0:v=>v+1)}} title={mode==='normal'?'Normal vision':mode==='night'?'Night vision':mode==='sonic'?'Sonic vision':mode==='thermal'?'Thermal vision':'Network vision'} aria-label={mode+' vision'}>{mode==='normal'?<Eye size={23}/>:mode==='night'?<Moon size={23}/>:mode==='thermal'?<Flame size={23}/>:mode==='sonic'?<AudioLines size={23}/>:<Network size={23}/>}</button>)}</div></div>}
         {panel&&<div className="tactical-feed-subscreen" onPointerDown={e=>e.stopPropagation()} onPointerMove={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()}><div className="tactical-feed-subscreen-top"><button type="button" onClick={()=>setPanel(null)}><ArrowLeft size={19}/> BACK TO MAP</button></div>{panel==='stats'?renderStats(()=>setPanel(null)):renderInventory(()=>setPanel(null))}</div>}
-        {selected&&<div className="tactical-feed-move-hint">MOVE MODE · DRAG YOUR MARKER</div>}{error&&<div className="tactical-feed-error">{error}</div>}</div>,document.body):<div className={"tactical-feed-live-scroll tactical-vision-"+vision+(expanded?" tactical-feed-expanded":"")} ref={viewport} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}><div className={"tactical-feed-live-board"+(vision!=='normal'&&visionStartup>0?" optics-acquiring optics-acquiring-"+vision:"")} style={{width:map.width*36,height:map.height*36,transform:`translate(${offset.x}px,${offset.y}px) scale(${zoom})`,transformOrigin:'top left'}}>
-        {Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),o=objects.get(x+','+y);return <div key={i+"-"+visionStartup+"-"+vision} className={'tactical-feed-tile '+(o?.type||'')+(tileVisible(x,y)?'':' tactical-tile-occluded')} style={{left:x*36,top:y*36,backgroundColor:o?.color||map.floorColors?.[x+','+y]||undefined}}/>})}
+        {selected&&<div className="tactical-feed-move-hint">MOVE MODE · DRAG YOUR MARKER</div>}{error&&<div className="tactical-feed-error">{error}</div>}</div>,document.body):<div className={"tactical-feed-live-scroll tactical-vision-"+vision+(expanded?" tactical-feed-expanded":"")} ref={viewport} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerCancel}><div className={"tactical-feed-live-board"+(vision!=='normal'&&visionStartup>0?" optics-acquiring optics-acquiring-"+vision:"")} style={{width:map.width*36,height:map.height*36,transform:`translate(${offset.x+24}px,${offset.y+24}px) scale(${zoom})`,transformOrigin:'top left'}}>
+        {Array.from({length:map.width},(_,x)=><div key={'col-'+x} className={'tactical-map-coordinate tactical-map-col'+(destination?.x===x?' tactical-coordinate-active':'')} style={{left:x*36,top:-22,width:36}}>{colLabel(x)}</div>)}
+        {Array.from({length:map.height},(_,y)=><div key={'row-'+y} className={'tactical-map-coordinate tactical-map-row'+(destination?.y===y?' tactical-coordinate-active':'')} style={{top:y*36,left:-23,height:36}}>{y+1}</div>)}
+        {Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),o=objects.get(x+','+y);return <div key={i+"-"+visionStartup+"-"+vision} className={'tactical-feed-tile '+(o?.type||'')+(tileVisible(x,y)?'':' tactical-tile-occluded')+(destination&&(destination.x===x||destination.y===y)?' tactical-aim-line':'')+(destination?.x===x&&destination?.y===y?' tactical-aim-target':'')} style={{left:x*36,top:y*36,backgroundColor:o?.color||map.floorColors?.[x+','+y]||undefined}}/>})}
         {dark&&minePosition&&<svg aria-hidden="true" style={{position:'absolute',inset:0,width:map.width*36,height:map.height*36,pointerEvents:'none',zIndex:5}} viewBox={`0 0 ${map.width*36} ${map.height*36}`}><defs><mask id="tactical-fog-mask"><rect width="100%" height="100%" fill="white"/><circle cx={(minePosition.x+.5)*36} cy={(minePosition.y+.5)*36} r={sightRadius} fill="black"/></mask></defs><rect width="100%" height="100%" fill="#02050a" fillOpacity=".97" mask="url(#tactical-fog-mask)"/><circle cx={(minePosition.x+.5)*36} cy={(minePosition.y+.5)*36} r={sightRadius} fill="none" stroke="#67dce8" strokeOpacity=".35" strokeDasharray="5 6"/></svg>}
          {displayUnits.filter(visibleUnit).map(u=>{const stack=unitStacks.get(u.x+','+u.y)||[u];const index=stack.findIndex(v=>v.key===u.key);const spread=stack.length>1;const dx=spread?(index%2===0?-6:6):0;const dy=spread?(Math.floor(index/2)*10+(index%2===0?-6:6)):0;return <div key={u.key+"-"+visionStartup+"-"+vision} title={u.name||u.label} className={'tactical-feed-unit '+u.type+(u.mine?' mine':'')+(u.mine&&selected?' selected':'')+(u.mine&&locked?' syncing':'')} style={{left:u.x*36+4+dx,top:u.y*36+4+dy,zIndex:spread?10+index:undefined}}>{u.mine?'YOU':u.label}{u.type==='enemy'&&u.status&&u.status!=='normal'&&<span className={'tactical-status-badge '+u.status} aria-label={u.status==='unconscious'?'Unconscious':'Dead'}>{u.status==='unconscious'?'Zz':<Skull size={11}/>}</span>}</div>})}
         {soundDirections.map(d=><div key={'sound-'+d.key} className="tactical-sonic-direction" aria-label="Unresolved sound direction" style={{left:d.x,top:d.y,transform:'translate(-50%,-50%) rotate('+d.angle+'deg)'}}>➤</div>)}
