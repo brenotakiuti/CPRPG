@@ -153,3 +153,9 @@
 .combat-apply-footer{display:flex;justify-content:flex-end;align-items:center;margin-top:10px}
 .combat-reveal-matrix tbody th select{width:125px;min-width:0;background:#172332;color:white;border:1px solid #536477;border-radius:5px;padding:7px;font:inherit;font-size:12px}
 .combat-reveal-matrix tbody th select:disabled{opacity:.6;cursor:not-allowed}
+
+/* Keep Apply outside the roster's vertical and horizontal scrolling. */
+.tactical-workspace>.combat-roster-shell{min-width:0;display:flex;flex-direction:column;min-height:0;max-height:calc(100vh - 300px)}
+.tactical-workspace .combat-roster-shell>.combat-map-roster{min-width:0;min-height:0;flex:1 1 auto;margin:0;overflow:auto;background:#101b2b;border:1px solid #304457;border-radius:8px;padding:12px}
+.tactical-workspace .combat-roster-shell>.combat-apply-footer{flex:0 0 auto;margin-top:10px}
+@media(max-width:1000px){.tactical-workspace>.combat-roster-shell{max-height:none}.tactical-workspace .combat-roster-shell>.combat-map-roster{max-height:calc(100vh - 300px)}}
