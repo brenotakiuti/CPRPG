@@ -102,3 +102,35 @@
 .live-hp-actions button{box-sizing:border-box;flex:0 0 58px;width:58px;height:40px;padding:0;gap:3px}
 .live-hp-actions button:first-child{color:#e8bd4a}
 .live-hp-row .live-hp-track{width:100%}
+
+/* The original Party Monitor is a full-height, left-edge sliding drawer. */
+.live-party-drawer{
+  position:fixed;top:clamp(64px,10vh,100px);left:0;
+  width:min(360px,calc(100vw - 42px));max-height:calc(100dvh - 90px);
+  z-index:1050;display:flex;align-items:stretch;
+  transform:translateX(0);transition:transform 260ms ease;
+  filter:drop-shadow(3px 4px 12px #0008);
+}
+.live-party-drawer.is-closed{transform:translateX(calc(-100% + 30px))}
+.live-party-drawer .live-party-panel{
+  flex:1;min-width:0;max-height:calc(100dvh - 100px);
+  overflow-y:auto;overscroll-behavior:contain;
+  border-radius:0 8px 8px 0;
+}
+.live-party-drawer-edge{
+  flex:0 0 30px;align-self:stretch;min-height:120px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:9px;padding:10px 4px;background:#25384b;
+  color:#e8c157;border:1px solid #526477;border-left:0;
+  border-radius:0 7px 7px 0;cursor:pointer;
+}
+.live-party-drawer-edge-label{writing-mode:vertical-rl;font-size:10px;font-weight:800;letter-spacing:1.3px}
+.live-party-drawer-chevron{font-size:24px;line-height:1}
+.live-party-drawer-edge:focus-visible{outline:2px solid #e8c157;outline-offset:-2px}
+@media(max-width:650px){
+  .live-party-drawer{top:56px;width:min(340px,calc(100vw - 34px));max-height:calc(100dvh - 64px)}
+  .live-party-drawer .live-party-panel{max-height:calc(100dvh - 64px)}
+}
+@media(prefers-reduced-motion:reduce){
+  .live-party-drawer{transition:none}
+}
