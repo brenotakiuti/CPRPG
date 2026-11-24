@@ -89,7 +89,7 @@ function GMConsoleContent({
   const sharedCharacterData = useGMCharacterData();
   const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'ripperdoc' | 'logs' | 'phone' | 'combat'>(() => {
     const saved = sessionStorage.getItem('gm-page:' + campaign.id);
-    return saved === 'map-editor' ? 'combat' : saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'ripperdoc' || saved === 'logs' || saved === 'phone' || saved === 'combat' ? saved : 'phone';
+    return saved === 'map-editor' ? 'combat' : saved === 'live' || saved === 'logs' || saved === 'phone' || saved === 'combat' ? saved : 'phone';
   });
   // Mount data-heavy tools on first visit, then retain their data and Realtime subscriptions.
   const [visitedTools, setVisitedTools] = useState<string[]>(() => {
@@ -97,6 +97,10 @@ function GMConsoleContent({
     return ['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone', 'combat', 'map-editor'].includes(saved) ? [saved === 'map-editor' ? 'combat' : saved] : [];
   });
   const openPage = (next: typeof page) => {
+    if (next === 'bank' || next === 'inventory' || next === 'ripperdoc' || next === 'characters' || next === 'overview') {
+      openUtility(next);
+      return;
+    }
     setPage(next);
     if (['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone', 'combat'].includes(next)) {
       setVisitedTools(previous => previous.includes(next) ? previous : [...previous, next]);
@@ -670,7 +674,7 @@ function GMConsoleContent({
   const campaignSettingsContent = (
         <div className="gm-dashboard-panel gm-overview">
           <section className="gm-campaign-identity"><h3>Campaign</h3><strong>{campaign.name}</strong><small>GM control system · Active campaign</small></section>
-          <section className="gm-campaign-shortcuts"><h3>Campaign tools</h3><p>Open other GM tools without the old top navigation.</p><div>{navigation.filter(item=>item.id!=='phone'&&item.id!=='combat'&&item.id!=='overview').map(item=><button type="button" key={item.id} onClick={()=>{if(item.id==='bank'||item.id==='inventory'||item.id==='ripperdoc'){openUtility(item.id)}else{openPage(item.id)}closeUtility('overview')}}>{item.icon&&<item.icon size={17}/>} {item.label}</button>)}<button type="button" onClick={()=>{openLogs();closeUtility('overview')}}><ScrollText size={17}/> Logs</button></div></section>
+          <section className="gm-campaign-shortcuts"><h3>Campaign tools</h3><p>Open other GM tools without the old top navigation.</p><div>{navigation.filter(item=>item.id!=='phone'&&item.id!=='combat'&&item.id!=='overview').map(item=><button type="button" key={item.id} onClick={()=>{if(item.id==='live'){openPage('live')}else{openUtility(item.id as UtilityId)}}}>{item.icon&&<item.icon size={17}/>} {item.label}</button>)}<button type="button" onClick={()=>{openLogs();closeUtility('overview')}}><ScrollText size={17}/> Logs</button></div></section>
           {creationControls}
           <section className="gm-invitations-settings" aria-label="Character creation settings">
             <div className="gm-invitations-settings-heading">
@@ -742,13 +746,12 @@ function GMConsoleContent({
           return <>{current.icon ? <current.icon size={19} strokeWidth={1.9} aria-hidden="true" /> : null}{current.label}</>;
         })()}
       </h2>}
-      {page === 'live' ? null : page === 'characters' ? (utilityWindows.includes('characters') ? null : charactersContent) : page === 'bank' || page === 'logs' ? null : page === 'overview' ? (utilityWindows.includes('overview') ? null : campaignSettingsContent) : page === 'inventory' || page === 'ripperdoc' || page === 'phone' ? null : null}
       {<div style={{ display: page === 'live' ? undefined : 'none' }}><LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} /></div>}
-      {visitedTools.includes('bank') && (utilityWindows.includes('bank') ? utilityWindow('bank', <div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>) : <div style={{ display: page === 'bank' ? undefined : 'none' }}><div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div></div>)}
+      {utilityWindows.includes('bank') && utilityWindow('bank', <div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>)}
       {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><button type="button" className="gm-logs-return" onClick={closeLogs}>← Back to {pageBeforeLogs === 'combat' ? 'Tactical//Feed' : pageBeforeLogs === 'phone' ? 'Ghost//Link' : 'previous page'}</button><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
-      {visitedTools.includes('inventory') && (utilityWindows.includes('inventory') ? utilityWindow('inventory', <GMInventory campaignId={campaign.id} />) : <div style={{ display: page === 'inventory' ? undefined : 'none' }}><GMInventory campaignId={campaign.id} /></div>)}
+      {utilityWindows.includes('inventory') && utilityWindow('inventory', <GMInventory campaignId={campaign.id} />)}
       {visitedTools.includes('phone') && <div style={{ display: page === 'phone' ? undefined : 'none' }}><GMPhone campaignId={campaign.id} onRead={refreshPhoneUnread} /></div>}
-      {visitedTools.includes('ripperdoc') && (utilityWindows.includes('ripperdoc') ? utilityWindow('ripperdoc', <Ripperdoc characters={characters} />) : <div style={{ display: page === 'ripperdoc' ? undefined : 'none' }}><Ripperdoc characters={characters} /></div>)}
+      {utilityWindows.includes('ripperdoc') && utilityWindow('ripperdoc', <Ripperdoc characters={characters} />)}
       {visitedTools.includes('combat') && <div style={{ display: page === 'combat' ? undefined : 'none' }}>
         
         <div className="gm-tactical-mode-tabs" role="tablist" aria-label="Tactical Feed mode">
