@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react';
-import { Landmark, Package, Settings, Slice, ChevronLeft, ChevronRight, Maximize2, Minimize2, X } from 'lucide-react';
+import { Landmark, Package, Settings, Slice, Users, ChevronLeft, ChevronRight, Maximize2, Minimize2, X } from 'lucide-react';
 import './GMControlDock.css';
 
-export type UtilityId = 'bank' | 'ripperdoc' | 'inventory' | 'overview';
+export type UtilityId = 'bank' | 'ripperdoc' | 'inventory' | 'overview' | 'characters';
 const tools = [
   { id: 'bank', title: 'Bank', Icon: Landmark },
   { id: 'ripperdoc', title: 'Ripperdoc', Icon: Slice },
   { id: 'inventory', title: 'Inventory', Icon: Package },
+  { id: 'characters', title: 'Characters', Icon: Users },
   { id: 'overview', title: 'Campaign Settings', Icon: Settings },
 ] as const;
 
