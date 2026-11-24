@@ -21,6 +21,7 @@ const random = (max: number) => Math.floor(Math.random() * max) + 1;
 const symbol = () => symbols[Math.floor(Math.random() * symbols.length)];
 
 export default function LiveSession({ campaignId, characters, onHPChanged, onBalanceChanged }: { campaignId: string; characters: Character[]; onHPChanged: (id: string, hp: number) => void; onBalanceChanged: (id: string, balance: number) => void }) {
+  const [monitorOpen, setMonitorOpen] = useState(true);
   const [hpError, setHpError] = useState('');
   const [hpOverrides, setHpOverrides] = useState<Record<string, number>>({});
   const hpOverridesRef = useRef<Record<string, number>>({});
@@ -276,9 +277,8 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
   }
   return (
     <div className="live-session">
-      <div className="live-session-grid">
-        <div className="live-column">
-          <section className="live-panel">
+      <aside className={'live-party-drawer' + (monitorOpen ? ' is-open' : ' is-closed')} aria-label="Party Monitor">
+        <section className="live-panel live-party-panel">
             <h2>PARTY MONITOR</h2>
             {hpError && <p className="live-hp-error" role="alert">{hpError}</p>}
             {characters.length ? characters.map(c => { const hp = hpOverrides[c.id] ?? c.current_hp; return (
@@ -292,6 +292,13 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
               </div>
              ); }) : <p className="live-empty">No characters in this campaign yet.</p>}
           </section>
+        <button type="button" className="live-party-drawer-edge" onClick={() => setMonitorOpen(v => !v)} aria-label={monitorOpen ? 'Retract Party Monitor' : 'Expand Party Monitor'} aria-expanded={monitorOpen} title={monitorOpen ? 'Retract Party Monitor' : 'Expand Party Monitor'}>
+          <span className="live-party-drawer-chevron" aria-hidden="true">{monitorOpen ? '‹' : '›'}</span>
+          <span className="live-party-drawer-edge-label">PARTY MONITOR</span>
+        </button>
+      </aside>
+      <div className="live-session-grid">
+        <div className="live-column">
           <section className="live-panel">
             <h2>ACTIVE MAP</h2>
             <div className="live-map-placeholder">MAP PLACEHOLDER</div>
