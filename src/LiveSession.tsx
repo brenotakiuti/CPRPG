@@ -277,7 +277,7 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
   }
   return (
     <div className="live-session">
-      <aside className={'live-party-drawer' + (monitorOpen ? ' is-open' : ' is-closed')} aria-label="Party Monitor">
+      {createPortal(<aside className={'live-party-drawer' + (monitorOpen ? ' is-open' : ' is-closed')} aria-label="Party Monitor">
         <section className="live-panel live-party-panel">
             <h2>PARTY MONITOR</h2>
             {hpError && <p className="live-hp-error" role="alert">{hpError}</p>}
@@ -296,7 +296,7 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
           <span className="live-party-drawer-chevron" aria-hidden="true">{monitorOpen ? '‹' : '›'}</span>
           <span className="live-party-drawer-edge-label">PARTY MONITOR</span>
         </button>
-      </aside>
+      </aside>, document.body)}
       <div className="live-session-grid">
         <div className="live-column">
           <section className="live-panel">
