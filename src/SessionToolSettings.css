@@ -111,3 +111,14 @@
 @media(max-height:540px){
   .session-bottom-dock .session-dock-config{max-height:calc(100dvh - 100px);overflow-y:auto}
 }
+
+/* Icon-only controls: fill each compact button without changing its footprint. */
+.session-bottom-dock .session-dock-buttons .live-roll-open{
+  align-items:center;justify-content:center;gap:0;
+}
+.session-bottom-dock .session-dock-buttons .live-roll-open:not(.dice) svg{
+  width:26px;height:26px;max-width:calc(100% - 6px);max-height:calc(100% - 6px);
+}
+.session-bottom-dock .session-dock-buttons .live-roll-open.dice svg{
+  width:34px;height:34px;max-width:calc(100% - 6px);max-height:calc(100% - 6px);
+}
