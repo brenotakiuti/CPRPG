@@ -197,3 +197,19 @@
 .gm-tactical-mode-tabs button.active{background:#3b3320;color:#f2cf5e;border-color:#e8bd4a;box-shadow:inset 0 0 0 1px #e8bd4a33}
 .gm-tactical-mode-tabs button:hover:not(.active){border-color:#698297;background:#1a2b3c}
 .gm-tactical-mode-tabs button:focus-visible{outline:2px solid #63d8e4;outline-offset:2px}
+
+/* Broadcast view: compact zoom and true fullscreen controls. */
+.combat-map-view-controls{display:flex;align-items:center;gap:5px;margin-left:auto;margin-right:10px}
+.combat-map-view-controls button{display:flex;align-items:center;justify-content:center;width:34px;height:32px;padding:5px;background:#192b3b;border:1px solid #496075;border-radius:6px;color:#e8bd4a;cursor:pointer}
+.combat-map-view-controls button:hover:not(:disabled){background:#2b4356}
+.combat-map-view-controls button:disabled{opacity:.35;cursor:default}
+.combat-maps-panel.tactical-is-fullscreen{position:fixed;inset:0;z-index:1000;background:#0c1521;overflow:auto;padding:14px 42px 64px;box-sizing:border-box;height:100dvh;max-height:100dvh}
+.tactical-is-fullscreen .tactical-workspace{min-height:0;grid-template-columns:minmax(0,3fr) minmax(260px,1fr)}
+.tactical-is-fullscreen .tactical-workspace>.combat-map-scroll{max-height:calc(100dvh - 245px);height:calc(100dvh - 245px)}
+.tactical-is-fullscreen .tactical-workspace>.combat-roster-shell{max-height:calc(100dvh - 245px)}
+@media(max-width:850px){
+ .combat-maps-panel.tactical-is-fullscreen{padding:12px 36px 62px}
+ .tactical-is-fullscreen .tactical-workspace{grid-template-columns:minmax(0,1fr)}
+ .tactical-is-fullscreen .tactical-workspace>.combat-map-scroll{height:50dvh;max-height:50dvh}
+ .tactical-is-fullscreen .tactical-workspace>.combat-roster-shell{max-height:none}
+}
