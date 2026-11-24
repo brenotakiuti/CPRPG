@@ -45,35 +45,3 @@
 .session-bottom-dock .session-dock-heading{margin-bottom:8px}
 .session-bottom-dock .session-dock-buttons .live-roll-open span{white-space:nowrap}
 @media(max-width:650px){.session-bottom-dock{width:min(330px,calc(100vw - 70px))}.session-bottom-dock .session-dock-buttons{gap:6px;padding:6px}.session-bottom-dock .session-dock-buttons .live-roll-open{width:auto;height:62px}.session-bottom-dock .session-dock-buttons .live-roll-open.dice{width:auto;height:78px}}
-
-/* Stepped SimCity silhouette: raised central die, lower side tools. */
-.session-bottom-dock{width:min(320px,calc(100vw - 76px));max-width:calc(100vw - 76px)}
-.session-bottom-dock .session-dock-buttons{
-  position:relative;isolation:isolate;display:flex;align-items:flex-end;
-  justify-content:center;gap:8px;width:100%;height:99px;
-  padding:8px 11px 5px;box-sizing:border-box;
-  border:0;border-radius:0;background:#d0a64d;
-  clip-path:polygon(0 100%,0 39%,3% 35%,26% 35%,26% 9%,29% 0,71% 0,74% 9%,74% 35%,97% 35%,100% 39%,100% 100%);
-}
-.session-bottom-dock .session-dock-buttons::before{
-  content:"";position:absolute;inset:2px 2px 0;z-index:-1;
-  background:#17283b;
-  clip-path:polygon(0 100%,0 39%,3% 35%,26% 35%,26% 9%,29% 0,71% 0,74% 9%,74% 35%,97% 35%,100% 39%,100% 100%);
-}
-.session-bottom-dock .session-dock-buttons .live-roll-open{
-  flex:0 0 72px;width:72px;min-width:0;height:54px;
-  border-radius:9px;padding:5px 2px;font-size:10px;gap:2px;
-}
-.session-bottom-dock .session-dock-buttons .live-roll-open.dice{
-  flex:0 0 104px;width:104px;height:83px;border-radius:11px;
-}
-.session-bottom-dock .session-dock-buttons .live-roll-open:not(.dice) svg{width:22px;height:22px}
-.session-bottom-dock .session-dock-buttons .live-roll-open.dice svg{width:30px;height:30px}
-.session-bottom-dock.expanded .session-dock-buttons{border-radius:0}
-.session-bottom-dock .session-dock-config{border-radius:12px 12px 0 0}
-@media(max-width:650px){
-  .session-bottom-dock{width:min(304px,calc(100vw - 70px))}
-  .session-bottom-dock .session-dock-buttons{height:94px;gap:6px;padding:7px 8px 5px}
-  .session-bottom-dock .session-dock-buttons .live-roll-open{flex:0 0 67px;width:67px;height:51px}
-  .session-bottom-dock .session-dock-buttons .live-roll-open.dice{flex:0 0 96px;width:96px;height:79px}
-}
