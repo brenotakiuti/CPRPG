@@ -75,9 +75,9 @@ export default function SessionToolSettings({ onOpen, characters }: { onOpen: (c
     </div>}
     <button type="button" className="session-dock-retract" aria-label={retracted ? 'Expand session tools' : 'Retract session tools'} title={retracted ? 'Expand session tools' : 'Retract session tools'} onClick={() => { setRetracted(v => !v); setExpanded(false); }}>{retracted ? <ChevronUp size={15}/> : <ChevronDown size={15}/>}</button>
     {!retracted && <div className="live-tools session-dock-buttons">
-      <button type="button" aria-pressed={tool === 'tarot'} className={'live-roll-open tarot' + (tool === 'tarot' ? ' selected' : '')} onClick={() => { setTool('tarot'); setExpanded(true); setError(''); }}><SunMoon size={26}/><span>TAROT</span></button>
-      <button type="button" aria-pressed={tool === 'dice'} className={'live-roll-open dice' + (tool === 'dice' ? ' selected' : '')} onClick={() => { setTool('dice'); setExpanded(true); setError(''); }}><Dices size={34}/><span>DICE</span></button>
-      <button type="button" aria-pressed={tool === 'fortune'} className={'live-roll-open fortune' + (tool === 'fortune' ? ' selected' : '')} onClick={() => { setTool('fortune'); setExpanded(true); setError(''); }}><Cookie size={26}/><span>COOKIE</span></button>
+      <button type="button" aria-label="Tarot" title="Tarot" aria-pressed={tool === 'tarot'} className={'live-roll-open tarot' + (tool === 'tarot' ? ' selected' : '')} onClick={() => { setTool('tarot'); setExpanded(true); setError(''); }}><SunMoon size={26}/></button>
+      <button type="button" aria-label="Dice" title="Dice" aria-pressed={tool === 'dice'} className={'live-roll-open dice' + (tool === 'dice' ? ' selected' : '')} onClick={() => { setTool('dice'); setExpanded(true); setError(''); }}><Dices size={34}/></button>
+      <button type="button" aria-label="Fortune Cookie" title="Fortune Cookie" aria-pressed={tool === 'fortune'} className={'live-roll-open fortune' + (tool === 'fortune' ? ' selected' : '')} onClick={() => { setTool('fortune'); setExpanded(true); setError(''); }}><Cookie size={26}/></button>
     </div>}
   </div>;
 }
