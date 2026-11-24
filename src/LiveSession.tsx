@@ -279,7 +279,6 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
     <div className="live-session">
       {createPortal(<aside className={'live-party-drawer' + (monitorOpen ? ' is-open' : ' is-closed')} aria-label="Party Monitor">
         <section className="live-panel live-party-panel">
-            <h2>PARTY MONITOR</h2>
             {hpError && <p className="live-hp-error" role="alert">{hpError}</p>}
             {characters.length ? characters.map(c => { const hp = hpOverrides[c.id] ?? c.current_hp; return (
               <div className="live-character" key={c.id}>
