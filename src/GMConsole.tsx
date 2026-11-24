@@ -601,7 +601,7 @@ export default function GMConsole({
             <ChevronsUpDown size={17} aria-hidden="true"/>
           </button>
           {appSwitcherOpen && <div className="gm-app-switcher-menu" role="menu" aria-label="Applications">
-            {([{id:'phone',name:'Ghost//Link',desc:'Communications workstation',image:'/ghost-link-icon.svg'},{id:'combat',name:'Tactical//Feed',desc:'Combat management',image:'/tactical-feed-icon.svg'}] as const).map(app=><button key={app.id} type="button" role="menuitem" onClick={()=>{openPage(app.id);setAppSwitcherOpen(false)}}><img src={app.image} alt=""/><span><strong>{app.name}</strong><small>{app.desc}</small></span>{page===app.id&&<Check size={17}/>}</button>)}
+            {([{id:'phone',name:'Ghost//Link',desc:'Communications workstation',image:'/ghost-link-icon.svg'},{id:'combat',name:'Tactical//Feed',desc:'Combat management',image:'/tactical-feed-icon.svg'}] as const).map(app=><button key={app.id} type="button" role="menuitem" onClick={()=>{openPage(app.id);setAppSwitcherOpen(false)}}><img src={app.image} alt=""/><span><strong>{app.name}{app.id==='phone' && phoneUnread>0 && <b className="gm-app-unread" aria-label={`${phoneUnread} unread messages`}>{phoneUnread>99?'99+':phoneUnread}</b>}</strong><small>{app.desc}</small></span>{page===app.id&&<Check size={17}/>}</button>)}
           </div>}
         </div>
         <div className="gm-app-header-actions">
