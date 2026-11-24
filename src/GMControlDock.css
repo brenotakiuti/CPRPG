@@ -3,3 +3,6 @@
 .gm-utility-window-titlebar .gm-utility-title svg{color:#e8bd4a;flex:none}
 .gm-utility-window.maximized{border-radius:0;min-width:0;overflow:hidden}
 .gm-utility-window.maximized .gm-utility-window-titlebar{cursor:default}
+
+.gm-control-dock.right{transform:none;touch-action:pan-x}
+.gm-control-dock-retract{touch-action:none;user-select:none;-webkit-user-select:none}
