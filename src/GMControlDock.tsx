@@ -13,9 +13,7 @@ const tools = [
 export function GMControlDock({ open, onOpen }: { open: UtilityId[]; onOpen: (id: UtilityId) => void }) {
   const [collapsed, setCollapsed] = useState(false);
   return <aside className={`gm-control-dock right ${collapsed ? 'collapsed' : ''}`} aria-label="GM utility control panel">
-    <div className="gm-control-dock-head">
-      <button type="button" title={collapsed ? 'Expand controls' : 'Retract controls'} aria-label={collapsed ? 'Expand controls' : 'Retract controls'} onClick={() => setCollapsed(v => !v)}>{collapsed ? <ChevronLeft size={18}/> : <ChevronRight size={18}/>}</button>
-    </div>
+    <button className="gm-control-dock-retract" type="button" title={collapsed ? 'Expand controls' : 'Retract controls'} aria-label={collapsed ? 'Expand controls' : 'Retract controls'} onClick={() => setCollapsed(v => !v)}>{collapsed ? <ChevronLeft size={18}/> : <ChevronRight size={18}/>}</button>
     {!collapsed && <div className="gm-control-dock-tools">{tools.map(({ id, title, Icon }) => <button key={id} type="button" title={title} aria-label={title} className={open.includes(id) ? 'active' : ''} onClick={() => onOpen(id)}><Icon size={21}/></button>)}</div>}
   </aside>;
 }
