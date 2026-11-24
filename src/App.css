@@ -434,3 +434,35 @@
 
 /* Use a stable GM width across page changes, including short pages. */
 .gm-dashboard{width:100%;max-width:1600px;min-width:0}
+
+/* Unified compact GM application switcher replaces the terminal banner and icon navigation. */
+.gm-app-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;padding:10px 12px;background:#101d2b;border:1px solid #2b4558;border-radius:10px;min-height:72px}
+.gm-app-switcher{position:relative;min-width:0}
+.gm-app-switcher-trigger{display:flex;align-items:center;gap:12px;min-width:0;border:0;background:transparent;color:#5ae0e7;text-align:left;cursor:pointer;padding:0}
+.gm-app-switcher-trigger>img{width:48px;height:48px;object-fit:contain;flex:none}
+.gm-app-brand-copy{display:flex;flex-direction:column;gap:4px;min-width:0}
+.gm-app-brand-copy strong{font-size:22px;letter-spacing:.045em;line-height:1.1}
+.gm-app-brand-copy small{font-size:12px;letter-spacing:.04em;color:#d78ce9;white-space:normal}
+.gm-app-switcher-trigger>svg{flex:none;color:#9bc4d1}
+.gm-app-switcher-menu{position:absolute;top:calc(100% + 12px);left:0;z-index:1200;width:min(320px,calc(100vw - 48px));padding:6px;background:#152435;border:1px solid #47647a;border-radius:9px;box-shadow:0 12px 28px #000c}
+.gm-app-switcher-menu button{display:flex;align-items:center;gap:11px;width:100%;padding:10px;border:0;border-radius:6px;background:transparent;color:#edf3f9;text-align:left;cursor:pointer}
+.gm-app-switcher-menu button:hover,.gm-app-switcher-menu button:focus-visible{background:#263b50}
+.gm-app-switcher-menu button>img{width:35px;height:35px;object-fit:contain}
+.gm-app-switcher-menu button>span{display:flex;flex:1;flex-direction:column;gap:3px}
+.gm-app-switcher-menu button small{font-size:11px;color:#9eb2c5}
+.gm-app-switcher-menu button>svg{color:#5ae0e7}
+.gm-app-header-actions{display:flex;align-items:center;gap:15px;flex:none}
+.gm-app-log-button{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid #3e5365;border-radius:6px;color:#cbd9e5;padding:8px;cursor:pointer}
+.gm-app-log-button:hover{color:#f0cf5b;border-color:#c4a548}
+.gm-app-online{color:#47d5a1;font-size:12px;font-weight:700;white-space:nowrap}
+.gm-campaign-identity{display:flex;flex-direction:column;gap:7px;padding:14px;border:1px solid #435467;border-radius:8px;background:#182534;margin-bottom:14px}
+.gm-campaign-identity h3{margin:0;color:#f0cf5b}
+.gm-campaign-identity strong{font-size:20px}
+.gm-campaign-identity small{color:#a8b8c7}
+.gm-campaign-shortcuts{padding:12px;border:1px solid #34475a;border-radius:8px;margin-bottom:14px}
+.gm-campaign-shortcuts h3{margin:0 0 5px}
+.gm-campaign-shortcuts p{font-size:12px;color:#a9b6c5}
+.gm-campaign-shortcuts>div{display:flex;flex-wrap:wrap;gap:7px}
+.gm-campaign-shortcuts button{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #4a6073;border-radius:6px;background:#203145;color:#e2eaf2;cursor:pointer}
+.gm-campaign-shortcuts button:hover{border-color:#e3c153}
+@media(max-width:650px){.gm-app-header{padding:8px;gap:7px}.gm-app-switcher-trigger{gap:7px}.gm-app-switcher-trigger>img{width:38px;height:38px}.gm-app-brand-copy strong{font-size:16px}.gm-app-brand-copy small{font-size:9px}.gm-app-header-actions{gap:7px}.gm-app-log-button span,.gm-app-online span{display:none}}
