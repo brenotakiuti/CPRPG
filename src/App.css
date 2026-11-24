@@ -468,3 +468,6 @@
 @media(max-width:650px){.gm-app-header{padding:8px;gap:7px}.gm-app-switcher-trigger{gap:7px}.gm-app-switcher-trigger>img{width:38px;height:38px}.gm-app-brand-copy strong{font-size:16px}.gm-app-brand-copy small{font-size:9px}.gm-app-header-actions{gap:7px}.gm-app-log-button span,.gm-app-online span{display:none}}
 
 .gm-app-unread{display:inline-flex;align-items:center;justify-content:center;margin-left:8px;min-width:20px;padding:2px 5px;border-radius:10px;background:#bb3470;color:white;font-size:10px;vertical-align:middle}
+
+.gm-logs-return{display:inline-flex;align-items:center;gap:7px;margin:0 0 12px;padding:8px 12px;border:1px solid #435c72;border-radius:6px;background:#1d3042;color:#e5edf5;cursor:pointer}
+.gm-logs-return:hover{border-color:#e8bd4a;color:#e8bd4a}
