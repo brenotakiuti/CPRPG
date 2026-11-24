@@ -134,3 +134,24 @@
 @media(prefers-reduced-motion:reduce){
   .live-party-drawer{transition:none}
 }
+
+/* Wide, compact party rows: vitals and actions share the same line. */
+.live-party-drawer{width:min(540px,calc(100vw - 34px))}
+.live-party-drawer .live-character{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;
+  column-gap:12px;row-gap:9px;align-items:center;
+  padding:10px 12px;
+}
+.live-party-drawer .live-character-main{grid-column:1/-1;min-width:0}
+.live-party-drawer .live-character-vitals{grid-column:1;min-width:0;margin-top:0}
+.live-party-drawer .live-hp-actions{grid-column:2;justify-content:flex-end;gap:5px;margin-top:0}
+.live-party-drawer .live-hp-actions button{flex:0 0 37px;width:37px;height:36px;padding:0}
+.live-party-drawer .live-hp-unavailable{grid-column:1;margin:0}
+@media(max-width:650px){
+  .live-party-drawer{width:min(540px,calc(100vw - 34px))}
+}
+@media(max-width:390px){
+  .live-party-drawer .live-character{column-gap:6px;padding:9px 7px}
+  .live-party-drawer .live-hp-actions{gap:3px}
+  .live-party-drawer .live-hp-actions button{flex-basis:31px;width:31px;height:34px}
+}
