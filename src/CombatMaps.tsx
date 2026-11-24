@@ -173,6 +173,7 @@ export default function CombatMaps({campaignId,mode}:{campaignId:string;mode:'ed
   const receive=(event:MessageEvent)=>{
    if(event.origin!==window.location.origin||event.source!==frame.current?.contentWindow||!event.data||event.data.source!=='cprpg-map-editor')return;
    if(event.data.action==='changed'&&mode==='editor')setEditorDirty(true);
+    if(event.data.action==='resize'&&mode==='editor'&&Number.isFinite(event.data.height)&&event.data.height>0&&event.data.height<20000&&frame.current){frame.current.style.height=Math.ceil(event.data.height)+'px';}
     if(event.data.action==='toggle-fullscreen'&&mode==='editor')setEditorFullscreen(v=>!v);
    if(event.data.action==='export'&&pending.current){const resolve=pending.current;pending.current=null;resolve(event.data.layout);}
   };
