@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Cookie, Dices, SunMoon, ChevronDown, Play } from 'lucide-react';
+import { Cookie, Dices, SunMoon, ChevronDown, ChevronUp, Play } from 'lucide-react';
 import './SessionToolSettings.css';
 
 export type Delivery = { audience: 'all' | 'character'; characterId: string | null };
@@ -15,6 +15,7 @@ export default function SessionToolSettings({ onOpen, characters }: { onOpen: (c
   const [characterId, setCharacterId] = useState('');
   const [tool, setTool] = useState<'dice'|'tarot'|'fortune'>('dice');
   const [expanded, setExpanded] = useState(false);
+  const [retracted, setRetracted] = useState(false);
   const [rig, setRig] = useState(false);
   const [sides, setSides] = useState(20);
   const [rolls, setRolls] = useState(1);
@@ -51,8 +52,8 @@ export default function SessionToolSettings({ onOpen, characters }: { onOpen: (c
     setRig(false);
     setExpanded(false);
   }
-  return <div className={`session-tool-settings session-bottom-dock ${expanded ? 'expanded' : 'compact'}`}>
-    {expanded && <div className="session-dock-config">
+  return <div className={`session-tool-settings session-bottom-dock ${expanded ? 'expanded' : 'compact'} ${retracted ? 'retracted' : ''}`}>
+    {!retracted && expanded && <div className="session-dock-config">
       <div className="session-dock-heading"><strong>{tool === 'dice' ? 'DICE // CONFIGURATION' : tool === 'tarot' ? 'TAROT // CONFIGURATION' : 'FORTUNE COOKIE // CONFIGURATION'}</strong><button type="button" onClick={() => setExpanded(false)} aria-label="Collapse session tool controls"><ChevronDown size={20}/></button></div>
       <div className="session-dock-fields">
     {tool === 'dice' && <div className="session-settings-row">
@@ -72,10 +73,11 @@ export default function SessionToolSettings({ onOpen, characters }: { onOpen: (c
     <small>Tarot and Fortune Cookie are delivered to selected player HUDs.</small>
       </div>
     </div>}
-    <div className="live-tools session-dock-buttons">
+    <button type="button" className="session-dock-retract" aria-label={retracted ? 'Expand session tools' : 'Retract session tools'} title={retracted ? 'Expand session tools' : 'Retract session tools'} onClick={() => { setRetracted(v => !v); setExpanded(false); }}>{retracted ? <ChevronUp size={15}/> : <ChevronDown size={15}/>}</button>
+    {!retracted && <div className="live-tools session-dock-buttons">
       <button type="button" aria-pressed={tool === 'tarot'} className={'live-roll-open tarot' + (tool === 'tarot' ? ' selected' : '')} onClick={() => { setTool('tarot'); setExpanded(true); setError(''); }}><SunMoon size={26}/><span>TAROT</span></button>
       <button type="button" aria-pressed={tool === 'dice'} className={'live-roll-open dice' + (tool === 'dice' ? ' selected' : '')} onClick={() => { setTool('dice'); setExpanded(true); setError(''); }}><Dices size={34}/><span>DICE</span></button>
       <button type="button" aria-pressed={tool === 'fortune'} className={'live-roll-open fortune' + (tool === 'fortune' ? ' selected' : '')} onClick={() => { setTool('fortune'); setExpanded(true); setError(''); }}><Cookie size={26}/><span>COOKIE</span></button>
-    </div>
+    </div>}
   </div>;
 }
