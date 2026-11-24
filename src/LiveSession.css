@@ -155,3 +155,28 @@
   .live-party-drawer .live-hp-actions{gap:3px}
   .live-party-drawer .live-hp-actions button{flex-basis:31px;width:31px;height:34px}
 }
+
+/* Smooth uninterrupted monitor-to-handle seam and shorter relative HP tracks. */
+.live-party-drawer .live-party-panel{
+  border-radius:0;
+  border-right:0;
+}
+.live-party-drawer-edge{
+  border-radius:0 12px 12px 0;
+  border-left:1px solid #354b60;
+  margin-left:0;
+  background:#25384b;
+}
+.live-party-drawer .live-hp-row .live-hp-track{
+  flex:0 1 70%;
+  width:70%;
+  max-width:70%;
+}
+.live-party-drawer .live-hp-info{
+  width:70%;
+}
+@media(max-width:390px){
+  .live-party-drawer .live-hp-row .live-hp-track{
+    flex-basis:70%;
+  }
+}
