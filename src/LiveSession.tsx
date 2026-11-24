@@ -314,7 +314,7 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
 
         </div>
       </div>
-      {createPortal(<>
+      {!spotlight && !moneyCharacter && createPortal(<>
         <SessionToolSettings onOpen={next => void launch(next)} characters={characters}/>
         {(deliveryError || deliveryNotice || delivering) && <div className="session-dock-feedback" role="status">{deliveryError || deliveryNotice || (delivering ? 'Sending spotlights...' : '')}</div>}
       </>, document.body)}
