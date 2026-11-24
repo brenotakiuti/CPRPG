@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react';
 import { Landmark, Package, Settings, Slice, ChevronLeft, ChevronRight, Maximize2, Minimize2, X } from 'lucide-react';
 import './GMControlDock.css';
 
@@ -12,8 +12,46 @@ const tools = [
 
 export function GMControlDock({ open, onOpen }: { open: UtilityId[]; onOpen: (id: UtilityId) => void }) {
   const [collapsed, setCollapsed] = useState(true);
-  return <aside className={`gm-control-dock right ${collapsed ? 'collapsed' : ''}`} aria-label="GM utility control panel">
-    <button className="gm-control-dock-retract" type="button" title={collapsed ? 'Expand controls' : 'Retract controls'} aria-label={collapsed ? 'Expand controls' : 'Retract controls'} onClick={() => setCollapsed(v => !v)}>{collapsed ? <ChevronLeft size={18}/> : <ChevronRight size={18}/>}</button>
+  const [dockTop, setDockTop] = useState(90);
+  const dockRef = useRef<HTMLElement | null>(null);
+  const dragged = useRef(false);
+  const startDockDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    const startY = event.clientY;
+    const initialTop = dockRef.current?.getBoundingClientRect().top ?? dockTop;
+    let moved = false;
+    const move = (e: PointerEvent) => {
+      const delta = e.clientY - startY;
+      if (Math.abs(delta) <= 5 && !moved) return;
+      moved = true;
+      const height = dockRef.current?.getBoundingClientRect().height ?? 70;
+      const maxTop = Math.max(4, window.innerHeight - Math.min(height, window.innerHeight) - 4);
+      setDockTop(Math.max(4, Math.min(maxTop, initialTop + delta)));
+    };
+    const end = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      if (moved) {
+        dragged.current = true;
+        window.setTimeout(() => { dragged.current = false; }, 0);
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end, { once: true });
+    window.addEventListener('pointercancel', end, { once: true });
+  };
+  useEffect(() => {
+    const clamp = () => {
+      const height = dockRef.current?.getBoundingClientRect().height ?? 70;
+      setDockTop(current => Math.max(4, Math.min(current, Math.max(4, window.innerHeight - Math.min(height, window.innerHeight) - 4))));
+    };
+    clamp();
+    window.addEventListener('resize', clamp);
+    return () => window.removeEventListener('resize', clamp);
+  }, [collapsed]);
+  return <aside ref={dockRef} style={{ top: dockTop }} className={`gm-control-dock right ${collapsed ? 'collapsed' : ''}`} aria-label="GM utility control panel">
+    <button className="gm-control-dock-retract" type="button" title={collapsed ? 'Expand controls' : 'Retract controls'} aria-label={collapsed ? 'Expand controls' : 'Retract controls'} onPointerDown={startDockDrag} onClick={() => { if (!dragged.current) setCollapsed(v => !v); }}>{collapsed ? <ChevronLeft size={18}/> : <ChevronRight size={18}/>}</button>
     {!collapsed && <div className="gm-control-dock-tools">{tools.map(({ id, title, Icon }) => <button key={id} type="button" title={title} aria-label={title} className={open.includes(id) ? 'active' : ''} onClick={() => onOpen(id)}><Icon size={21}/></button>)}</div>}
   </aside>;
 }
