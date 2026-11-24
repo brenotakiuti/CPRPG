@@ -215,3 +215,6 @@
 @media(max-width:650px){
   .live-party-drawer{width:min(470px,calc(100vw - 34px))}
 }
+
+/* Drag handle vertically along the left edge; prevent touch panning during drag. */
+.live-party-drawer-edge{touch-action:none;user-select:none;-webkit-user-select:none}
