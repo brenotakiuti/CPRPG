@@ -248,3 +248,28 @@
  .combat-maps-panel.tactical-is-fullscreen{padding:10px}
  .tactical-is-fullscreen .tactical-map-area>.combat-map-scroll{height:52dvh;min-height:280px}
 }
+
+/* Fullscreen must provide at least the normal map viewport, never less. */
+.combat-maps-panel.tactical-is-fullscreen{padding:8px 12px 12px}
+.tactical-is-fullscreen .tactical-workspace{grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr);gap:8px}
+.tactical-is-fullscreen .tactical-map-area>.combat-map-scroll{
+ height:max(clamp(360px,calc(100dvh - 300px),950px),calc(100dvh - 190px));
+ max-height:none;
+}
+.tactical-is-fullscreen .tactical-workspace>.combat-roster-shell{
+ height:max(clamp(360px,calc(100dvh - 300px),950px),calc(100dvh - 190px));
+ max-height:none;
+}
+@media(max-width:1000px){
+ .tactical-is-fullscreen .tactical-workspace{grid-template-columns:minmax(0,1fr)}
+ .tactical-is-fullscreen .tactical-map-area>.combat-map-scroll{
+  height:max(clamp(340px,55dvh,750px),calc(100dvh - 190px));
+ }
+ .tactical-is-fullscreen .tactical-workspace>.combat-roster-shell{height:auto;max-height:none}
+}
+@media(max-width:600px){
+ .tactical-is-fullscreen .tactical-map-area>.combat-map-scroll{
+  height:max(50dvh,calc(100dvh - 170px));
+  min-height:280px;
+ }
+}
