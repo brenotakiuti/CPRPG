@@ -149,10 +149,9 @@ function GMConsoleContent({
     return () => { window.removeEventListener('focus', focus); void supabase.removeChannel(channel); };
   }, [campaign.id, refreshPhoneUnread]);
   const [selectedId, setSelectedId] = useState(() => sessionStorage.getItem('gm-selected-character:' + campaign.id) || '');
-  const [invitationExpanded, setInvitationExpanded] = useState(false);
-  const [detailTab, setDetailTab] = useState<'stats' | 'cyberware' | 'inventory'>(() => {
+  const [detailTab, setDetailTab] = useState<'stats' | 'cyberware' | 'inventory' | 'access'>(() => {
     const saved = sessionStorage.getItem('gm-character-tab:' + campaign.id);
-    return saved === 'cyberware' || saved === 'inventory' ? saved : 'stats';
+    return saved === 'cyberware' || saved === 'inventory' || saved === 'access' ? saved : 'stats';
   });
   const [search, setSearch] = useState('');
 
@@ -562,7 +561,7 @@ function GMConsoleContent({
             {visible.map((character) => (
               <button type="button" key={character.id}
                 className={selected?.id === character.id ? 'gm-roster-card selected' : 'gm-roster-card'}
-                onClick={() => { setSelectedId(character.id); setDetailTab('stats'); setInviteMessage(''); setInvitationExpanded(false); }}>
+                onClick={() => { setSelectedId(character.id); setDetailTab('stats'); setInviteMessage(''); }}>
                 <span className="gm-roster-card-top">
                   <span className="gm-avatar" aria-hidden="true">♙</span>
                   <span><strong>{character.name}</strong><small>Character</small></span>
@@ -581,40 +580,11 @@ function GMConsoleContent({
                   <div><h2>{selected.name}</h2><p>Character</p></div>
                   <div className="gm-character-header-actions">
                     <strong className="gm-character-balance-value">{selected.balance.toLocaleString('en-US')} E$</strong>
-                    <div className="gm-character-access-controls">
-                      <small className={selected.player_id ? 'gm-assigned' : 'gm-unassigned'}>{selected.player_id ? '● Assigned to player' : '○ Unassigned'}</small>
-                      {selected.player_id ? (
-                        <button type="button" className="gm-character-access-button" disabled={resettingCharacterId !== null}
-                          title="Revoke player access" onClick={() => void resetPlayerAccess(selected.id, selected.name)}>Reset access</button>
-                      ) : (
-                        <button type="button" className="gm-character-access-button"
-                          onClick={() => invitations[selected.id] ? setInvitationExpanded(open => !open) : (setInvitationExpanded(true), void generateInvitation(selected.id))}>
-                          {invitations[selected.id] ? (invitationExpanded ? 'Hide invitation' : 'Show invitation') : 'Generate Invitation'}
-                        </button>
-                      )}
-                    </div>
+                    <small className={selected.player_id ? 'gm-assigned' : 'gm-unassigned'}>{selected.player_id ? '● Assigned to player' : '○ Unassigned'}</small>
                   </div>
                 </div>
-                {!selected.player_id && invitationExpanded && (
-                  <div className="gm-character-invitation-panel">
-                    {invitations[selected.id] ? (
-                      <div className="gm-invitation">
-                        <div className="gm-qr-panel">
-                          <QRCodeSVG value={invitations[selected.id]} size={220} marginSize={2} bgColor="#ffffff" fgColor="#111111" />
-                          <span>Scan to access {selected.name} · valid until claimed</span>
-                        </div>
-                        <div className="gm-invitation-link-row">
-                          <input readOnly aria-label="Character invitation" value={invitations[selected.id]} />
-                          <button type="button" className="gm-invitation-copy-button" aria-label="Copy character invitation link" title="Copy character invitation link"
-                            onClick={() => void navigator.clipboard.writeText(invitations[selected.id])}><Copy size={23} aria-hidden="true" /></button>
-                        </div>
-                      </div>
-                    ) : <p className="gm-muted">Generating invitation...</p>}
-                  </div>
-                )}
-                {inviteMessage && <p className="transfer-message" role="alert">{inviteMessage}</p>}
                 <div className="gm-detail-tabs" role="tablist" aria-label="Character details">
-                  {(['stats', 'cyberware', 'inventory'] as const).map(tab => (
+                  {(['stats', 'cyberware', 'inventory', 'access'] as const).map(tab => (
                     <button key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? 'selected' : ''}
                       onClick={() => setDetailTab(tab)}>{tab[0].toUpperCase() + tab.slice(1)}</button>
                   ))}
@@ -656,6 +626,35 @@ function GMConsoleContent({
                 )}
                 {detailTab === 'cyberware' && <div className="gm-character-stats">{sharedCharacterData.loading ? <p className="gm-muted">Loading cyberware...</p> : sharedCharacterData.error ? <p role="alert">{sharedCharacterData.error}</p> : sharedCharacterData.cyberware.filter(entry => entry.character_id === selected.id).length === 0 ? <p className="gm-empty-detail">No cyberware installed</p> : <div className="gm-character-simple-list">{sharedCharacterData.cyberware.filter(entry => entry.character_id === selected.id).map(entry => <div className="gm-character-simple-row" key={entry.id}><div className="gm-character-simple-description"><strong>{entry.name}</strong>{entry.description && <small>{entry.description}</small>}{entry.position_id && <small>{entry.position_id}</small>}</div></div>)}</div>}</div>}
                 {detailTab === 'inventory' && <div className="gm-character-stats">{sharedCharacterData.loading ? <p className="gm-muted">Loading inventory...</p> : sharedCharacterData.error ? <p role="alert">{sharedCharacterData.error}</p> : sharedCharacterData.inventory.filter(entry => entry.character_id === selected.id).length === 0 ? <p className="gm-empty-detail">Inventory is empty</p> : <div className="gm-character-simple-list">{sharedCharacterData.inventory.filter(entry => entry.character_id === selected.id).map(entry => { const item = sharedCharacterData.items.find(item => item.id === entry.item_id); return <div className="gm-character-simple-row" key={entry.id}><div className="gm-character-simple-description"><strong>{item?.name ?? 'Unknown item'}</strong><small>{item?.category ?? ''}{entry.equipped_slot ? ' · Equipped: ' + entry.equipped_slot : ''}</small></div><span className="gm-character-simple-quantity">× {entry.quantity}</span></div> })}</div>}</div>}
+                {detailTab === 'access' && (
+                  <section className="gm-character-access-tab" aria-label="Player access">
+                    <div className="gm-character-access-heading">
+                      <strong>Player Access</strong>
+                      <small className={selected.player_id ? 'gm-assigned' : 'gm-unassigned'}>{selected.player_id ? 'Assigned to player' : 'Unassigned'}</small>
+                    </div>
+                    <div className="gm-character-access-body">
+                      <div className="gm-character-access-qr" aria-label={invitations[selected.id] && !selected.player_id ? 'Character invitation QR code' : 'No active invitation'}>
+                        {invitations[selected.id] && !selected.player_id
+                          ? <QRCodeSVG value={invitations[selected.id]} size={176} marginSize={2} bgColor="#ffffff" fgColor="#111111" />
+                          : <span aria-hidden="true">?</span>}
+                      </div>
+                      <label className="gm-character-access-link-label" htmlFor="gm-character-invite-link">INVITATION LINK</label>
+                      <div className="gm-character-access-link-row">
+                        <input id="gm-character-invite-link" readOnly aria-label="Character invitation" value={!selected.player_id ? (invitations[selected.id] || '') : ''} placeholder="Not generated" />
+                        <button type="button" aria-label="Copy character invitation link" title="Copy character invitation link"
+                          disabled={selected.player_id !== null || !invitations[selected.id]}
+                          onClick={() => void navigator.clipboard.writeText(invitations[selected.id])}><Copy size={20} aria-hidden="true" /></button>
+                      </div>
+                      <div className="gm-character-access-buttons">
+                        <button type="button" className="gm-character-access-generate" disabled={Boolean(selected.player_id) || Boolean(invitations[selected.id])}
+                          onClick={() => void generateInvitation(selected.id)}>Generate Invitation</button>
+                        <button type="button" className="gm-character-access-reset" disabled={!selected.player_id || resettingCharacterId !== null}
+                          onClick={() => void resetPlayerAccess(selected.id, selected.name)}>Reset Access</button>
+                      </div>
+                      {inviteMessage && <p className="transfer-message" role="alert">{inviteMessage}</p>}
+                    </div>
+                  </section>
+                )}
               </>
             ) : <p className="gm-muted">No characters in this campaign yet.</p>}
           </main>
