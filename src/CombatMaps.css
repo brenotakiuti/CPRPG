@@ -286,3 +286,7 @@
 .combat-maps-panel:has(.combat-map-editor-frame) .combat-map-editor-frame{display:block;flex:1 0 auto;width:100%;max-width:none;height:clamp(650px,calc(100dvh - 155px),1400px);min-height:650px;border:0}
 .combat-maps-panel.editor-is-fullscreen .combat-map-editor-frame{height:calc(100dvh - 105px);min-height:calc(100dvh - 105px);flex:none}
 @media(max-width:760px){.combat-maps-panel:has(.combat-map-editor-frame) .combat-map-editor-frame{height:calc(100dvh - 170px);min-height:480px}.combat-maps-panel.editor-is-fullscreen .combat-map-editor-frame{height:calc(100dvh - 150px);min-height:calc(100dvh - 150px)}}
+
+/* The embedded document reports its content height; the outer GM workspace owns vertical scrolling. */
+.combat-maps-panel:has(.combat-map-editor-frame) .combat-map-editor-frame,
+.combat-maps-panel.editor-is-fullscreen .combat-map-editor-frame{flex:none;min-height:0;height:auto;overflow:hidden}
