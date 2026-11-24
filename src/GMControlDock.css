@@ -6,3 +6,12 @@
 
 .gm-control-dock.right{transform:translateY(-50%);touch-action:pan-x}
 .gm-control-dock-retract{touch-action:none;user-select:none;-webkit-user-select:none}
+
+/* Keep the drag handle anchored at the same viewport Y in both dock states.
+   The dock expands upward and downward around its handle without shifting it. */
+.gm-control-dock.right{transform:translateY(-50%);transition:width .22s ease,padding .22s ease,border-color .22s ease,background-color .22s ease;overflow:visible}
+.gm-control-dock.right .gm-control-dock-retract{top:50%}
+.gm-control-dock.right .gm-control-dock-tools{max-height:300px;opacity:1;transform:scaleY(1);transform-origin:center;transition:max-height .22s ease,opacity .18s ease,transform .22s ease;overflow:hidden}
+.gm-control-dock.right.collapsed{width:0;height:auto;min-height:0;padding:0;border:0;gap:0}
+.gm-control-dock.right.collapsed .gm-control-dock-tools{max-height:0;opacity:0;transform:scaleY(.85);pointer-events:none}
+@media(prefers-reduced-motion:reduce){.gm-control-dock.right,.gm-control-dock.right .gm-control-dock-tools{transition:none}}
