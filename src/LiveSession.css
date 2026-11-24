@@ -16,7 +16,7 @@
 .live-tools{padding:12px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;text-align:center}
 .live-tools small,.live-dice-scene small{font-size:11px;color:#92a5b7}
 .live-roll-open{min-width:0;min-height:112px;background:#e8bd4a;color:#111922;border:1px solid #e8bd4a;border-radius:5px;padding:14px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;font-weight:850;letter-spacing:.5px;font-size:12px;cursor:pointer;text-align:center;overflow-wrap:anywhere}
-.live-spotlight{position:fixed;inset:0;z-index:1000;background:rgba(2,5,10,.97);display:flex;align-items:center;justify-content:center;padding:15px}
+.live-spotlight{position:fixed;inset:0;z-index:20000;background:rgba(2,5,10,.97);display:flex;align-items:center;justify-content:center;padding:15px}
 .live-dice-scene{width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px}
 .live-spotlight-title{font-size:11px;letter-spacing:3px;color:#e8c05a}
 .live-dice-controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:8px 0}
