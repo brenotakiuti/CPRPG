@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useGMArtworkCache } from './useGMArtworkCache';
 import { GMControlDock, GMUtilityWindow, type UtilityId } from './GMControlDock';
 import { QRCodeSVG } from 'qrcode.react';
-import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Settings, LockKeyhole, Copy, Settings2, ScrollText, Package, Users, Wrench, Zap, Slice } from 'lucide-react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Settings, LockKeyhole, Copy, Settings2, ScrollText, Package, Users, Wrench, Zap, Slice, ChevronsUpDown, Check } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
@@ -87,11 +87,11 @@ export default function GMConsole({
   useGMArtworkCache();
   const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'ripperdoc' | 'logs' | 'phone' | 'combat'>(() => {
     const saved = sessionStorage.getItem('gm-page:' + campaign.id);
-    return saved === 'map-editor' ? 'combat' : saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'ripperdoc' || saved === 'logs' || saved === 'phone' || saved === 'combat' ? saved : 'live';
+    return saved === 'map-editor' ? 'combat' : saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'ripperdoc' || saved === 'logs' || saved === 'phone' || saved === 'combat' ? saved : 'phone';
   });
   // Mount data-heavy tools on first visit, then retain their data and Realtime subscriptions.
   const [visitedTools, setVisitedTools] = useState<string[]>(() => {
-    const saved = sessionStorage.getItem('gm-page:' + campaign.id) ?? 'live';
+    const saved = sessionStorage.getItem('gm-page:' + campaign.id) ?? 'phone';
     return ['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone', 'combat', 'map-editor'].includes(saved) ? [saved === 'map-editor' ? 'combat' : saved] : [];
   });
   const openPage = (next: typeof page) => {
@@ -100,6 +100,7 @@ export default function GMConsole({
       setVisitedTools(previous => previous.includes(next) ? previous : [...previous, next]);
     }
   };
+  const [appSwitcherOpen, setAppSwitcherOpen] = useState(false);
   const [utilityWindows, setUtilityWindows] = useState<UtilityId[]>([]);
   const [focusedUtility, setFocusedUtility] = useState<UtilityId | null>(null);
   const openUtility = (id: UtilityId) => {
@@ -541,6 +542,8 @@ export default function GMConsole({
 
   const campaignSettingsContent = (
         <div className="gm-dashboard-panel gm-overview">
+          <section className="gm-campaign-identity"><h3>Campaign</h3><strong>{campaign.name}</strong><small>GM control system · Active campaign</small></section>
+          <section className="gm-campaign-shortcuts"><h3>Campaign tools</h3><p>Open other GM tools without the old top navigation.</p><div>{navigation.filter(item=>item.id!=='phone'&&item.id!=='combat'&&item.id!=='overview').map(item=><button type="button" key={item.id} onClick={()=>{if(item.id==='bank'||item.id==='inventory'||item.id==='ripperdoc'){openUtility(item.id)}else{openPage(item.id)}closeUtility('overview')}}>{item.icon&&<item.icon size={17}/>} {item.label}</button>)}<button type="button" onClick={()=>{openPage('logs');closeUtility('overview')}}><ScrollText size={17}/> Logs</button></div></section>
           {creationControls}
           <section className="gm-invitations-settings" aria-label="Character creation settings">
             <div className="gm-invitations-settings-heading">
@@ -590,22 +593,22 @@ export default function GMConsole({
       );
   return (
     <div className="gm-dashboard">
-      <header className="gm-dashboard-header">
-        <div>
-          <div className="gm-eyebrow">CYBERPUNK RPG · GM TERMINAL</div>
-          <h1>{campaign.name}</h1>
-        </div>
-        <div className="gm-header-actions" style={{display:"flex",alignItems:"center",gap:14}}><button type="button" className={page === "logs" ? "gm-tab active" : "gm-tab"} style={{display:"inline-flex",alignItems:"center",gap:7,padding:"8px 12px",width:"auto"}} onClick={() => openPage("logs")} aria-label="Campaign Logs" title="Campaign Logs"><ScrollText size={18} strokeWidth={1.9} aria-hidden="true"/><span>Logs</span></button><span className="gm-online">◉ &nbsp; GM Online</span></div>
-      </header>
-      <nav className="gm-tabs" aria-label="GM tools">
-        {navigation.map((item) => (
-          <button key={item.id} type="button" className={page === item.id ? 'gm-tab active' : 'gm-tab'}
-            aria-current={page === item.id ? 'page' : undefined} onClick={() => openPage(item.id)}>
-            <span className="gm-phone-nav-icon">{item.id === "combat" ? <img src="/tactical-feed-icon.svg" width={22} height={22} alt="" aria-hidden="true" /> : item.id === "phone" ? <img src="/ghost-link-icon.svg" width={22} height={22} alt="" aria-hidden="true" /> : item.icon ? <item.icon size={19} strokeWidth={1.9} aria-hidden="true" /> : null}{item.id === "phone" && phoneUnread > 0 && <b className="gm-phone-nav-badge">{phoneUnread > 99 ? "99+" : phoneUnread}</b>}</span>
-            <span className="gm-sr-only">{item.label}</span>
+      <header className="gm-app-header">
+        <div className="gm-app-switcher">
+          <button type="button" className="gm-app-switcher-trigger" aria-label="Switch application" aria-expanded={appSwitcherOpen} onClick={()=>setAppSwitcherOpen(v=>!v)}>
+            <img src={page==='combat'?'/tactical-feed-icon.svg':'/ghost-link-icon.svg'} alt="" />
+            <span className="gm-app-brand-copy"><strong>{page==='combat'?'TACTICAL//FEED':'GHOST//LINK'}</strong><small>{page==='combat'?'A GHOST//LINK SYSTEMS DIVISION':'GM COMMUNICATIONS WORKSTATION'}</small></span>
+            <ChevronsUpDown size={17} aria-hidden="true"/>
           </button>
-        ))}
-      </nav>
+          {appSwitcherOpen && <div className="gm-app-switcher-menu" role="menu" aria-label="Applications">
+            {([{id:'phone',name:'Ghost//Link',desc:'Communications workstation',image:'/ghost-link-icon.svg'},{id:'combat',name:'Tactical//Feed',desc:'Combat management',image:'/tactical-feed-icon.svg'}] as const).map(app=><button key={app.id} type="button" role="menuitem" onClick={()=>{openPage(app.id);setAppSwitcherOpen(false)}}><img src={app.image} alt=""/><span><strong>{app.name}</strong><small>{app.desc}</small></span>{page===app.id&&<Check size={17}/>}</button>)}
+          </div>}
+        </div>
+        <div className="gm-app-header-actions">
+          <button type="button" className="gm-app-log-button" onClick={()=>openPage('logs')} title="Campaign Logs" aria-label="Campaign Logs"><ScrollText size={19}/><span>Log</span></button>
+          <span className="gm-app-online">● <span>GM ONLINE</span></span>
+        </div>
+      </header>
       {page !== 'phone' && page !== 'combat' && <h2 className="gm-page-title">
         {(() => {
           const current = page === 'logs' ? {id:'logs',label:'Logs',icon:ScrollText} : navigation.find((item) => item.id === page)!;
@@ -737,7 +740,7 @@ export default function GMConsole({
       {visitedTools.includes('phone') && <div style={{ display: page === 'phone' ? undefined : 'none' }}><GMPhone campaignId={campaign.id} campaignName={campaign.name} onRead={refreshPhoneUnread} /></div>}
       {visitedTools.includes('ripperdoc') && (utilityWindows.includes('ripperdoc') ? utilityWindow('ripperdoc', <Ripperdoc characters={characters} />) : <div style={{ display: page === 'ripperdoc' ? undefined : 'none' }}><Ripperdoc characters={characters} /></div>)}
       {visitedTools.includes('combat') && <div style={{ display: page === 'combat' ? undefined : 'none' }}>
-        <header className="tactical-gm-brand"><div className="tactical-gm-brand-identity"><img src="/tactical-feed-icon.svg" alt="" /><div><strong>TACTICAL//FEED</strong><small>A GHOST//LINK SYSTEMS DIVISION</small></div></div><div className="tactical-gm-network">● NETWORK TERMINAL <small>{campaign.name}</small></div></header>
+        
         <div className="gm-tactical-mode-tabs" role="tablist" aria-label="Tactical Feed mode">
           <button type="button" role="tab" aria-selected={tacticalTab === 'broadcast'} className={tacticalTab === 'broadcast' ? 'active' : ''} onClick={() => setTacticalTab('broadcast')}>Map Broadcast</button>
           <button type="button" role="tab" aria-selected={tacticalTab === 'editor'} className={tacticalTab === 'editor' ? 'active' : ''} onClick={() => { setEditorVisited(true); setTacticalTab('editor'); }}>Map Editor</button>
