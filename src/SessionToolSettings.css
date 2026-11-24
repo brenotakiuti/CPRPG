@@ -75,3 +75,39 @@
 .session-bottom-dock.retracted{width:0;height:0;padding:0;filter:none}
 .session-bottom-dock.retracted .session-dock-retract{bottom:0;border:1px solid #526477;border-bottom:0;box-shadow:0 -3px 10px #0008}
 @media(max-width:650px){.session-bottom-dock{width:min(186px,calc(100vw - 70px))}.session-bottom-dock.expanded{width:min(300px,calc(100vw - 70px))}.session-bottom-dock .session-dock-buttons .live-roll-open{width:auto;height:34px}.session-bottom-dock .session-dock-buttons .live-roll-open.dice{width:auto;height:44px}}
+
+/* Fixed button geometry: override global .live-roll-open minimum sizing. */
+.session-bottom-dock .session-dock-buttons{
+  display:flex;flex-direction:row;align-items:flex-end;justify-content:center;
+  width:100%;height:auto;min-height:0;max-height:none;
+  gap:clamp(3px,1vw,5px);padding:5px 6px 4px;
+}
+.session-bottom-dock .session-dock-buttons .live-roll-open,
+.session-bottom-dock .session-dock-buttons .live-roll-open.dice{
+  box-sizing:border-box;position:relative;align-self:flex-end;
+  flex-grow:0;flex-shrink:0;min-height:0;max-height:none;
+  margin:0;line-height:1.1;overflow:hidden;
+}
+.session-bottom-dock .session-dock-buttons .live-roll-open{
+  flex-basis:55px;width:55px;height:40px;min-width:0;max-width:55px;
+  padding:3px 2px;gap:1px;
+}
+.session-bottom-dock .session-dock-buttons .live-roll-open.dice{
+  flex-basis:70px;width:70px;height:50px;min-width:0;max-width:70px;
+  padding:3px 2px;gap:1px;
+}
+.session-bottom-dock .session-dock-buttons .live-roll-open svg{flex-shrink:0}
+.session-bottom-dock .session-dock-buttons .live-roll-open span{display:block;font-size:8px;line-height:10px}
+.session-bottom-dock:not(.expanded){width:min(196px,calc(100vw - 24px))}
+.session-bottom-dock.expanded{width:min(320px,calc(100vw - 24px))}
+.session-bottom-dock.retracted{width:0}
+@media(max-width:360px){
+  .session-bottom-dock:not(.expanded){width:min(190px,calc(100vw - 16px))}
+  .session-bottom-dock.expanded{width:min(300px,calc(100vw - 16px))}
+  .session-bottom-dock .session-dock-buttons{gap:3px;padding:4px 4px 3px}
+  .session-bottom-dock .session-dock-buttons .live-roll-open{flex-basis:52px;width:52px;max-width:52px;height:40px}
+  .session-bottom-dock .session-dock-buttons .live-roll-open.dice{flex-basis:66px;width:66px;max-width:66px;height:50px}
+}
+@media(max-height:540px){
+  .session-bottom-dock .session-dock-config{max-height:calc(100dvh - 100px);overflow-y:auto}
+}
