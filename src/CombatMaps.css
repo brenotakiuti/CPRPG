@@ -213,3 +213,10 @@
  .tactical-is-fullscreen .tactical-workspace>.combat-map-scroll{height:50dvh;max-height:50dvh}
  .tactical-is-fullscreen .tactical-workspace>.combat-roster-shell{max-height:none}
 }
+
+/* Keep map controls pinned inside the map's own viewport, not the page header. */
+.tactical-workspace>.tactical-map-area{position:relative;min-width:0;min-height:0}
+.tactical-map-area>.combat-map-scroll{min-width:0;max-height:calc(100vh - 300px);overflow:auto;margin:0}
+.tactical-map-area>.combat-map-view-controls{position:absolute;top:10px;right:20px;z-index:20;margin:0;padding:5px;background:#0c1928e8;border:1px solid #40566b;border-radius:8px;box-shadow:0 3px 12px #0008}
+.tactical-is-fullscreen .tactical-map-area>.combat-map-scroll{height:calc(100dvh - 245px);max-height:calc(100dvh - 245px)}
+@media(max-width:850px){.tactical-is-fullscreen .tactical-map-area>.combat-map-scroll{height:50dvh;max-height:50dvh}}
