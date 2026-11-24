@@ -13,3 +13,23 @@
 .session-open-button{background:#e8bd4a;color:#111922;border:0;border-radius:5px;padding:12px;font-weight:800;cursor:pointer}
 .session-tool-settings small{color:#92a5b7;font-size:11px;text-align:center}
 .live-dice-history{color:#e8c05a;font-size:14px;max-width:min(90vw,600px);text-align:center;overflow-wrap:anywhere;min-height:20px}
+
+/* Persistent city-builder-style session tools along the lower screen edge. */
+.session-bottom-dock{position:fixed;left:50%;bottom:0;transform:translateX(-50%);z-index:1080;width:min(620px,calc(100vw - 125px));box-sizing:border-box;padding:0;gap:0;background:transparent;filter:drop-shadow(0 -5px 20px #0009)}
+.session-bottom-dock .session-dock-config{background:#172637;border:1px solid #40586d;border-bottom:0;border-radius:14px 14px 0 0;padding:12px 15px 10px;max-height:min(55vh,440px);overflow:auto}
+.session-dock-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#e8bd4a;font-size:13px;letter-spacing:.07em;margin-bottom:10px}
+.session-dock-heading button{background:transparent;border:1px solid #40586d;border-radius:5px;color:#c8d7e5;padding:4px;cursor:pointer}
+.session-dock-fields{display:flex;flex-direction:column;gap:10px}
+.session-bottom-dock .session-settings-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+.session-bottom-dock .session-rig-fields{padding:9px}
+.session-bottom-dock .session-open-button{display:flex;align-items:center;justify-content:center;gap:8px;background:#365b47;color:#dcffe9;border:1px solid #618a6d}
+.session-bottom-dock .session-dock-buttons{display:flex;align-items:flex-end;justify-content:center;gap:12px;margin:0;padding:9px 12px 8px;background:#142335;border-top:2px solid #d0a64d;border-radius:12px 12px 0 0}
+.session-bottom-dock.expanded .session-dock-buttons{border-radius:0}
+.session-bottom-dock .session-dock-buttons .live-roll-open{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;flex:none;width:88px;height:69px;box-sizing:border-box;padding:7px;background:#223347;border:1px solid #425a70;border-radius:10px;color:#e3eaf2;font-size:11px;font-weight:700;cursor:pointer}
+.session-bottom-dock .session-dock-buttons .live-roll-open.dice{width:112px;height:88px;border-radius:13px}
+.session-bottom-dock .session-dock-buttons .live-roll-open.tarot svg{color:#b99af4}
+.session-bottom-dock .session-dock-buttons .live-roll-open.dice svg{color:#f2cb62}
+.session-bottom-dock .session-dock-buttons .live-roll-open.fortune svg{color:#6fd2df}
+.session-bottom-dock .session-dock-buttons .live-roll-open.selected{border-color:#e8bd4a;background:#3a382e;box-shadow:inset 0 0 0 1px #e8bd4a55}
+.session-dock-feedback{position:fixed;bottom:110px;left:50%;transform:translateX(-50%);z-index:1081;background:#172637;border:1px solid #42586c;border-radius:6px;padding:9px 14px;color:#8be0b3;font-size:12px;max-width:70vw}
+@media(max-width:650px){.session-bottom-dock{width:calc(100vw - 72px)}.session-bottom-dock .session-dock-buttons{gap:6px;padding:7px}.session-bottom-dock .session-dock-buttons .live-roll-open{width:66px;height:61px;font-size:9px}.session-bottom-dock .session-dock-buttons .live-roll-open.dice{width:80px;height:77px}.session-bottom-dock .session-dock-config{padding:9px}.session-bottom-dock .session-settings-row{grid-template-columns:1fr}}
