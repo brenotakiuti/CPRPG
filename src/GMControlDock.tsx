@@ -1,5 +1,5 @@
 import { useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react';
-import { Landmark, Package, Settings, Slice, ChevronLeft, ChevronRight, PanelLeftClose, PanelRightClose, Minus, X } from 'lucide-react';
+import { Landmark, Package, Settings, Slice, ChevronLeft, ChevronRight, Minus, X } from 'lucide-react';
 import './GMControlDock.css';
 
 export type UtilityId = 'bank' | 'ripperdoc' | 'inventory' | 'overview';
@@ -12,13 +12,11 @@ const tools = [
 
 export function GMControlDock({ open, onOpen }: { open: UtilityId[]; onOpen: (id: UtilityId) => void }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [side, setSide] = useState<'left' | 'right'>('right');
-  return <aside className={`gm-control-dock ${side} ${collapsed ? 'collapsed' : ''}`} aria-label="GM utility control panel">
+  return <aside className={`gm-control-dock right ${collapsed ? 'collapsed' : ''}`} aria-label="GM utility control panel">
     <div className="gm-control-dock-head">
-      <button type="button" title={collapsed ? 'Expand controls' : 'Retract controls'} aria-label={collapsed ? 'Expand controls' : 'Retract controls'} onClick={() => setCollapsed(v => !v)}>{collapsed ? (side === 'right' ? <ChevronLeft size={18}/> : <ChevronRight size={18}/>) : (side === 'right' ? <ChevronRight size={18}/> : <ChevronLeft size={18}/>)}</button>
-      {!collapsed && <button type="button" title="Dock on opposite side" aria-label="Dock on opposite side" onClick={() => setSide(v => v === 'right' ? 'left' : 'right')}>{side === 'right' ? <PanelLeftClose size={18}/> : <PanelRightClose size={18}/>}</button>}
+      <button type="button" title={collapsed ? 'Expand controls' : 'Retract controls'} aria-label={collapsed ? 'Expand controls' : 'Retract controls'} onClick={() => setCollapsed(v => !v)}>{collapsed ? <ChevronLeft size={18}/> : <ChevronRight size={18}/>}</button>
     </div>
-    {!collapsed && <div className="gm-control-dock-tools">{tools.map(({ id, title, Icon }) => <button key={id} type="button" title={title} aria-label={title} className={open.includes(id) ? 'active' : ''} onClick={() => onOpen(id)}><Icon size={21}/><span>{title}</span></button>)}</div>}
+    {!collapsed && <div className="gm-control-dock-tools">{tools.map(({ id, title, Icon }) => <button key={id} type="button" title={title} aria-label={title} className={open.includes(id) ? 'active' : ''} onClick={() => onOpen(id)}><Icon size={21}/></button>)}</div>}
   </aside>;
 }
 
