@@ -56,6 +56,16 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
     window.addEventListener('pointerup', end, { once: true });
     window.addEventListener('pointercancel', end, { once: true });
   };
+  useEffect(() => {
+    const clampMonitor = () => {
+      const height = monitorDrawer.current?.getBoundingClientRect().height ?? 120;
+      const maxTop = Math.max(4, window.innerHeight - Math.min(height, window.innerHeight) - 4);
+      setMonitorTop(current => Math.max(4, Math.min(current, maxTop)));
+    };
+    clampMonitor();
+    window.addEventListener('resize', clampMonitor);
+    return () => window.removeEventListener('resize', clampMonitor);
+  }, [capacity, monitorOpen]);
   const [hpError, setHpError] = useState('');
   const [hpOverrides, setHpOverrides] = useState<Record<string, number>>({});
   const hpOverridesRef = useRef<Record<string, number>>({});
