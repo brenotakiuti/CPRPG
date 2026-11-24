@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Heart, Minus, Plus, Wallet } from 'lucide-react';
+import { Heart, Minus, Plus, Wallet, ChevronUp, ChevronDown } from 'lucide-react';
 import { supabase } from './supabase';
 import './LiveSession.css';
 import { fortunes } from './FortuneCookieConfigured';
@@ -22,6 +22,11 @@ const symbol = () => symbols[Math.floor(Math.random() * symbols.length)];
 
 export default function LiveSession({ campaignId, characters, onHPChanged, onBalanceChanged }: { campaignId: string; characters: Character[]; onHPChanged: (id: string, hp: number) => void; onBalanceChanged: (id: string, balance: number) => void }) {
   const [monitorOpen, setMonitorOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(1);
+  const [visibleStart, setVisibleStart] = useState(0);
+  const capacity = Math.min(Math.max(1, visibleCount), Math.max(1, characters.length));
+  const firstVisible = Math.min(visibleStart, Math.max(0, characters.length - capacity));
+  const visibleCharacters = characters.slice(firstVisible, firstVisible + capacity);
   const [monitorTop, setMonitorTop] = useState(90);
   const monitorDrawer = useRef<HTMLElement | null>(null);
   const monitorDrag = useRef(false);
@@ -309,7 +314,7 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
       {createPortal(<aside ref={monitorDrawer} style={{top:monitorTop}} className={'live-party-drawer' + (monitorOpen ? ' is-open' : ' is-closed')} aria-label="Party Monitor">
         <section className="live-panel live-party-panel">
             {hpError && <p className="live-hp-error" role="alert">{hpError}</p>}
-            {characters.length ? characters.map(c => { const hp = hpOverrides[c.id] ?? c.current_hp; return (
+            {characters.length ? visibleCharacters.map(c => { const hp = hpOverrides[c.id] ?? c.current_hp; return (
               <div className="live-character" key={c.id}>
                 <div className="live-character-main"><strong>{c.name}</strong><div className="live-character-money"><span>{Number(c.balance).toLocaleString('en-US')} E$</span></div></div>
                 {c.body !== null && hp !== null ? <div className="live-character-vitals">
@@ -319,6 +324,15 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
                 <div className="live-hp-actions"><button type="button" title={'Adjust funds for ' + c.name} aria-label={'Adjust funds for ' + c.name} onClick={() => openMoney(c.id)}><Wallet size={17}/></button><button type="button" title="Remove 5 HP" aria-label={'Remove 5 HP from ' + c.name} disabled={hp === null || hp <= 0 || c.body === null} onClick={() => void adjustHP(c, -5)}><Heart size={14}/><Minus size={13}/></button><button type="button" className="live-hp-heal" title="Restore 5 HP" aria-label={'Restore 5 HP to ' + c.name} disabled={hp === null || c.body === null || hp >= maxHP(c.body)} onClick={() => void adjustHP(c, 5)}><Heart size={14}/><Plus size={13}/></button></div>
               </div>
              ); }) : <p className="live-empty">No characters in this campaign yet.</p>}
+            {characters.length > 0 && <div className="live-party-capacity-controls" aria-label="Party Monitor character controls">
+              <span className="live-party-count">{capacity} / {characters.length}</span>
+              <div className="live-party-capacity-buttons">
+                <button type="button" title="Previous character" aria-label="Previous character" disabled={capacity >= characters.length || firstVisible === 0} onClick={() => setVisibleStart(Math.max(0, firstVisible - 1))}><ChevronUp size={17}/></button>
+                <button type="button" title="Next character" aria-label="Next character" disabled={capacity >= characters.length || firstVisible >= characters.length - capacity} onClick={() => setVisibleStart(Math.min(characters.length - capacity, firstVisible + 1))}><ChevronDown size={17}/></button>
+                <button type="button" title="Show one more character" aria-label="Show one more character" disabled={capacity >= characters.length} onClick={() => { setVisibleCount(capacity + 1); setVisibleStart(Math.min(firstVisible, Math.max(0, characters.length - capacity - 1))); }}><Plus size={17}/></button>
+                <button type="button" title="Show one fewer character" aria-label="Show one fewer character" disabled={capacity <= 1} onClick={() => setVisibleCount(capacity - 1)}><Minus size={17}/></button>
+              </div>
+            </div>}
           </section>
         <button type="button" className="live-party-drawer-edge" onPointerDown={startMonitorDrag} onClick={() => { if (!monitorDrag.current) setMonitorOpen(v => !v); }} aria-label={monitorOpen ? 'Retract Party Monitor' : 'Expand Party Monitor'} aria-expanded={monitorOpen} title={monitorOpen ? 'Retract Party Monitor' : 'Expand Party Monitor'}>
           <span className="live-party-drawer-chevron" aria-hidden="true">{monitorOpen ? '‹' : '›'}</span>
