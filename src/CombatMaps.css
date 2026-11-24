@@ -273,3 +273,9 @@
   min-height:280px;
  }
 }
+
+/* Fullscreen map editor keeps parent controls and the entire embedded editor visible. */
+.combat-maps-panel.editor-is-fullscreen{position:fixed;inset:0;z-index:1200;width:100vw;max-width:none;height:100dvh;max-height:100dvh;overflow:auto;background:#0c1521;padding:12px 18px;box-sizing:border-box}
+.editor-is-fullscreen .combat-editor-toolbar-shell{margin-bottom:8px;padding:8px 12px}
+.editor-is-fullscreen .combat-map-editor-frame{height:calc(100dvh - 125px);min-height:420px;max-height:none}
+@media(max-width:760px){.combat-maps-panel.editor-is-fullscreen{padding:8px}.editor-is-fullscreen .combat-map-editor-frame{height:calc(100dvh - 160px);min-height:340px}}
