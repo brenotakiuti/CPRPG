@@ -218,3 +218,10 @@
 
 /* Drag handle vertically along the left edge; prevent touch panning during drag. */
 .live-party-drawer-edge{touch-action:none;user-select:none;-webkit-user-select:none}
+
+.live-party-capacity-controls{display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 10px;border-top:1px solid #344657;background:#152333}
+.live-party-count{font-size:11px;color:#aabaca;font-weight:700;white-space:nowrap}
+.live-party-capacity-buttons{display:flex;align-items:center;justify-content:center;gap:7px}
+.live-party-capacity-buttons button{display:inline-flex;align-items:center;justify-content:center;width:30px;height:29px;padding:0;border:1px solid #465b70;border-radius:5px;background:#203247;color:#e8c157;cursor:pointer}
+.live-party-capacity-buttons button:disabled{opacity:.3;cursor:not-allowed}
+.live-party-capacity-buttons button:not(:disabled):hover{border-color:#e8c157;background:#2e3c49}
