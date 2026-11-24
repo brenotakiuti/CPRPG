@@ -466,3 +466,5 @@
 .gm-campaign-shortcuts button{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #4a6073;border-radius:6px;background:#203145;color:#e2eaf2;cursor:pointer}
 .gm-campaign-shortcuts button:hover{border-color:#e3c153}
 @media(max-width:650px){.gm-app-header{padding:8px;gap:7px}.gm-app-switcher-trigger{gap:7px}.gm-app-switcher-trigger>img{width:38px;height:38px}.gm-app-brand-copy strong{font-size:16px}.gm-app-brand-copy small{font-size:9px}.gm-app-header-actions{gap:7px}.gm-app-log-button span,.gm-app-online span{display:none}}
+
+.gm-app-unread{display:inline-flex;align-items:center;justify-content:center;margin-left:8px;min-width:20px;padding:2px 5px;border-radius:10px;background:#bb3470;color:white;font-size:10px;vertical-align:middle}
