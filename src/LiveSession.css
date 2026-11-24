@@ -180,3 +180,26 @@
     flex-basis:70%;
   }
 }
+
+/* Give the HP track its own compact grid column so actions move with it. */
+@media(min-width:651px){
+  .live-party-drawer .live-character{
+    grid-template-columns:minmax(0,310px) auto;
+    justify-content:start;
+  }
+}
+.live-party-drawer .live-character-main{
+  grid-column:1/-1;
+  width:100%;
+}
+.live-party-drawer .live-hp-info,
+.live-party-drawer .live-hp-row .live-hp-track{
+  width:100%;
+  max-width:100%;
+}
+.live-party-drawer .live-hp-row .live-hp-track{flex:1 1 auto}
+@media(max-width:650px){
+  .live-party-drawer .live-character{
+    grid-template-columns:minmax(0,1fr) auto;
+  }
+}
