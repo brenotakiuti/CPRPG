@@ -338,7 +338,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     finally { setBusy(false); }
   };
   return <section className="gm-ghost" aria-label="Ghost Link GM communications">
-    <header className="gm-ghost-header"><div className="gm-ghost-brand"><img src="/ghost-link-icon.svg" width={43} height={43} alt="Ghost Link icon"/><div><strong>GHOST//LINK</strong><small>GM COMMUNICATIONS WORKSTATION</small></div></div><div className="gm-ghost-network">● NETWORK TERMINAL <small>{campaignName}</small></div></header>
+    
     <nav className="gm-ghost-tabs" aria-label="Ghost Link tools">{tabs.map(item => <button key={item.id} type="button" className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}><item.icon size={15}/>{item.label}</button>)}</nav>
     {tab === 'messages' ? <div className="gm-ghost-workstation">
       <aside className="gm-ghost-identities"><div className="gm-ghost-section-title">NPC IDENTITIES <span>{allIdentities.length}</span></div>
