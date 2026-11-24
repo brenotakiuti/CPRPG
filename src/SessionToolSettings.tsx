@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Cookie, Dices, SunMoon } from 'lucide-react';
+import { Cookie, Dices, SunMoon, ChevronDown, Play } from 'lucide-react';
 import './SessionToolSettings.css';
 
 export type Delivery = { audience: 'all' | 'character'; characterId: string | null };
@@ -14,6 +14,7 @@ export default function SessionToolSettings({ onOpen, characters }: { onOpen: (c
   const [audience, setAudience] = useState<'all' | 'character'>('all');
   const [characterId, setCharacterId] = useState('');
   const [tool, setTool] = useState<'dice'|'tarot'|'fortune'>('dice');
+  const [expanded, setExpanded] = useState(false);
   const [rig, setRig] = useState(false);
   const [sides, setSides] = useState(20);
   const [rolls, setRolls] = useState(1);
@@ -48,13 +49,12 @@ export default function SessionToolSettings({ onOpen, characters }: { onOpen: (c
       onOpen({ tool, forcedMessage: rig ? fortune : null, forcedNumbers: rig ? numbers : null, delivery });
     }
     setRig(false);
+    setExpanded(false);
   }
-  return <div className="session-tool-settings">
-    <div className="live-tools">
-      <button type="button" className={'live-roll-open' + (tool === 'dice' ? ' selected' : '')} onClick={() => { setTool('dice'); setError(''); }}><Dices size={22}/>DICE ROLL</button>
-      <button type="button" className={'live-roll-open' + (tool === 'tarot' ? ' selected' : '')} onClick={() => { setTool('tarot'); setError(''); }}><SunMoon size={22}/>TAROT</button>
-      <button type="button" className={'live-roll-open' + (tool === 'fortune' ? ' selected' : '')} onClick={() => { setTool('fortune'); setError(''); }}><Cookie size={22}/>FORTUNE COOKIE</button>
-    </div>
+  return <div className={`session-tool-settings session-bottom-dock ${expanded ? 'expanded' : 'compact'}`}>
+    {expanded && <div className="session-dock-config">
+      <div className="session-dock-heading"><strong>{tool === 'dice' ? 'DICE // CONFIGURATION' : tool === 'tarot' ? 'TAROT // CONFIGURATION' : 'FORTUNE COOKIE // CONFIGURATION'}</strong><button type="button" onClick={() => setExpanded(false)} aria-label="Collapse session tool controls"><ChevronDown size={20}/></button></div>
+      <div className="session-dock-fields">
     {tool === 'dice' && <div className="session-settings-row">
       <label>Die type<select value={sides} onChange={e => setSides(Number(e.target.value))}>{[6,10,20,100].map(n => <option key={n} value={n}>D{n}</option>)}</select></label>
       <label>Number of rolls<input type="number" min={1} max={100} value={rolls} onChange={e => setRolls(Number(e.target.value))}/></label>
@@ -68,7 +68,14 @@ export default function SessionToolSettings({ onOpen, characters }: { onOpen: (c
       {tool === 'fortune' && <label>Lucky numbers (five unique values, 1–99)<input value={luckyNumbers} onChange={e => setLuckyNumbers(e.target.value)} placeholder="7, 13, 21, 42, 77"/></label>}
     </div>}
     {error && <p className="session-settings-error" role="alert">{error}</p>}
-    <button type="button" className="session-open-button" onClick={launch}>Execute</button>
+    <button type="button" className="session-open-button" onClick={launch}><Play size={17}/> Execute</button>
     <small>Tarot and Fortune Cookie are delivered to selected player HUDs.</small>
+      </div>
+    </div>
+        <div className="live-tools session-dock-buttons">
+      <button type="button" aria-pressed={tool === 'tarot'} className={'live-roll-open tarot' + (tool === 'tarot' ? ' selected' : '')} onClick={() => { setTool('tarot'); setExpanded(true); setError(''); }}><SunMoon size={26}/><span>TAROT</span></button>
+      <button type="button" aria-pressed={tool === 'dice'} className={'live-roll-open dice' + (tool === 'dice' ? ' selected' : '')} onClick={() => { setTool('dice'); setExpanded(true); setError(''); }}><Dices size={34}/><span>DICE</span></button>
+      <button type="button" aria-pressed={tool === 'fortune'} className={'live-roll-open fortune' + (tool === 'fortune' ? ' selected' : '')} onClick={() => { setTool('fortune'); setExpanded(true); setError(''); }}><Cookie size={26}/><span>COOKIE</span></button>
+    </div>
   </div>;
 }
