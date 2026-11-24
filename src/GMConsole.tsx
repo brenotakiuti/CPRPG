@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useGMArtworkCache } from './useGMArtworkCache';
 import { GMControlDock, GMUtilityWindow, type UtilityId } from './GMControlDock';
+import { GMCharacterDataProvider, useGMCharacterData } from './GMCharacterData';
 import { QRCodeSVG } from 'qrcode.react';
 import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Settings, LockKeyhole, Copy, Settings2, ScrollText, Package, Users, Wrench, Zap, Slice, ChevronsUpDown, Check } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
@@ -80,11 +81,12 @@ type GMConsoleProps = {
   onSwitchCampaign: () => void;
 };
 
-export default function GMConsole({
+function GMConsoleContent({
   campaign,
   onSwitchCampaign,
 }: GMConsoleProps) {
   useGMArtworkCache();
+  const sharedCharacterData = useGMCharacterData();
   const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'ripperdoc' | 'logs' | 'phone' | 'combat'>(() => {
     const saved = sessionStorage.getItem('gm-page:' + campaign.id);
     return saved === 'map-editor' ? 'combat' : saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'ripperdoc' || saved === 'logs' || saved === 'phone' || saved === 'combat' ? saved : 'phone';
@@ -119,7 +121,7 @@ export default function GMConsole({
     setFocusedUtility(previous => previous === id ? null : previous);
   };
   const utilityWindow = (id: UtilityId, children: ReactNode) => utilityWindows.includes(id) ? (
-    <GMUtilityWindow key={id} title={{bank:'Bank',ripperdoc:'Ripperdoc',inventory:'Inventory',overview:'Campaign Settings'}[id]} active={focusedUtility === id} onFocus={() => setFocusedUtility(id)} onClose={() => closeUtility(id)} offset={utilityWindows.indexOf(id)}>{children}</GMUtilityWindow>
+    <GMUtilityWindow key={id} title={{bank:'Bank',ripperdoc:'Ripperdoc',inventory:'Inventory',overview:'Campaign Settings',characters:'Characters'}[id]} active={focusedUtility === id} onFocus={() => setFocusedUtility(id)} onClose={() => closeUtility(id)} offset={utilityWindows.indexOf(id)}>{children}</GMUtilityWindow>
   ) : null;
   const [tacticalTab, setTacticalTab] = useState<'broadcast' | 'editor'>('broadcast');
   const [editorVisited, setEditorVisited] = useState(false);
@@ -546,6 +548,125 @@ export default function GMConsole({
     </div>
   );
 
+  const charactersContent = (
+        <div className="gm-characters-layout">
+          <aside className="gm-roster">
+            <div className="gm-roster-heading"><strong>Roster</strong><span>{characters.length}</span></div>
+            <input aria-label="Search characters" placeholder="Search..." value={search}
+              onChange={(e) => setSearch(e.target.value)} />
+            {visible.map((character) => (
+              <button type="button" key={character.id}
+                className={selected?.id === character.id ? 'gm-roster-card selected' : 'gm-roster-card'}
+                onClick={() => { setSelectedId(character.id); setDetailTab('stats'); setInviteMessage(''); }}>
+                <span className="gm-roster-card-top">
+                  <span className="gm-avatar" aria-hidden="true">♙</span>
+                  <span><strong>{character.name}</strong><small>Character</small></span>
+                </span>
+                <small className={character.player_id ? 'gm-assigned' : 'gm-unassigned'}>
+                  {character.player_id ? '● Assigned to player' : '○ Unassigned'}
+                </small>
+              </button>
+            ))}
+            {visible.length === 0 && <p className="gm-muted">No matching characters.</p>}
+          </aside>
+          <main className="gm-character-details">
+            {selected ? (
+              <>
+                <div className="gm-character-header">
+                  <div><h2>{selected.name}</h2><p>Character</p></div>
+                  <div className="gm-character-balance">
+                    <strong>{selected.balance.toLocaleString('en-US')} E$</strong>
+                    <small className={selected.player_id ? 'gm-assigned' : 'gm-unassigned'}>
+                      {selected.player_id ? 'Assigned to player' : 'Unassigned'}
+                    </small>
+                  </div>
+                </div>
+                <div className="gm-detail-tabs" role="tablist" aria-label="Character details">
+                  {(['stats', 'cyberware', 'inventory', 'access'] as const).map((tab) => (
+                    <button key={tab} role="tab" aria-selected={detailTab === tab}
+                      className={detailTab === tab ? 'selected' : ''}
+                      onClick={() => setDetailTab(tab)}>{tab[0].toUpperCase() + tab.slice(1)}</button>
+                  ))}
+                </div>
+                {detailTab === 'stats' && (
+                  <div className="gm-character-stats">
+                    {statsLoading ? <p className="gm-muted">Loading stats...</p>
+                      : statsError ? <p className="gm-stats-error" role="alert">{statsError}</p>
+                      : stats.length === 0 ? <p className="gm-muted">No stats assigned to this character yet.</p>
+                      : <div className="gm-stats-list">
+                          {stats.map((stat) => {
+                            const tier = statTier(stat.value);
+                            const maximum = Math.max(stat.maxValue, 1);
+                            const percent = Math.max(0, Math.min(100, (stat.value / maximum) * 100));
+                            return (
+                              <div className="gm-stat-row" key={stat.id}>
+                                <div className="gm-stat-row-main">
+                                  <div className="gm-stat-icon"><StatIcon number={stat.statNumber} /></div>
+                                  <div className="gm-stat-label">
+                                    <strong>{stat.name}</strong>
+                                    {stat.description && <small>{stat.description}</small>}
+                                  </div>
+                                  <div className="gm-stat-value" style={{ color: tier.color }}>
+                                    <strong>{stat.value}</strong>
+                                    <small>{tier.name}</small>
+                                  </div>
+                                </div>
+                                <div className="gm-stat-track" role="meter" aria-label={stat.name}
+                                  aria-valuemin={0} aria-valuemax={maximum}
+                                  aria-valuenow={Math.max(0, Math.min(maximum, stat.value))}
+                                  aria-valuetext={`${stat.value} — ${tier.name}`}>
+                                  <div className="gm-stat-fill" style={{ width: `${percent}%`, backgroundColor: tier.color }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>}
+                  </div>
+                )}
+                {detailTab === 'cyberware' && <div className="gm-character-stats">{sharedCharacterData.loading ? <p className="gm-muted">Loading cyberware...</p> : sharedCharacterData.error ? <p role="alert">{sharedCharacterData.error}</p> : sharedCharacterData.cyberware.filter(entry => entry.character_id === selected.id).length === 0 ? <p className="gm-empty-detail">No cyberware installed</p> : sharedCharacterData.cyberware.filter(entry => entry.character_id === selected.id).map(entry => <div className="gm-stat-row" key={entry.id}><strong>{entry.name}</strong><p>{entry.description}</p><small>{entry.position_id}</small></div>)}</div>}
+                {detailTab === 'inventory' && <div className="gm-character-stats">{sharedCharacterData.loading ? <p className="gm-muted">Loading inventory...</p> : sharedCharacterData.error ? <p role="alert">{sharedCharacterData.error}</p> : sharedCharacterData.inventory.filter(entry => entry.character_id === selected.id).length === 0 ? <p className="gm-empty-detail">Inventory is empty</p> : sharedCharacterData.inventory.filter(entry => entry.character_id === selected.id).map(entry => { const item = sharedCharacterData.items.find(item => item.id === entry.item_id); return <div className="gm-stat-row" key={entry.id}><strong>{item?.name ?? 'Unknown item'}</strong><span> × {entry.quantity}</span><small>{item?.category ?? ''}{entry.equipped_slot ? ' · Equipped: ' + entry.equipped_slot : ''}</small></div> })}</div>}
+                {detailTab === 'access' && (
+                  <div className="gm-access-panel">
+                    {selected.player_id ? (
+                      <div className="character-assignment-row">
+                        <span className="character-assignment-status">Assigned to player</span>
+                        <button type="button" className="revoke-access-button"
+                          title="Revoke player access" aria-label={`Revoke player access for ${selected.name}`}
+                          disabled={resettingCharacterId !== null}
+                          onClick={() => void resetPlayerAccess(selected.id, selected.name)}>↻</button>
+                      </div>
+                    ) : (
+                      <>
+                        {!invitations[selected.id] && (
+                          <button type="button" onClick={() => void generateInvitation(selected.id)}>Generate Invitation</button>
+                        )}
+                        {invitations[selected.id] && (
+                          <div className="gm-invitation">
+                            <div className="gm-qr-panel">
+                              <QRCodeSVG value={invitations[selected.id]} size={220} marginSize={2} bgColor="#ffffff" fgColor="#111111" />
+                              <span>Scan to access {selected.name} · valid until claimed</span>
+                            </div>
+                            <div className="gm-invitation-link-row">
+                              <input readOnly aria-label="Character invitation" value={invitations[selected.id]} />
+                              <button type="button" className="gm-invitation-copy-button"
+                                aria-label="Copy character invitation link" title="Copy character invitation link"
+                                onClick={() => void navigator.clipboard.writeText(invitations[selected.id])}>
+                                <Copy size={23} aria-hidden="true" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {inviteMessage && <p className="transfer-message" role="alert">{inviteMessage}</p>}
+                  </div>
+                )}
+              </>
+            ) : <p className="gm-muted">No characters in this campaign yet.</p>}
+          </main>
+        </div>
+      );
+
   const campaignSettingsContent = (
         <div className="gm-dashboard-panel gm-overview">
           <section className="gm-campaign-identity"><h3>Campaign</h3><strong>{campaign.name}</strong><small>GM control system · Active campaign</small></section>
@@ -621,124 +742,7 @@ export default function GMConsole({
           return <>{current.icon ? <current.icon size={19} strokeWidth={1.9} aria-hidden="true" /> : null}{current.label}</>;
         })()}
       </h2>}
-      {page === 'live' ? null : page === 'characters' ? (
-        <div className="gm-characters-layout">
-          <aside className="gm-roster">
-            <div className="gm-roster-heading"><strong>Roster</strong><span>{characters.length}</span></div>
-            <input aria-label="Search characters" placeholder="Search..." value={search}
-              onChange={(e) => setSearch(e.target.value)} />
-            {visible.map((character) => (
-              <button type="button" key={character.id}
-                className={selected?.id === character.id ? 'gm-roster-card selected' : 'gm-roster-card'}
-                onClick={() => { setSelectedId(character.id); setDetailTab('stats'); setInviteMessage(''); }}>
-                <span className="gm-roster-card-top">
-                  <span className="gm-avatar" aria-hidden="true">♙</span>
-                  <span><strong>{character.name}</strong><small>Character</small></span>
-                </span>
-                <small className={character.player_id ? 'gm-assigned' : 'gm-unassigned'}>
-                  {character.player_id ? '● Assigned to player' : '○ Unassigned'}
-                </small>
-              </button>
-            ))}
-            {visible.length === 0 && <p className="gm-muted">No matching characters.</p>}
-          </aside>
-          <main className="gm-character-details">
-            {selected ? (
-              <>
-                <div className="gm-character-header">
-                  <div><h2>{selected.name}</h2><p>Character</p></div>
-                  <div className="gm-character-balance">
-                    <strong>{selected.balance.toLocaleString('en-US')} E$</strong>
-                    <small className={selected.player_id ? 'gm-assigned' : 'gm-unassigned'}>
-                      {selected.player_id ? 'Assigned to player' : 'Unassigned'}
-                    </small>
-                  </div>
-                </div>
-                <div className="gm-detail-tabs" role="tablist" aria-label="Character details">
-                  {(['stats', 'cyberware', 'inventory', 'access'] as const).map((tab) => (
-                    <button key={tab} role="tab" aria-selected={detailTab === tab}
-                      className={detailTab === tab ? 'selected' : ''}
-                      onClick={() => setDetailTab(tab)}>{tab[0].toUpperCase() + tab.slice(1)}</button>
-                  ))}
-                </div>
-                {detailTab === 'stats' && (
-                  <div className="gm-character-stats">
-                    {statsLoading ? <p className="gm-muted">Loading stats...</p>
-                      : statsError ? <p className="gm-stats-error" role="alert">{statsError}</p>
-                      : stats.length === 0 ? <p className="gm-muted">No stats assigned to this character yet.</p>
-                      : <div className="gm-stats-list">
-                          {stats.map((stat) => {
-                            const tier = statTier(stat.value);
-                            const maximum = Math.max(stat.maxValue, 1);
-                            const percent = Math.max(0, Math.min(100, (stat.value / maximum) * 100));
-                            return (
-                              <div className="gm-stat-row" key={stat.id}>
-                                <div className="gm-stat-row-main">
-                                  <div className="gm-stat-icon"><StatIcon number={stat.statNumber} /></div>
-                                  <div className="gm-stat-label">
-                                    <strong>{stat.name}</strong>
-                                    {stat.description && <small>{stat.description}</small>}
-                                  </div>
-                                  <div className="gm-stat-value" style={{ color: tier.color }}>
-                                    <strong>{stat.value}</strong>
-                                    <small>{tier.name}</small>
-                                  </div>
-                                </div>
-                                <div className="gm-stat-track" role="meter" aria-label={stat.name}
-                                  aria-valuemin={0} aria-valuemax={maximum}
-                                  aria-valuenow={Math.max(0, Math.min(maximum, stat.value))}
-                                  aria-valuetext={`${stat.value} — ${tier.name}`}>
-                                  <div className="gm-stat-fill" style={{ width: `${percent}%`, backgroundColor: tier.color }} />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>}
-                  </div>
-                )}
-                {detailTab === 'cyberware' && <div className="gm-empty-detail">No cyberware installed</div>}
-                {detailTab === 'inventory' && <div className="gm-empty-detail">Inventory is empty</div>}
-                {detailTab === 'access' && (
-                  <div className="gm-access-panel">
-                    {selected.player_id ? (
-                      <div className="character-assignment-row">
-                        <span className="character-assignment-status">Assigned to player</span>
-                        <button type="button" className="revoke-access-button"
-                          title="Revoke player access" aria-label={`Revoke player access for ${selected.name}`}
-                          disabled={resettingCharacterId !== null}
-                          onClick={() => void resetPlayerAccess(selected.id, selected.name)}>↻</button>
-                      </div>
-                    ) : (
-                      <>
-                        {!invitations[selected.id] && (
-                          <button type="button" onClick={() => void generateInvitation(selected.id)}>Generate Invitation</button>
-                        )}
-                        {invitations[selected.id] && (
-                          <div className="gm-invitation">
-                            <div className="gm-qr-panel">
-                              <QRCodeSVG value={invitations[selected.id]} size={220} marginSize={2} bgColor="#ffffff" fgColor="#111111" />
-                              <span>Scan to access {selected.name} · valid until claimed</span>
-                            </div>
-                            <div className="gm-invitation-link-row">
-                              <input readOnly aria-label="Character invitation" value={invitations[selected.id]} />
-                              <button type="button" className="gm-invitation-copy-button"
-                                aria-label="Copy character invitation link" title="Copy character invitation link"
-                                onClick={() => void navigator.clipboard.writeText(invitations[selected.id])}>
-                                <Copy size={23} aria-hidden="true" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                    {inviteMessage && <p className="transfer-message" role="alert">{inviteMessage}</p>}
-                  </div>
-                )}
-              </>
-            ) : <p className="gm-muted">No characters in this campaign yet.</p>}
-          </main>
-        </div>
-      ) : page === 'bank' || page === 'logs' ? null : page === 'overview' ? (utilityWindows.includes('overview') ? null : campaignSettingsContent) : page === 'inventory' || page === 'ripperdoc' || page === 'phone' ? null : null}
+      {page === 'live' ? null : page === 'characters' ? (utilityWindows.includes('characters') ? null : charactersContent) : page === 'bank' || page === 'logs' ? null : page === 'overview' ? (utilityWindows.includes('overview') ? null : campaignSettingsContent) : page === 'inventory' || page === 'ripperdoc' || page === 'phone' ? null : null}
       {<div style={{ display: page === 'live' ? undefined : 'none' }}><LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} /></div>}
       {visitedTools.includes('bank') && (utilityWindows.includes('bank') ? utilityWindow('bank', <div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>) : <div style={{ display: page === 'bank' ? undefined : 'none' }}><div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div></div>)}
       {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><button type="button" className="gm-logs-return" onClick={closeLogs}>← Back to {pageBeforeLogs === 'combat' ? 'Tactical//Feed' : pageBeforeLogs === 'phone' ? 'Ghost//Link' : 'previous page'}</button><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
@@ -756,7 +760,12 @@ export default function GMConsole({
       </div>}
       <GMControlDock open={utilityWindows} onOpen={openUtility} />
       {utilityWindow('overview', campaignSettingsContent)}
+      {utilityWindow('characters', charactersContent)}
       <GMCallSpotlight campaignId={campaign.id} />
     </div>
   );
+}
+
+export default function GMConsole(props: GMConsoleProps) {
+  return <GMCharacterDataProvider campaignId={props.campaign.id}><GMConsoleContent {...props}/></GMCharacterDataProvider>;
 }
