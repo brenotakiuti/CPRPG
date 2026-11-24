@@ -61,3 +61,17 @@
 .session-bottom-dock .session-dock-buttons .live-roll-open:not(.dice) svg{width:21px;height:21px}
 .session-bottom-dock .session-dock-buttons .live-roll-open.dice svg{width:27px;height:27px}
 @media(max-width:650px){.session-bottom-dock{width:min(280px,calc(100vw - 70px))}.session-bottom-dock .session-dock-buttons .live-roll-open{width:auto;height:52px}.session-bottom-dock .session-dock-buttons .live-roll-open.dice{width:auto;height:69px}}
+
+/* Half-size dock controls, with a retract tab that remains accessible. */
+.session-bottom-dock{width:min(186px,calc(100vw - 72px));transition:width .2s ease;overflow:visible}
+.session-bottom-dock.expanded{width:min(320px,calc(100vw - 72px))}
+.session-bottom-dock .session-dock-buttons{gap:4px;padding:5px 6px 4px;align-items:flex-end;border-radius:9px 9px 0 0}
+.session-bottom-dock .session-dock-buttons .live-roll-open{flex:1 1 0;min-width:0;width:auto;height:34px;padding:2px 1px;gap:0;border-radius:6px;font-size:8px}
+.session-bottom-dock .session-dock-buttons .live-roll-open.dice{flex:1.28 1 0;width:auto;height:44px;border-radius:8px}
+.session-bottom-dock .session-dock-buttons .live-roll-open:not(.dice) svg{width:15px;height:15px}
+.session-bottom-dock .session-dock-buttons .live-roll-open.dice svg{width:20px;height:20px}
+.session-bottom-dock .session-dock-buttons .live-roll-open span{line-height:1.1}
+.session-bottom-dock .session-dock-retract{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;width:38px;height:19px;padding:0;border:1px solid #526477;border-bottom:0;border-radius:7px 7px 0 0;background:#17283b;color:#e8bd4a;cursor:pointer;z-index:2}
+.session-bottom-dock.retracted{width:0;height:0;padding:0;filter:none}
+.session-bottom-dock.retracted .session-dock-retract{bottom:0;border:1px solid #526477;border-bottom:0;box-shadow:0 -3px 10px #0008}
+@media(max-width:650px){.session-bottom-dock{width:min(186px,calc(100vw - 70px))}.session-bottom-dock.expanded{width:min(300px,calc(100vw - 70px))}.session-bottom-dock .session-dock-buttons .live-roll-open{width:auto;height:34px}.session-bottom-dock .session-dock-buttons .live-roll-open.dice{width:auto;height:44px}}
