@@ -22,6 +22,35 @@ const symbol = () => symbols[Math.floor(Math.random() * symbols.length)];
 
 export default function LiveSession({ campaignId, characters, onHPChanged, onBalanceChanged }: { campaignId: string; characters: Character[]; onHPChanged: (id: string, hp: number) => void; onBalanceChanged: (id: string, balance: number) => void }) {
   const [monitorOpen, setMonitorOpen] = useState(false);
+  const [monitorTop, setMonitorTop] = useState(90);
+  const monitorDrawer = useRef<HTMLElement | null>(null);
+  const monitorDrag = useRef(false);
+  const startMonitorDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    const startY = event.clientY;
+    const initialTop = monitorDrawer.current?.getBoundingClientRect().top ?? monitorTop;
+    let moved = false;
+    const move = (e: PointerEvent) => {
+      const delta = e.clientY - startY;
+      if (Math.abs(delta) <= 5 && !moved) return;
+      moved = true;
+      const height = monitorDrawer.current?.getBoundingClientRect().height ?? 120;
+      const maxTop = Math.max(4, window.innerHeight - Math.min(height, window.innerHeight) - 4);
+      setMonitorTop(Math.max(4, Math.min(maxTop, initialTop + delta)));
+    };
+    const end = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      if (moved) {
+        monitorDrag.current = true;
+        window.setTimeout(() => { monitorDrag.current = false; }, 0);
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end, { once: true });
+    window.addEventListener('pointercancel', end, { once: true });
+  };
   const [hpError, setHpError] = useState('');
   const [hpOverrides, setHpOverrides] = useState<Record<string, number>>({});
   const hpOverridesRef = useRef<Record<string, number>>({});
