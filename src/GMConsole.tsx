@@ -737,7 +737,7 @@ export default function GMConsole({
       {visitedTools.includes('bank') && (utilityWindows.includes('bank') ? utilityWindow('bank', <div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>) : <div style={{ display: page === 'bank' ? undefined : 'none' }}><div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div></div>)}
       {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
       {visitedTools.includes('inventory') && (utilityWindows.includes('inventory') ? utilityWindow('inventory', <GMInventory campaignId={campaign.id} />) : <div style={{ display: page === 'inventory' ? undefined : 'none' }}><GMInventory campaignId={campaign.id} /></div>)}
-      {visitedTools.includes('phone') && <div style={{ display: page === 'phone' ? undefined : 'none' }}><GMPhone campaignId={campaign.id} campaignName={campaign.name} onRead={refreshPhoneUnread} /></div>}
+      {visitedTools.includes('phone') && <div style={{ display: page === 'phone' ? undefined : 'none' }}><GMPhone campaignId={campaign.id} onRead={refreshPhoneUnread} /></div>}
       {visitedTools.includes('ripperdoc') && (utilityWindows.includes('ripperdoc') ? utilityWindow('ripperdoc', <Ripperdoc characters={characters} />) : <div style={{ display: page === 'ripperdoc' ? undefined : 'none' }}><Ripperdoc characters={characters} /></div>)}
       {visitedTools.includes('combat') && <div style={{ display: page === 'combat' ? undefined : 'none' }}>
         
