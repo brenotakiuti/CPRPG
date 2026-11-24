@@ -32,7 +32,7 @@ const describePhoneError = (error: unknown): string => {
   }
   return String(error);
 };
-export default function GMPhone({ campaignId, campaignName, onRead }: { campaignId: string; campaignName: string; onRead?: () => void }) {
+export default function GMPhone({ campaignId, onRead }: { campaignId: string; onRead?: () => void }) {
   const [tab, setTab] = useState<Tab>('messages');
   const [threads, setThreads] = useState<Thread[]>([]);
   const [revealedConversations, setRevealedConversations] = useState<string[]>([]);
