@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Heart, Minus, Plus, Wallet } from 'lucide-react';
 import { supabase } from './supabase';
 import './LiveSession.css';
@@ -310,15 +311,13 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
               ))}
             </div>
           </section>
-          <section className="live-panel">
-            <h2>SESSION TOOLS</h2>
-            <SessionToolSettings onOpen={next => void launch(next)} characters={characters}/>
-            {deliveryError && <p className="live-hp-error" role="alert">{deliveryError}</p>}
-            {deliveryNotice && <p role="status" style={{ color: '#69dba8' }}>{deliveryNotice}</p>}
-            {delivering && <small>Sending spotlights...</small>}
-          </section>
+
         </div>
       </div>
+      {createPortal(<>
+        <SessionToolSettings onOpen={next => void launch(next)} characters={characters}/>
+        {(deliveryError || deliveryNotice || delivering) && <div className="session-dock-feedback" role="status">{deliveryError || deliveryNotice || (delivering ? 'Sending spotlights...' : '')}</div>}
+      </>, document.body)}
       {moneyCharacter && <div className="live-spotlight" role="dialog" aria-modal="true" aria-label={'Adjust funds for ' + moneyCharacter.name}>
         <div className="live-money-scene">
           <div className="live-spotlight-title">BANK SPOTLIGHT</div>
