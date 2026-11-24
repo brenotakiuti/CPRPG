@@ -71,8 +71,8 @@ export default function SessionToolSettings({ onOpen, characters }: { onOpen: (c
     <button type="button" className="session-open-button" onClick={launch}><Play size={17}/> Execute</button>
     <small>Tarot and Fortune Cookie are delivered to selected player HUDs.</small>
       </div>
-    </div>
-        <div className="live-tools session-dock-buttons">
+    </div>}
+    <div className="live-tools session-dock-buttons">
       <button type="button" aria-pressed={tool === 'tarot'} className={'live-roll-open tarot' + (tool === 'tarot' ? ' selected' : '')} onClick={() => { setTool('tarot'); setExpanded(true); setError(''); }}><SunMoon size={26}/><span>TAROT</span></button>
       <button type="button" aria-pressed={tool === 'dice'} className={'live-roll-open dice' + (tool === 'dice' ? ' selected' : '')} onClick={() => { setTool('dice'); setExpanded(true); setError(''); }}><Dices size={34}/><span>DICE</span></button>
       <button type="button" aria-pressed={tool === 'fortune'} className={'live-roll-open fortune' + (tool === 'fortune' ? ' selected' : '')} onClick={() => { setTool('fortune'); setExpanded(true); setError(''); }}><Cookie size={26}/><span>COOKIE</span></button>
