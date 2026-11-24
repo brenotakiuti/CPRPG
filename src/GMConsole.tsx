@@ -101,6 +101,12 @@ export default function GMConsole({
     }
   };
   const [appSwitcherOpen, setAppSwitcherOpen] = useState(false);
+  const [pageBeforeLogs, setPageBeforeLogs] = useState<Exclude<typeof page, 'logs'>>('phone');
+  const openLogs = () => {
+    if (page !== 'logs') setPageBeforeLogs(page);
+    openPage('logs');
+  };
+  const closeLogs = () => openPage(pageBeforeLogs);
   const [utilityWindows, setUtilityWindows] = useState<UtilityId[]>([]);
   const [focusedUtility, setFocusedUtility] = useState<UtilityId | null>(null);
   const openUtility = (id: UtilityId) => {
@@ -543,7 +549,7 @@ export default function GMConsole({
   const campaignSettingsContent = (
         <div className="gm-dashboard-panel gm-overview">
           <section className="gm-campaign-identity"><h3>Campaign</h3><strong>{campaign.name}</strong><small>GM control system · Active campaign</small></section>
-          <section className="gm-campaign-shortcuts"><h3>Campaign tools</h3><p>Open other GM tools without the old top navigation.</p><div>{navigation.filter(item=>item.id!=='phone'&&item.id!=='combat'&&item.id!=='overview').map(item=><button type="button" key={item.id} onClick={()=>{if(item.id==='bank'||item.id==='inventory'||item.id==='ripperdoc'){openUtility(item.id)}else{openPage(item.id)}closeUtility('overview')}}>{item.icon&&<item.icon size={17}/>} {item.label}</button>)}<button type="button" onClick={()=>{openPage('logs');closeUtility('overview')}}><ScrollText size={17}/> Logs</button></div></section>
+          <section className="gm-campaign-shortcuts"><h3>Campaign tools</h3><p>Open other GM tools without the old top navigation.</p><div>{navigation.filter(item=>item.id!=='phone'&&item.id!=='combat'&&item.id!=='overview').map(item=><button type="button" key={item.id} onClick={()=>{if(item.id==='bank'||item.id==='inventory'||item.id==='ripperdoc'){openUtility(item.id)}else{openPage(item.id)}closeUtility('overview')}}>{item.icon&&<item.icon size={17}/>} {item.label}</button>)}<button type="button" onClick={()=>{openLogs();closeUtility('overview')}}><ScrollText size={17}/> Logs</button></div></section>
           {creationControls}
           <section className="gm-invitations-settings" aria-label="Character creation settings">
             <div className="gm-invitations-settings-heading">
@@ -605,7 +611,7 @@ export default function GMConsole({
           </div>}
         </div>
         <div className="gm-app-header-actions">
-          <button type="button" className="gm-app-log-button" onClick={()=>openPage('logs')} title="Campaign Logs" aria-label="Campaign Logs"><ScrollText size={19}/><span>Log</span></button>
+          <button type="button" className="gm-app-log-button" onClick={page === 'logs' ? closeLogs : openLogs} title={page === 'logs' ? "Return to previous page" : "Campaign Logs"} aria-label="Campaign Logs"><ScrollText size={19}/><span>{page === 'logs' ? 'Back' : 'Log'}</span></button>
           <span className="gm-app-online">● <span>GM ONLINE</span></span>
         </div>
       </header>
@@ -735,7 +741,7 @@ export default function GMConsole({
       ) : page === 'bank' || page === 'logs' ? null : page === 'overview' ? (utilityWindows.includes('overview') ? null : campaignSettingsContent) : page === 'inventory' || page === 'ripperdoc' || page === 'phone' ? null : null}
       {<div style={{ display: page === 'live' ? undefined : 'none' }}><LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} /></div>}
       {visitedTools.includes('bank') && (utilityWindows.includes('bank') ? utilityWindow('bank', <div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>) : <div style={{ display: page === 'bank' ? undefined : 'none' }}><div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div></div>)}
-      {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
+      {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><button type="button" className="gm-logs-return" onClick={closeLogs}>← Back to {pageBeforeLogs === 'combat' ? 'Tactical//Feed' : pageBeforeLogs === 'phone' ? 'Ghost//Link' : 'previous page'}</button><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
       {visitedTools.includes('inventory') && (utilityWindows.includes('inventory') ? utilityWindow('inventory', <GMInventory campaignId={campaign.id} />) : <div style={{ display: page === 'inventory' ? undefined : 'none' }}><GMInventory campaignId={campaign.id} /></div>)}
       {visitedTools.includes('phone') && <div style={{ display: page === 'phone' ? undefined : 'none' }}><GMPhone campaignId={campaign.id} onRead={refreshPhoneUnread} /></div>}
       {visitedTools.includes('ripperdoc') && (utilityWindows.includes('ripperdoc') ? utilityWindow('ripperdoc', <Ripperdoc characters={characters} />) : <div style={{ display: page === 'ripperdoc' ? undefined : 'none' }}><Ripperdoc characters={characters} /></div>)}
