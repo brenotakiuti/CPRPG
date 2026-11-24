@@ -277,7 +277,7 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
   }
   return (
     <div className="live-session">
-      {createPortal(<aside className={'live-party-drawer' + (monitorOpen ? ' is-open' : ' is-closed')} aria-label="Party Monitor">
+      {createPortal(<aside ref={monitorDrawer} style={{top:monitorTop}} className={'live-party-drawer' + (monitorOpen ? ' is-open' : ' is-closed')} aria-label="Party Monitor">
         <section className="live-panel live-party-panel">
             {hpError && <p className="live-hp-error" role="alert">{hpError}</p>}
             {characters.length ? characters.map(c => { const hp = hpOverrides[c.id] ?? c.current_hp; return (
@@ -291,7 +291,7 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
               </div>
              ); }) : <p className="live-empty">No characters in this campaign yet.</p>}
           </section>
-        <button type="button" className="live-party-drawer-edge" onClick={() => setMonitorOpen(v => !v)} aria-label={monitorOpen ? 'Retract Party Monitor' : 'Expand Party Monitor'} aria-expanded={monitorOpen} title={monitorOpen ? 'Retract Party Monitor' : 'Expand Party Monitor'}>
+        <button type="button" className="live-party-drawer-edge" onPointerDown={startMonitorDrag} onClick={() => { if (!monitorDrag.current) setMonitorOpen(v => !v); }} aria-label={monitorOpen ? 'Retract Party Monitor' : 'Expand Party Monitor'} aria-expanded={monitorOpen} title={monitorOpen ? 'Retract Party Monitor' : 'Expand Party Monitor'}>
           <span className="live-party-drawer-chevron" aria-hidden="true">{monitorOpen ? '‹' : '›'}</span>
           <span className="live-party-drawer-edge-label">PARTY MONITOR</span>
         </button>
