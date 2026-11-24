@@ -1,4 +1,4 @@
-import { useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react';
 import { Landmark, Package, Settings, Slice, ChevronLeft, ChevronRight, Maximize2, Minimize2, X } from 'lucide-react';
 import './GMControlDock.css';
 
@@ -21,6 +21,19 @@ export function GMControlDock({ open, onOpen }: { open: UtilityId[]; onOpen: (id
 export function GMUtilityWindow({ title, children, onClose, active, onFocus, offset }: { title: string; children: ReactNode; onClose: () => void; active: boolean; onFocus: () => void; offset: number }) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [maximized, setMaximized] = useState(false);
+  useEffect(() => {
+    if (!maximized) return;
+    const root = document.documentElement;
+    const body = document.body;
+    const previousRoot = root.style.overflow;
+    const previousBody = body.style.overflow;
+    root.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    return () => {
+      root.style.overflow = previousRoot;
+      body.style.overflow = previousBody;
+    };
+  }, [maximized]);
   const ToolIcon = tools.find(tool => tool.title === title)?.Icon;
   const [size, setSize] = useState({ width: 860, height: 620 });
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
