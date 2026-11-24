@@ -13,21 +13,27 @@ const tools = [
 
 export function GMControlDock({ open, onOpen }: { open: UtilityId[]; onOpen: (id: UtilityId) => void }) {
   const [collapsed, setCollapsed] = useState(true);
-  const [dockTop, setDockTop] = useState(90);
+  // The toggle's center is the fixed vertical anchor, independent of dock height.
+  const [toggleY, setToggleY] = useState(() => typeof window === 'undefined' ? 300 : window.innerHeight / 2);
   const dockRef = useRef<HTMLElement | null>(null);
   const dragged = useRef(false);
+  const toggleHeight = 48;
+  const edgeMargin = 12;
+  const clampToggleY = (y: number) => {
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const lowerLimit = Math.max(viewportHeight / 2, viewportHeight - toggleHeight / 2 - edgeMargin);
+    return Math.max(viewportHeight / 2, Math.min(lowerLimit, y));
+  };
   const startDockDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0) return;
     const startY = event.clientY;
-    const initialTop = dockRef.current?.getBoundingClientRect().top ?? dockTop;
+    const initialY = toggleY;
     let moved = false;
     const move = (e: PointerEvent) => {
       const delta = e.clientY - startY;
       if (Math.abs(delta) <= 5 && !moved) return;
       moved = true;
-      const height = dockRef.current?.getBoundingClientRect().height ?? 70;
-      const maxTop = Math.max(4, window.innerHeight - Math.min(height, window.innerHeight) - 4);
-      setDockTop(Math.max(4, Math.min(maxTop, initialTop + delta)));
+      setToggleY(clampToggleY(initialY + delta));
     };
     const end = () => {
       window.removeEventListener('pointermove', move);
@@ -43,17 +49,18 @@ export function GMControlDock({ open, onOpen }: { open: UtilityId[]; onOpen: (id
     window.addEventListener('pointercancel', end, { once: true });
   };
   useEffect(() => {
-    const clamp = () => {
-      const height = dockRef.current?.getBoundingClientRect().height ?? 70;
-      setDockTop(current => Math.max(4, Math.min(current, Math.max(4, window.innerHeight - Math.min(height, window.innerHeight) - 4))));
-    };
+    const clamp = () => setToggleY(current => clampToggleY(current));
     clamp();
     window.addEventListener('resize', clamp);
-    return () => window.removeEventListener('resize', clamp);
-  }, [collapsed]);
-  return <aside ref={dockRef} style={{ top: dockTop }} className={`gm-control-dock right ${collapsed ? 'collapsed' : ''}`} aria-label="GM utility control panel">
+    window.visualViewport?.addEventListener('resize', clamp);
+    return () => {
+      window.removeEventListener('resize', clamp);
+      window.visualViewport?.removeEventListener('resize', clamp);
+    };
+  }, []);
+  return <aside ref={dockRef} style={{ top: toggleY }} className={`gm-control-dock right ${collapsed ? 'collapsed' : ''}`} aria-label="GM utility control panel">
     <button className="gm-control-dock-retract" type="button" title={collapsed ? 'Expand controls' : 'Retract controls'} aria-label={collapsed ? 'Expand controls' : 'Retract controls'} onPointerDown={startDockDrag} onClick={() => { if (!dragged.current) setCollapsed(v => !v); }}>{collapsed ? <ChevronLeft size={18}/> : <ChevronRight size={18}/>}</button>
-    {!collapsed && <div className="gm-control-dock-tools">{tools.map(({ id, title, Icon }) => <button key={id} type="button" title={title} aria-label={title} className={open.includes(id) ? 'active' : ''} onClick={() => onOpen(id)}><Icon size={21}/></button>)}</div>}
+    <div className="gm-control-dock-tools" aria-hidden={collapsed} inert={collapsed}>{tools.map(({ id, title, Icon }) => <button key={id} type="button" tabIndex={collapsed ? -1 : 0} title={title} aria-label={title} className={open.includes(id) ? 'active' : ''} onClick={() => onOpen(id)}><Icon size={21}/></button>)}</div>
   </aside>;
 }
 
