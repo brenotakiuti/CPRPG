@@ -17,12 +17,26 @@ export function GMControlDock({ open, onOpen }: { open: UtilityId[]; onOpen: (id
   const [toggleY, setToggleY] = useState(() => typeof window === 'undefined' ? 300 : window.innerHeight / 2);
   const dockRef = useRef<HTMLElement | null>(null);
   const dragged = useRef(false);
-  const toggleHeight = 48;
   const edgeMargin = 12;
+  const getExpandedDockHeight = () => {
+    const dock = dockRef.current;
+    const toolsElement = dock?.querySelector<HTMLElement>('.gm-control-dock-tools');
+    if (!toolsElement) return 300;
+    // Measure the actual expanded contents even while the dock is collapsed.
+    const styles = window.getComputedStyle(dock!);
+    const padding = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
+    const toolHeight = toolsElement.scrollHeight;
+    // Expanded dock uses 8px padding on each side and a 1px border.
+    return Math.max(48, toolHeight + (dock?.classList.contains('collapsed') ? 18 : padding + 2));
+  };
   const clampToggleY = (y: number) => {
-    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-    const lowerLimit = Math.max(viewportHeight / 2, viewportHeight - toggleHeight / 2 - edgeMargin);
-    return Math.max(viewportHeight / 2, Math.min(lowerLimit, y));
+    const viewport = window.visualViewport;
+    const visibleTop = viewport?.offsetTop ?? 0;
+    const visibleHeight = viewport?.height ?? window.innerHeight;
+    const halfDock = getExpandedDockHeight() / 2;
+    const minY = visibleTop + halfDock + edgeMargin;
+    const maxY = visibleTop + visibleHeight - halfDock - edgeMargin;
+    return minY > maxY ? visibleTop + visibleHeight / 2 : Math.max(minY, Math.min(maxY, y));
   };
   const startDockDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0) return;
@@ -53,9 +67,11 @@ export function GMControlDock({ open, onOpen }: { open: UtilityId[]; onOpen: (id
     clamp();
     window.addEventListener('resize', clamp);
     window.visualViewport?.addEventListener('resize', clamp);
+    window.visualViewport?.addEventListener('scroll', clamp);
     return () => {
       window.removeEventListener('resize', clamp);
       window.visualViewport?.removeEventListener('resize', clamp);
+      window.visualViewport?.removeEventListener('scroll', clamp);
     };
   }, []);
   return <aside ref={dockRef} style={{ top: toggleY }} className={`gm-control-dock right ${collapsed ? 'collapsed' : ''}`} aria-label="GM utility control panel">
