@@ -203,3 +203,15 @@
     grid-template-columns:minmax(0,1fr) auto;
   }
 }
+
+/* Match drawer width to the compact HP/actions row; no empty right wing. */
+@media(min-width:651px){
+  .live-party-drawer{width:470px}
+  .live-party-drawer .live-character{
+    grid-template-columns:minmax(0,310px) auto;
+    column-gap:10px;
+  }
+}
+@media(max-width:650px){
+  .live-party-drawer{width:min(470px,calc(100vw - 34px))}
+}
