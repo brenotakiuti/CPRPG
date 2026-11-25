@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dumbbell, Zap, Wrench, Brain, Eye } from 'lucide-react';
 import { anatomicalPositions } from './anatomicalPositions';
 import { useGMCharacterData } from './GMCharacterData';
 import { supabase } from './supabase';
@@ -8,12 +8,17 @@ import './PlayerStats.css';
 import './PartyMonitorDetails.css';
 
 type rightOrLeft = 'right'|'left';
-type Stat = { id:string; name:string; value:number; maxValue:number };
+type Stat = { id:string; name:string; description:string; statNumber:number; value:number; maxValue:number };
 const tiers = [
  {min:0,color:'#8b95a4'}, {min:5,color:'#4ade80'},
  {min:10,color:'#32c5c5'}, {min:15,color:'#bd7bea'}, {min:20,color:'#f59e0b'},
 ];
-const statColor = (value:number) => [...tiers].reverse().find(t=>value>=t.min)?.color ?? tiers[0].color;
+const statTier = (value:number) => [...tiers].reverse().find(t=>value>=t.min) ?? tiers[0];
+const tierNames = ['Basic','Trained','Expert','Elite','Legendary'];
+function StatIcon({number}:{number:number}) {
+ const props={size:20,strokeWidth:1.9,'aria-hidden':true as const};
+ switch(number){case 1:return <Dumbbell {...props}/>;case 2:return <Zap {...props}/>;case 3:return <Wrench {...props}/>;case 4:return <Brain {...props}/>;case 5:return <Eye {...props}/>;default:return <span>{number}</span>}
+}
 
 export default function PartyMonitorDetails({campaignId,characterId}:{campaignId:string;characterId:string}) {
  const [tab,setTab]=useState<'stats'|'cyberware'>('stats');
@@ -58,14 +63,14 @@ export default function PartyMonitorDetails({campaignId,characterId}:{campaignId
   const load=async()=>{
    setLoading(true);
    const [definitions,values]=await Promise.all([
-    supabase.from('stat_definitions').select('id,name,display_order,max_value').eq('campaign_id',campaignId).order('display_order'),
+    supabase.from('stat_definitions').select('id,name,description,stat_number,display_order,max_value').eq('campaign_id',campaignId).order('display_order'),
     supabase.from('character_stats').select('stat_id,value').eq('campaign_id',campaignId).eq('character_id',characterId)
    ]);
    if(!active)return;
    if(definitions.error||values.error)setError(definitions.error?.message??values.error?.message??'Unable to load stats');
    else {
     const byId=new Map((values.data??[]).map(row=>[row.stat_id,Number(row.value)]));
-    setStats((definitions.data??[]).map(row=>({id:row.id,name:row.name,value:byId.get(row.id)??0,maxValue:row.max_value??20})));
+    setStats((definitions.data??[]).map(row=>({id:row.id,name:row.name,description:row.description??'',statNumber:row.stat_number??0,value:byId.get(row.id)??0,maxValue:row.max_value??20})));
    }
    setLoading(false);
   };
@@ -101,7 +106,7 @@ export default function PartyMonitorDetails({campaignId,characterId}:{campaignId
   {tab==='stats'?
    <div className="party-detail-stats">
     {loading?<p>Loading stats...</p>:error?<p role="alert">{error}</p>:stats.length===0?<p>No stats assigned.</p>:
-     <div className="party-detail-stat-grid">{stats.map(stat=><div key={stat.id} className="party-detail-stat" style={{borderColor:statColor(stat.value)}}><span>{stat.name}</span><strong style={{color:statColor(stat.value)}}>{stat.value}</strong></div>)}</div>}
+     <div className="party-detail-stat-list">{stats.map(stat=>{const tier=statTier(stat.value);const tierName=tierNames[tiers.indexOf(tier)];const maximum=Math.max(1,stat.maxValue);const percent=Math.max(0,Math.min(100,stat.value/maximum*100));return <div key={stat.id} className="party-detail-stat-row"><div className="party-detail-stat-main"><div className="party-detail-stat-icon"><StatIcon number={stat.statNumber}/></div><div className="party-detail-stat-label"><strong>{stat.name}</strong>{stat.description&&<small>{stat.description}</small>}</div><div className="party-detail-stat-value" style={{color:tier.color}}><strong>{stat.value}</strong><small>{tierName}</small></div></div><div className="party-detail-stat-track" role="meter" aria-label={stat.name} aria-valuemin={0} aria-valuemax={maximum} aria-valuenow={Math.max(0,Math.min(maximum,stat.value))} aria-valuetext={`${stat.value} — ${tierName}`}><div className="party-detail-stat-fill" style={{width:`${percent}%`,backgroundColor:tier.color}}/></div></div>})}</div>}
    </div>:
    <div className="party-detail-cyberware">
     {shared.loading?<p>Loading cyberware...</p>:shared.error?<p role="alert">{shared.error}</p>:null}
