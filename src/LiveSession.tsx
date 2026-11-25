@@ -75,7 +75,7 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
         const detail = panel.querySelector<HTMLElement>('.party-detail-stats, .party-detail-cyberware');
         if (detail && detailsOpen && capacity === 1) {
           const fixedHeight = panel.scrollHeight - detail.offsetHeight;
-          const scanHeight = Math.max(80, Math.min(430, Math.floor(viewportHeight - margin * 2 - fixedHeight - 40)));
+          const scanHeight = Math.max(80, Math.min(390, Math.floor(viewportHeight - margin * 2 - fixedHeight - 20)));
           const next = scanHeight + 'px';
           if (drawer.style.getPropertyValue('--party-scan-height') !== next) {
             drawer.style.setProperty('--party-scan-height', next);
