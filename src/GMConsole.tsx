@@ -129,6 +129,19 @@ function GMConsoleContent({
   ) : null;
   const [tacticalTab, setTacticalTab] = useState<'broadcast' | 'editor' | 'shared'>('broadcast');
   const [editorVisited, setEditorVisited] = useState(false);
+  const [sharedDisplayToken,setSharedDisplayToken] = useState('');
+  const [sharedDisplayError,setSharedDisplayError] = useState('');
+  useEffect(()=>{
+    let active=true;
+    void supabase.rpc('ensure_tactical_shared_display',{p_campaign_id:campaign.id}).then(({data,error})=>{
+      if(!active)return;
+      if(error)setSharedDisplayError(error.message);
+      else setSharedDisplayToken(String(data||''));
+    });
+    return ()=>{active=false};
+  },[campaign.id]);
+  const sharedDisplayLink=sharedDisplayToken ? window.location.origin+window.location.pathname+'#shared='+sharedDisplayToken : '';
+
   const [phoneUnread, setPhoneUnread] = useState(0);
   const refreshPhoneUnread = useCallback(async () => {
     const result = await supabase.rpc('phone_gm_unread', { p_campaign_id: campaign.id });
@@ -756,15 +769,14 @@ function GMConsoleContent({
             <h2>Shared Tactical Display</h2>
             <p>Open Tactical//Feed on an unregistered device.</p>
             <div className="gm-shared-display-qr" aria-label="QR code placeholder">
-              <LockKeyhole size={42} strokeWidth={1.5} aria-hidden="true" />
-              <span>QR code placeholder</span>
+              {sharedDisplayLink ? <QRCodeSVG value={sharedDisplayLink} size={184} marginSize={2} bgColor="#ffffff" fgColor="#111111" /> : <><LockKeyhole size={42} strokeWidth={1.5} aria-hidden="true" /><span>QR code unavailable</span></>}
             </div>
             <label htmlFor="gm-shared-display-link">Display link</label>
             <div className="gm-shared-display-link-row">
-              <input id="gm-shared-display-link" type="text" readOnly value="" placeholder="Link not yet available" aria-label="Shared display link" />
-              <button type="button" disabled aria-label="Copy shared display link" title="Available when the shared display link is implemented"><Copy size={18} aria-hidden="true" /> Copy</button>
+              <input id="gm-shared-display-link" type="text" readOnly value={sharedDisplayLink} placeholder="Link not yet available" aria-label="Shared display link" />
+              <button type="button" disabled={!sharedDisplayLink} onClick={()=>void navigator.clipboard.writeText(sharedDisplayLink)} aria-label="Copy shared display link" title="Copy shared display link"><Copy size={18} aria-hidden="true" /> Copy</button>
             </div>
-            <p className="gm-shared-display-note">The shared display connection is not yet implemented. The QR code and link will become available when the endpoint is ready.</p>
+            <p className="gm-shared-display-note">{sharedDisplayError || 'This link opens the live shared map without requiring a login. Anyone with the link can move player markers.'}</p>
           </section>
         </div>
       </div>}
