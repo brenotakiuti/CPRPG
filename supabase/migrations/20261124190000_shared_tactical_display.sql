@@ -69,7 +69,7 @@ begin
            and not exists (
             select 1 from generate_series(0,
              greatest(abs((p.value->>'x')::integer-(u.value->>'x')::integer),
-                      abs((p.value->>'y')::integer-(u.value->>'y')::integer))*4) step
+                      abs((p.value->>'y')::integer-(u.value->>'y')::integer))*4) as gs(step)
             join lateral (
              select floor((p.value->>'x')::numeric+0.5+
                ((u.value->>'x')::numeric-(p.value->>'x')::numeric)
