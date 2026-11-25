@@ -27,3 +27,6 @@
 .shared-feed-roll{text-align:center;font-size:32px;color:#e8c54a}.shared-feed-roll small{display:block;font-size:12px;color:#a8bdc9}
 
 .shared-feed-board{flex:none}
+
+.shared-feed-marker{z-index:3;display:flex;align-items:center;justify-content:center;visibility:visible;opacity:1}
+.shared-feed-marker.selected{z-index:4}
