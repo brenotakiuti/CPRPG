@@ -160,8 +160,8 @@ export default function DiceSpotlight({ characterId, campaignId, onClose, shared
         <div className="live-dice-status">{phase === 'ready' ? 'TAP THE DIE TO ROLL' : phase === 'rolling' ? 'ROLLING…' : 'RESULT: ' + result?.values.join(' + ')}</div>
       </div>
       {error && <p className="dice-error" role="alert">{error}</p>}
-      <div className="dice-actions"><button className="dice-roll-action" type="button" onClick={() => void roll()} disabled={busy.current || !campaignId}>{phase === 'rolling' ? 'ROLLING...' : result ? 'ROLL AGAIN' : 'ROLL'}</button><button className="dice-close-action" type="button" onClick={onClose} disabled={busy.current}>Close</button></div>
-      {!campaignId && <p className="dice-error">Waiting for campaign connection.</p>}
+      <div className="dice-actions"><button className="dice-roll-action" type="button" onClick={() => void roll()} disabled={busy.current || (!sharedDisplay && !campaignId)}>{phase === 'rolling' ? 'ROLLING...' : result ? 'ROLL AGAIN' : 'ROLL'}</button><button className="dice-close-action" type="button" onClick={onClose} disabled={busy.current}>Close</button></div>
+      {!sharedDisplay && !campaignId && <p className="dice-error">Waiting for campaign connection.</p>}
       {sponsor && <div className="dice-sponsor"><span className="dice-sponsor-label">SPONSORED BY</span><img src={sponsor} alt="Night City sponsor advertisement" /></div>}
     </section>
     {(sceneStyle === 'blackout' || sceneStyle === 'reboot') && <div className={'dice-screen-blackout ' + sceneStyle} aria-hidden="true" />}
