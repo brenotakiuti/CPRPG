@@ -31,3 +31,21 @@
 
 .shared-feed-marker{z-index:3;display:flex;align-items:center;justify-content:center;visibility:visible;opacity:1}
 .shared-feed-marker.selected{z-index:4}
+
+/* Shared-display spotlight: fit the complete original animation without
+   changing the normal player's dice layout. */
+.shared-feed .dice-overlay{padding:12px;align-items:center;justify-content:center}
+.shared-feed .dice-scene{width:min(480px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow-y:auto;overflow-x:hidden;flex:0 1 auto;gap:10px;padding:14px}
+.shared-feed .dice-scene .dice-arena.live-dice-scene{flex:0 0 auto;height:auto;min-height:180px;max-height:240px;overflow:visible;gap:8px;padding:12px}
+.shared-feed .dice-scene .dice-tray{flex:0 0 auto;min-height:108px;overflow:visible}
+.shared-feed .dice-scene .live-die{width:88px;height:88px}
+.shared-feed .dice-scene .dice-sponsor{flex:0 0 auto;gap:4px}
+.shared-feed .dice-scene .dice-sponsor img{width:100%;height:auto;max-height:min(22dvh,155px);object-fit:contain;aspect-ratio:auto}
+.shared-feed .dice-scene .dice-actions{flex:0 0 auto}
+@media(max-height:700px){
+ .shared-feed .dice-scene{gap:7px;padding:10px}
+ .shared-feed .dice-scene .dice-arena.live-dice-scene{min-height:145px;max-height:175px}
+ .shared-feed .dice-scene .dice-tray{min-height:85px}
+ .shared-feed .dice-scene .live-die{width:72px;height:72px}
+ .shared-feed .dice-scene .dice-sponsor img{max-height:100px}
+}
