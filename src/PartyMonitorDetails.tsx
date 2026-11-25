@@ -23,11 +23,15 @@ export default function PartyMonitorDetails({campaignId,characterId}:{campaignId
  const [position,setPosition]=useState<string|null>(null);
  const [page,setPage]=useState(0);
  const [anchor,setAnchor]=useState<{x:number;y:number;side:'right'|'left'}|null>(null);
+ const [popoverHeight,setPopoverHeight]=useState<number|null>(null);
+ const measureRef=useRef<HTMLDivElement|null>(null);
  const popoverRef=useRef<HTMLElement|null>(null);
  const markerRef=useRef<HTMLElement|null>(null);
  const openPosition=(id:string,event:React.MouseEvent<HTMLButtonElement>)=>{
   markerRef.current=event.currentTarget;
   setPage(0);
+  setPopoverHeight(null);
+  setAnchor(null);
   setPosition(id);
  };
  useLayoutEffect(()=>{
@@ -35,7 +39,7 @@ export default function PartyMonitorDetails({campaignId,characterId}:{campaignId
   const update=()=>{
    const rect=markerRef.current?.getBoundingClientRect();if(!rect)return;
    const width=Math.min(300,window.innerWidth-24);
-   const height=Math.min(410,window.innerHeight-24);
+   const height=popoverHeight??Math.min(410,window.innerHeight-24);
    const gap=18;
    const rightFits=rect.right+gap+width<=window.innerWidth-12;
    const leftFits=rect.left-gap-width>=12;
@@ -46,7 +50,7 @@ export default function PartyMonitorDetails({campaignId,characterId}:{campaignId
   };
   update();window.addEventListener('resize',update);window.addEventListener('scroll',update,true);
   return()=>{window.removeEventListener('resize',update);window.removeEventListener('scroll',update,true)};
- },[position]);
+ },[position,popoverHeight]);
  const shared=useGMCharacterData();
  useEffect(()=>{
   let active=true;
@@ -79,6 +83,16 @@ export default function PartyMonitorDetails({campaignId,characterId}:{campaignId
  },[position]);
  const installed=shared.cyberware.filter(c=>c.character_id===characterId);
  const selected=installed.filter(c=>c.position_id===position);
+ // Measure every page offscreen before showing the popover. Its final height is
+ // the largest page, so pagination cannot change the visible window size.
+ useLayoutEffect(()=>{
+  if(!position||!selected.length||popoverHeight!==null)return;
+  const root=measureRef.current;
+  if(!root)return;
+  const pages=Array.from(root.querySelectorAll<HTMLElement>('.party-implant-measure-page'));
+  const largest=Math.max(...pages.map(element=>Math.ceil(element.getBoundingClientRect().height)));
+  setPopoverHeight(Math.min(window.innerHeight-24,Math.max(0,largest+2)));
+ },[position,selected.length,popoverHeight]);
  return <>
   <div className="party-detail-tabs" role="tablist" aria-label="Character details">
    <button type="button" role="tab" aria-selected={tab==='stats'} className={tab==='stats'?'active':''} onClick={()=>setTab('stats')}>STATS</button>
@@ -102,8 +116,9 @@ export default function PartyMonitorDetails({campaignId,characterId}:{campaignId
     </div>
     <div className="ps-scan-label">ANATOMICAL SCAN // {installed.length} INSTALLED</div>
    </div>}
-  {position&&selected.length>0&&anchor&&createPortal(
-   <section ref={popoverRef} className={'party-implant-popover party-implant-'+anchor.side} style={{left:anchor.x,top:anchor.y}} role="dialog" aria-label="Installed cyberware details">
+  {position&&selected.length>0&&popoverHeight===null&&createPortal(<div ref={measureRef} className="party-implant-measure" aria-hidden="true">{selected.map(implant=><div key={implant.id} className="party-implant-measure-page"><div className="party-implant-name">{implant.name}</div><div className="party-implant-art">{implant.image_url?<img src={implant.image_url} alt=""/>:<span>No artwork available</span>}</div><div className="party-implant-description">{implant.description||'No description available.'}</div><div className="party-implant-footer">{implant.item_id===null&&<span>CUSTOM MADE</span>}{selected.length>1&&<span>1 / {selected.length}</span>}</div></div>)}</div>,document.body)}
+  {position&&selected.length>0&&anchor&&popoverHeight!==null&&createPortal(
+   <section ref={popoverRef} className={'party-implant-popover party-implant-'+anchor.side} style={{left:anchor.x,top:anchor.y,height:popoverHeight}} role="dialog" aria-label="Installed cyberware details">
     {selected.length>1&&<button type="button" className="party-implant-prev" disabled={page===0} onClick={()=>setPage(n=>Math.max(0,n-1))} aria-label="Previous implant"><ChevronLeft size={18}/></button>}
     <div className="party-implant-content">
      <div className="party-implant-name">{selected[Math.min(page,selected.length-1)].name}</div>
