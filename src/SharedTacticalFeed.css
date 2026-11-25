@@ -1,0 +1,27 @@
+.shared-feed{position:fixed;inset:0;background:#060d15;color:#dcebf3;overflow:hidden;font-family:inherit}
+.shared-feed-frame{position:absolute;inset:0;display:flex;flex-direction:column;background:#0c1722;border:1px solid #53677b}
+.shared-feed-frame>header{flex:none;display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:#0c1722;color:#e8c54a;font-size:12px;letter-spacing:.09em;font-weight:700}
+.shared-feed-status{color:#44d6b9}
+.shared-feed-viewport{position:relative;flex:1;overflow:auto;background:#08131d;touch-action:pan-x pan-y;overscroll-behavior:contain}
+.shared-feed-board{position:relative;transform-origin:top left;background:#182a37}
+.shared-feed-tile{position:absolute;width:36px;height:36px;border:1px solid #304655;box-sizing:border-box;cursor:crosshair}
+.shared-feed-tile.wall,.shared-feed-tile.pillar{background:#718696!important;border:2px solid #a6bac8}
+.shared-feed-tile.cover,.shared-feed-tile.coverH,.shared-feed-tile.coverV{border:3px solid #ad8e52}
+.shared-feed-tile.hole{background:#080a0d!important}
+.shared-feed-marker{position:absolute;width:30px;height:30px;border-radius:50%;border:2px solid #40dbe0;background:#174a53;color:#e2ffff;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation}
+.shared-feed-marker.enemy{border-color:#ff6778;background:#552632;color:#ffdce1;pointer-events:none}
+.shared-feed-marker.target,.shared-feed-marker.objective{border-color:#e8c54a;background:#5d4e21;pointer-events:none}
+.shared-feed-marker.selected{outline:3px solid #e8c54a;outline-offset:2px}
+.shared-feed-zoom{position:sticky;top:12px;left:calc(100% - 55px);width:42px;display:flex;flex-direction:column;gap:4px;z-index:5;pointer-events:auto}
+.shared-feed-zoom button{height:39px;border:1px solid #496073;border-radius:5px;background:#1d3040;color:#e2edf5;cursor:pointer}
+.shared-feed-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#8ca8ba;letter-spacing:.1em;text-align:center}
+.shared-feed-dice-fab{position:fixed;right:20px;bottom:20px;z-index:20;width:60px;height:60px;border:2px solid #e8c54a;border-radius:50%;background:#e8c54a;color:#101a24;box-shadow:0 4px 22px #000b;display:grid;place-items:center;cursor:pointer}
+.shared-feed-error{position:absolute;left:12px;bottom:12px;background:#4a2028;padding:8px 12px;border-radius:5px;max-width:70%}
+.shared-feed-dice-backdrop{position:fixed;inset:0;z-index:30;background:#000a;display:grid;place-items:center;padding:16px}
+.shared-feed-dice-dialog{width:min(390px,100%);background:#172536;border:1px solid #e8c54a;border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.shared-feed-dice-dialog header{display:flex;justify-content:space-between;color:#e8c54a;align-items:center}
+.shared-feed-dice-dialog header button{background:transparent;border:0;color:white;cursor:pointer}
+.shared-feed-dice-dialog label{display:flex;justify-content:space-between;align-items:center}
+.shared-feed-dice-dialog input,.shared-feed-dice-dialog select{width:100px;background:#0b1824;color:white;border:1px solid #526779;border-radius:4px;padding:8px}
+.shared-feed-dice-dialog>button{padding:12px;background:#e8c54a;color:#101820;border:0;border-radius:6px;font-weight:700}
+.shared-feed-roll{text-align:center;font-size:32px;color:#e8c54a}.shared-feed-roll small{display:block;font-size:12px;color:#a8bdc9}
