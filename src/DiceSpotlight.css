@@ -55,3 +55,6 @@
 .dice-screen-blackout{position:fixed;inset:0;width:100vw;height:100dvh;z-index:20000;background:#000;pointer-events:none}
 .dice-screen-blackout.reboot{animation:dice-fullscreen-reboot .8s steps(1,end) both}
 @keyframes dice-fullscreen-reboot{0%,15%,28%,45%,62%{opacity:1}8%,22%,36%,53%,72%,100%{opacity:0}}
+
+/* GM dice presentation sits above all GM floating utility windows. */
+.dice-overlay.gm-dice-spotlight{z-index:1500}
