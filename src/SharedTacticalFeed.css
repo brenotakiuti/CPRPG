@@ -25,3 +25,5 @@
 .shared-feed-dice-dialog input,.shared-feed-dice-dialog select{width:100px;background:#0b1824;color:white;border:1px solid #526779;border-radius:4px;padding:8px}
 .shared-feed-dice-dialog>button{padding:12px;background:#e8c54a;color:#101820;border:0;border-radius:6px;font-weight:700}
 .shared-feed-roll{text-align:center;font-size:32px;color:#e8c54a}.shared-feed-roll small{display:block;font-size:12px;color:#a8bdc9}
+
+.shared-feed-board{flex:none}
