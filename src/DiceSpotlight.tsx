@@ -21,8 +21,8 @@ function generate(count: number, sides: number): Roll {
   });
   return { values, total: values.reduce((a,b) => a+b, 0), count, sides };
 }
-export default function DiceSpotlight({ characterId, campaignId, onClose }: {
-  characterId: string; campaignId: string | null; onClose: () => void;
+export default function DiceSpotlight({ characterId, campaignId, onClose, sharedDisplay = false }: {
+  characterId?: string; campaignId: string | null; onClose: () => void; sharedDisplay?: boolean;
 }) {
   const [sponsor] = useState(() => __AD_BANNERS__.length ? __AD_BANNERS__[Math.floor(Math.random() * __AD_BANNERS__.length)] : null);
   const [sides, setSides] = useState(6);
@@ -97,7 +97,7 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
   }
 
   async function roll() {
-    if (busy.current || !campaignId) return;
+    if (busy.current || (!sharedDisplay && (!campaignId || !characterId))) return;
     busy.current = true;
     setError('');
     const next = generate(1, sides);
@@ -107,6 +107,7 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
     setSceneStyle('');
     setDice(next.values.map(() => ({ face: '?', style: 'rolling' })));
     const publish = () => {
+      if (sharedDisplay || !characterId || !campaignId) return;
       // Publish only after the roller has seen the final face.
       later(async () => {
         const { error: saveError } = await supabase.rpc('record_player_dice_roll', {
