@@ -56,7 +56,39 @@ begin
     or (u.value->>'type' in ('enemy','target','objective')
         and u.value->>'visible'='true'
         and (v_session.reveal_mode<>'manual'
-          or coalesce(u.value->'manualReveal'->>'tactical','hidden')='revealed'));
+          or coalesce(u.value->'manualReveal'->>'tactical','hidden')='revealed')
+        and (
+         v_session.visibility_mode='full'
+         or exists (
+          select 1 from jsonb_array_elements(v_session.units) p
+          where p.value->>'type'='player'
+           and (v_session.visibility_mode<>'dark'
+            or power((p.value->>'x')::numeric-(u.value->>'x')::numeric,2)
+             +power((p.value->>'y')::numeric-(u.value->>'y')::numeric,2)
+             <=power(greatest(1,least(8,v_session.visibility_radius)),2))
+           and not exists (
+            select 1 from generate_series(0,
+             greatest(abs((p.value->>'x')::integer-(u.value->>'x')::integer),
+                      abs((p.value->>'y')::integer-(u.value->>'y')::integer))*4) step
+            join lateral (
+             select floor((p.value->>'x')::numeric+0.5+
+               ((u.value->>'x')::numeric-(p.value->>'x')::numeric)
+               *step/greatest(1,greatest(abs((p.value->>'x')::integer-(u.value->>'x')::integer),
+                      abs((p.value->>'y')::integer-(u.value->>'y')::integer))*4))::integer cx,
+                    floor((p.value->>'y')::numeric+0.5+
+               ((u.value->>'y')::numeric-(p.value->>'y')::numeric)
+               *step/greatest(1,greatest(abs((p.value->>'x')::integer-(u.value->>'x')::integer),
+                      abs((p.value->>'y')::integer-(u.value->>'y')::integer))*4))::integer cy
+            ) pos on true
+            where exists (
+             select 1 from jsonb_array_elements(coalesce(v_layout->'objects','[]'::jsonb)) wall
+             where (wall.value->>'type'='wall' and (wall.value->>'x')::integer=pos.cx and (wall.value->>'y')::integer=pos.cy)
+              or (wall.value->>'type'='pillar' and pos.cx between (wall.value->>'x')::integer and (wall.value->>'x')::integer+1
+                 and pos.cy between (wall.value->>'y')::integer and (wall.value->>'y')::integer+1)
+            )
+           )
+         )
+        ));
  return jsonb_build_object('broadcasting',true,'layout',v_layout,'units',v_units,
   'visibilityMode',v_session.visibility_mode,'visibilityRadius',v_session.visibility_radius,
   'revealMode',v_session.reveal_mode);
