@@ -429,7 +429,7 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
             </select>
           </div>
           <button type="button" className={'live-die ' + dieStyle}
-            onClick={roll} disabled={phase === 'rolling' || (config?.tool === 'dice' && history.length >= config.rolls)} aria-label="Roll die">
+            onClick={roll} disabled={phase === 'rolling'} aria-label="Roll die">
             <svg viewBox="0 0 200 200" aria-hidden="true">
               <polygon className="live-die-outline" points="100,8 178,66 148,170 52,170 22,66"/>
             </svg>
@@ -437,7 +437,7 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
           </button>
           <div className="live-dice-status">{phase === 'ready' ? 'CLICK THE DIE TO ROLL' : phase === 'rolling' ? 'ROLLING…' : 'RESULT: ' + face}</div>
           <div className="live-dice-history">{history.length ? history.join(' · ') : 'No rolls yet'}</div>
-          <small>{config?.tool === 'dice' ? `${history.length} / ${config.rolls} rolls` : 'Click the die to roll'}</small>
+          <small>Click the die to roll</small>
           <button type="button" className="live-spotlight-close" onClick={close} disabled={phase === 'rolling'}>Close</button>
         </div>
       </div>}
