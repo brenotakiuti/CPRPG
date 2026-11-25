@@ -127,7 +127,7 @@ function GMConsoleContent({
   const utilityWindow = (id: UtilityId, children: ReactNode) => utilityWindows.includes(id) ? (
     <GMUtilityWindow key={id} title={{bank:'Bank',ripperdoc:'Ripperdoc',inventory:'Inventory',overview:'Campaign Settings',characters:'Characters'}[id]} active={focusedUtility === id} onFocus={() => setFocusedUtility(id)} onClose={() => closeUtility(id)} offset={utilityWindows.indexOf(id)}>{children}</GMUtilityWindow>
   ) : null;
-  const [tacticalTab, setTacticalTab] = useState<'broadcast' | 'editor'>('broadcast');
+  const [tacticalTab, setTacticalTab] = useState<'broadcast' | 'editor' | 'shared'>('broadcast');
   const [editorVisited, setEditorVisited] = useState(false);
   const [phoneUnread, setPhoneUnread] = useState(0);
   const refreshPhoneUnread = useCallback(async () => {
@@ -747,9 +747,26 @@ function GMConsoleContent({
         <div className="gm-tactical-mode-tabs" role="tablist" aria-label="Tactical Feed mode">
           <button type="button" role="tab" aria-selected={tacticalTab === 'broadcast'} className={tacticalTab === 'broadcast' ? 'active' : ''} onClick={() => setTacticalTab('broadcast')}>Map Broadcast</button>
           <button type="button" role="tab" aria-selected={tacticalTab === 'editor'} className={tacticalTab === 'editor' ? 'active' : ''} onClick={() => { setEditorVisited(true); setTacticalTab('editor'); }}>Map Editor</button>
+          <button type="button" role="tab" aria-selected={tacticalTab === 'shared'} className={tacticalTab === 'shared' ? 'active' : ''} onClick={() => setTacticalTab('shared')}>Shared Display</button>
         </div>
         <div role="tabpanel" aria-label="Map Broadcast" style={{ display: tacticalTab === 'broadcast' ? undefined : 'none' }}><CombatMaps key={'combat-'+campaign.id} campaignId={campaign.id} mode="combat" /></div>
         {editorVisited && <div role="tabpanel" aria-label="Map Editor" style={{ display: tacticalTab === 'editor' ? undefined : 'none' }}><CombatMaps key={'editor-'+campaign.id} campaignId={campaign.id} mode="editor" /></div>}
+        <div role="tabpanel" aria-label="Shared Display" style={{ display: tacticalTab === 'shared' ? undefined : 'none' }}>
+          <section className="gm-shared-display-panel" aria-label="Shared Tactical Display">
+            <h2>Shared Tactical Display</h2>
+            <p>Open Tactical//Feed on an unregistered device.</p>
+            <div className="gm-shared-display-qr" aria-label="QR code placeholder">
+              <LockKeyhole size={42} strokeWidth={1.5} aria-hidden="true" />
+              <span>QR code placeholder</span>
+            </div>
+            <label htmlFor="gm-shared-display-link">Display link</label>
+            <div className="gm-shared-display-link-row">
+              <input id="gm-shared-display-link" type="text" readOnly value="" placeholder="Link not yet available" aria-label="Shared display link" />
+              <button type="button" disabled aria-label="Copy shared display link" title="Available when the shared display link is implemented"><Copy size={18} aria-hidden="true" /> Copy</button>
+            </div>
+            <p className="gm-shared-display-note">The shared display connection is not yet implemented. The QR code and link will become available when the endpoint is ready.</p>
+          </section>
+        </div>
       </div>}
       <GMControlDock open={utilityWindows} onOpen={openUtility} />
       {utilityWindow('overview', campaignSettingsContent)}
