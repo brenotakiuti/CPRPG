@@ -58,3 +58,20 @@
 
 /* GM dice presentation sits above all GM floating utility windows. */
 .dice-overlay.gm-dice-spotlight{z-index:1500}
+
+
+/* GM-only compact controls and larger central die. */
+.dice-overlay.gm-dice-spotlight .dice-scene{gap:10px;padding:16px}
+.dice-overlay.gm-dice-spotlight .dice-arena.live-dice-scene{height:clamp(205px,33dvh,275px);min-height:195px;gap:8px;padding:10px}
+.dice-overlay.gm-dice-spotlight .dice-tray{min-height:140px;overflow:visible}
+.dice-overlay.gm-dice-spotlight .live-die,
+.dice-overlay.gm-dice-spotlight .dice-coin{width:clamp(108px,19dvh,132px);height:clamp(108px,19dvh,132px)}
+.dice-overlay.gm-dice-spotlight .live-die-face{font-size:clamp(35px,6dvh,46px)}
+.dice-overlay.gm-dice-spotlight .dice-roll-action{padding:9px 12px;font-size:14px;letter-spacing:1px}
+.dice-overlay.gm-dice-spotlight .dice-close-action{padding:8px 5px;font-size:12px}
+@media(max-height:540px){
+ .dice-overlay.gm-dice-spotlight .dice-arena.live-dice-scene{height:170px;min-height:165px}
+ .dice-overlay.gm-dice-spotlight .dice-tray{min-height:110px}
+ .dice-overlay.gm-dice-spotlight .live-die,
+ .dice-overlay.gm-dice-spotlight .dice-coin{width:104px;height:104px}
+}
