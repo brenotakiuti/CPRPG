@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Heart, Minus, Plus, Wallet, ChevronUp, ChevronDown } from 'lucide-react';
 import { supabase } from './supabase';
@@ -59,16 +59,44 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
     window.addEventListener('pointerup', end, { once: true });
     window.addEventListener('pointercancel', end, { once: true });
   };
-  useEffect(() => {
-    const clampMonitor = () => {
-      const height = monitorDrawer.current?.getBoundingClientRect().height ?? 120;
-      const maxTop = Math.max(4, window.innerHeight - Math.min(height, window.innerHeight) - 4);
-      setMonitorTop(current => Math.max(4, Math.min(current, maxTop)));
+  // Fit the complete Party Monitor in the viewport: move it up before shrinking
+  // the scan. ResizeObserver also catches async stat loading and tab switches.
+  useLayoutEffect(() => {
+    const drawer = monitorDrawer.current;
+    const panel = drawer?.querySelector<HTMLElement>('.live-party-panel');
+    if (!drawer || !panel) return;
+    let measuring = false;
+    const fit = () => {
+      if (measuring) return;
+      measuring = true;
+      try {
+        const viewportHeight = window.innerHeight;
+        const margin = 6;
+        const detail = panel.querySelector<HTMLElement>('.party-detail-stats, .party-detail-cyberware');
+        if (detail && detailsOpen && capacity === 1) {
+          const fixedHeight = panel.scrollHeight - detail.offsetHeight;
+          const scanHeight = Math.max(80, Math.min(430, Math.floor(viewportHeight - margin * 2 - fixedHeight - 40)));
+          const next = scanHeight + 'px';
+          if (drawer.style.getPropertyValue('--party-scan-height') !== next) {
+            drawer.style.setProperty('--party-scan-height', next);
+          }
+        }
+        const height = drawer.getBoundingClientRect().height;
+        const maxTop = Math.max(margin, viewportHeight - height - margin);
+        setMonitorTop(current => {
+          const next = Math.max(margin, Math.min(current, maxTop));
+          return Math.abs(current - next) < 0.5 ? current : next;
+        });
+      } finally {
+        measuring = false;
+      }
     };
-    clampMonitor();
-    window.addEventListener('resize', clampMonitor);
-    return () => window.removeEventListener('resize', clampMonitor);
-  }, [capacity, monitorOpen]);
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(panel);
+    window.addEventListener('resize', fit);
+    return () => { observer.disconnect(); window.removeEventListener('resize', fit); };
+  }, [capacity, monitorOpen, detailsOpen, firstVisible]);
   const [hpError, setHpError] = useState('');
   const [hpOverrides, setHpOverrides] = useState<Record<string, number>>({});
   const hpOverridesRef = useRef<Record<string, number>>({});
