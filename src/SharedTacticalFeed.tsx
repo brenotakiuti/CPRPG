@@ -103,7 +103,7 @@ export default function SharedTacticalFeed({token}:{token:string}) {
     {layout&&feed.broadcasting?<div className="shared-feed-board" style={{width:layout.width*CELL,height:layout.height*CELL,transform:`scale(${zoom})`}}>
      {Array.from({length:layout.width*layout.height},(_,i)=>{
       const x=i%layout.width,y=Math.floor(i/layout.width),o=terrain.get(x+','+y);
-      return <div key={i} className={'shared-feed-tile '+(o?.type||'')} style={{left:x*CELL,top:y*CELL,backgroundColor:canSee(x,y)?o?.color||layout.floorColors?.[x+','+y]||undefined:'#050b13'}} onClick={()=>void move(x,y)} />;
+      return <div key={i} className={'shared-feed-tile '+(o?.type||'')+(canSee(x,y)?'':' occluded')} style={{left:x*CELL,top:y*CELL,backgroundColor:canSee(x,y)?o?.color||layout.floorColors?.[x+','+y]||undefined:'#050b13'}} onClick={()=>void move(x,y)} />;
      })}
      {(feed.units||[]).filter(u=>u.type==='player'||(u.visible!==false&&canSee(u.x,u.y))).map(u=><button type="button" key={u.key} className={'shared-feed-marker '+u.type+(selected===u.key?' selected':'')} style={{left:u.x*CELL+3,top:u.y*CELL+3}} onClick={()=>{if(u.type==='player')setSelected(selected===u.key?null:u.key)}} title={u.name||u.label}>{u.label}</button>)}
     </div>:<div className="shared-feed-empty">{error||'AWAITING TACTICAL BROADCAST'}</div>}
