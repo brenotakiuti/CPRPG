@@ -70,3 +70,17 @@
 .party-implant-measure-page .party-implant-footer{flex:none}
 .party-implant-popover .party-implant-content{overflow:hidden}
 @media(max-height:480px){.party-implant-measure-page{padding-top:6px;padding-bottom:6px;gap:4px}.party-implant-measure-page .party-implant-art{flex-basis:38%;min-height:65px}}
+
+/* Compact counterpart of the Character window's attribute rows. */
+.party-detail-stat-list{display:flex;flex-direction:column;gap:8px}
+.party-detail-stat-row{padding:10px;background:#222d39;border-radius:7px;display:flex;flex-direction:column;gap:9px}
+.party-detail-stat-main{display:flex;align-items:center;gap:10px;min-width:0}
+.party-detail-stat-icon{width:40px;height:40px;flex:0 0 40px;display:flex;align-items:center;justify-content:center;border-radius:7px;background:#3c3526;color:#e8c157}
+.party-detail-stat-label{display:flex;flex-direction:column;flex:1;min-width:0;gap:3px}
+.party-detail-stat-label strong{font-size:12px;color:#e5eaf0}
+.party-detail-stat-label small{font-size:10px;line-height:1.3;color:#9da9b7}
+.party-detail-stat-value{display:flex;flex-direction:column;align-items:flex-end;flex:0 0 70px;gap:2px}
+.party-detail-stat-value strong{font-size:21px;line-height:1.1}
+.party-detail-stat-value small{font-size:10px}
+.party-detail-stat-track{height:6px;background:#47515e;border-radius:6px;overflow:hidden}
+.party-detail-stat-fill{height:100%;border-radius:6px}
