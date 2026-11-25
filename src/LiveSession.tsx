@@ -404,13 +404,13 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
           </div>
         </div>
       </div>}
-      {spotlight && config?.tool === 'dice' && <DiceSpotlight campaignId={campaignId} gmConfig={config} onClose={close} onGmRoll={result => {
+      {spotlight && config?.tool === 'dice' && createPortal(<DiceSpotlight campaignId={campaignId} gmConfig={config} onClose={close} onGmRoll={result => {
         setHistory(prev => [...prev, result]);
         void supabase.from('campaign_events').insert({
           campaign_id: campaignId, character_id: null, audience: 'campaign', category: 'system',
           message: `GM ROLLED D${sides} → ${result}`,
         }).then(({error}) => { if(error) console.error('[Campaign Log] Dice roll was not saved:', error.message); });
-      }} />}
+      }} />, document.body)}
       {spotlight && config?.tool !== 'dice' && <div className="live-spotlight" role="dialog" aria-modal="true" aria-label="Dice spotlight">
         <div className={'live-dice-scene ' + sceneStyle}>
           <div className="live-spotlight-title">DICE SPOTLIGHT</div>
