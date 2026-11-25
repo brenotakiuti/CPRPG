@@ -8,11 +8,11 @@
 .shared-feed-tile.wall,.shared-feed-tile.pillar{background:#718696!important;border:2px solid #a6bac8}
 .shared-feed-tile.cover,.shared-feed-tile.coverH,.shared-feed-tile.coverV{border:3px solid #ad8e52}
 .shared-feed-tile.hole{background:#080a0d!important}
-.shared-feed-marker{position:absolute;width:30px;height:30px;border-radius:50%;border:2px solid #40dbe0;background:#174a53;color:#e2ffff;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation}
+.shared-feed-tile.occluded{background:#050b13!important;border-color:#17222a!important}\n.shared-feed-marker{position:absolute;width:30px;height:30px;border-radius:50%;border:2px solid #40dbe0;background:#174a53;color:#e2ffff;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation}
 .shared-feed-marker.enemy{border-color:#ff6778;background:#552632;color:#ffdce1;pointer-events:none}
 .shared-feed-marker.target,.shared-feed-marker.objective{border-color:#e8c54a;background:#5d4e21;pointer-events:none}
 .shared-feed-marker.selected{outline:3px solid #e8c54a;outline-offset:2px}
-.shared-feed-zoom{position:sticky;top:12px;left:calc(100% - 55px);width:42px;display:flex;flex-direction:column;gap:4px;z-index:5;pointer-events:auto}
+.shared-feed-zoom{position:fixed;top:64px;right:14px;width:42px;display:flex;flex-direction:column;gap:4px;z-index:5;pointer-events:auto}
 .shared-feed-zoom button{height:39px;border:1px solid #496073;border-radius:5px;background:#1d3040;color:#e2edf5;cursor:pointer}
 .shared-feed-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#8ca8ba;letter-spacing:.1em;text-align:center}
 .shared-feed-dice-fab{position:fixed;right:20px;bottom:20px;z-index:20;width:60px;height:60px;border:2px solid #e8c54a;border-radius:50%;background:#e8c54a;color:#101a24;box-shadow:0 4px 22px #000b;display:grid;place-items:center;cursor:pointer}
