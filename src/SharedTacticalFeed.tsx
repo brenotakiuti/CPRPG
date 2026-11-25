@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Dices, Plus, Minus, Focus, X } from 'lucide-react';
+import { Dices, Plus, Minus, Focus } from 'lucide-react';
+import DiceSpotlight from './DiceSpotlight';
 import { supabase } from './supabase';
 import './SharedTacticalFeed.css';
 
@@ -30,11 +31,17 @@ export default function SharedTacticalFeed({token}:{token:string}) {
  const [zoom,setZoom]=useState(1);
  const [selected,setSelected]=useState<string|null>(null);
  const [diceOpen,setDiceOpen]=useState(false);
- const [diceCount,setDiceCount]=useState(1);
- const [diceSides,setDiceSides]=useState(6);
- const [diceResults,setDiceResults]=useState<number[]>([]);
  const [moving,setMoving]=useState(false);
+ const [viewportSize,setViewportSize]=useState({width:0,height:0});
  const boardRef=useRef<HTMLDivElement|null>(null);
+ useEffect(()=>{
+  const el=boardRef.current;
+  if(!el)return;
+  const observer=new ResizeObserver(()=>setViewportSize({width:el.clientWidth,height:el.clientHeight}));
+  observer.observe(el);
+  setViewportSize({width:el.clientWidth,height:el.clientHeight});
+  return ()=>observer.disconnect();
+ },[]);
  useEffect(()=>{
   let mounted=true;let inflight=false;
   const refresh=async()=>{
@@ -88,19 +95,11 @@ export default function SharedTacticalFeed({token}:{token:string}) {
   }
   setMoving(false);
  };
- const roll=()=>{
-  const results=Array.from({length:diceCount},()=>{
-   const b=new Uint32Array(1);const limit=Math.floor(4294967296/diceSides)*diceSides;
-   do{crypto.getRandomValues(b)}while(b[0]>=limit);
-   return b[0]%diceSides+1;
-  });
-  setDiceResults(results);
- };
  return <main className="shared-feed">
   <section className="shared-feed-frame">
    <header><span>SECTOR 07 // ACTIVE FEED</span><span className="shared-feed-status">● LIVE</span></header>
    <div className="shared-feed-viewport" ref={boardRef}>
-    {layout&&feed.broadcasting?<div className="shared-feed-board" style={{width:layout.width*CELL,height:layout.height*CELL,transform:`scale(${zoom})`}}>
+    {layout&&feed.broadcasting?<div className="shared-feed-board" style={{width:layout.width*CELL,height:layout.height*CELL,transform:`scale(${zoom})`,marginLeft:Math.max(0,(viewportSize.width-layout.width*CELL*zoom)/2),marginTop:Math.max(0,(viewportSize.height-layout.height*CELL*zoom)/2)}}>
      {Array.from({length:layout.width*layout.height},(_,i)=>{
       const x=i%layout.width,y=Math.floor(i/layout.width),o=terrain.get(x+','+y);
       return <div key={i} className={'shared-feed-tile '+(o?.type||'')+(canSee(x,y)?'':' occluded')} style={{left:x*CELL,top:y*CELL,backgroundColor:canSee(x,y)?o?.color||layout.floorColors?.[x+','+y]||undefined:'#050b13'}} onClick={()=>void move(x,y)} />;
@@ -115,13 +114,7 @@ export default function SharedTacticalFeed({token}:{token:string}) {
    </div>
    {error&&<p role="alert" className="shared-feed-error">{error}</p>}
   </section>
-  <button type="button" className="shared-feed-dice-fab" aria-label="Open dice spotlight" onClick={()=>{setDiceOpen(true);setDiceResults([])}}><Dices size={26}/></button>
-  {diceOpen&&<div className="shared-feed-dice-backdrop"><section className="shared-feed-dice-dialog" role="dialog" aria-modal="true" aria-label="Dice spotlight">
-   <header><strong>DICE SPOTLIGHT</strong><button aria-label="Close dice spotlight" onClick={()=>setDiceOpen(false)}><X size={20}/></button></header>
-   <label>Dice <input type="number" min={1} max={20} value={diceCount} onChange={e=>setDiceCount(Math.max(1,Math.min(20,Number(e.target.value)||1)))}/></label>
-   <label>Sides <select value={diceSides} onChange={e=>setDiceSides(Number(e.target.value))}>{[2,4,6,8,10,12,20,100].map(n=><option key={n} value={n}>D{n}</option>)}</select></label>
-   <button onClick={roll}>ROLL</button>
-   {diceResults.length>0&&<p className="shared-feed-roll">{diceResults.reduce((a,b)=>a+b,0)} <small>({diceResults.join(' + ')})</small></p>}
-  </section></div>}
+  <button type="button" className="shared-feed-dice-fab" aria-label="Open dice spotlight" onClick={()=>setDiceOpen(true)}><Dices size={26}/></button>
+  {diceOpen&&<DiceSpotlight sharedDisplay campaignId={null} onClose={()=>setDiceOpen(false)} />}
  </main>;
 }
