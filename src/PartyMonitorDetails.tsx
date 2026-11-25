@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { anatomicalPositions } from './anatomicalPositions';
-import { useGMCharacterData, type SharedCyberware } from './GMCharacterData';
+import { useGMCharacterData } from './GMCharacterData';
 import { supabase } from './supabase';
 import './PlayerStats.css';
 import './PartyMonitorDetails.css';
