@@ -5,6 +5,7 @@ import { supabase } from './supabase';
 import './LiveSession.css';
 import { fortunes } from './FortuneCookieConfigured';
 import SessionToolSettings, { type ToolConfig } from './SessionToolSettings';
+import DiceSpotlight from './DiceSpotlight';
 
 type Character = { id: string; name: string; balance: number; body: number | null; current_hp: number | null };
 const maxHP = (body: number) => 10 + 5 * body;
@@ -403,7 +404,14 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
           </div>
         </div>
       </div>}
-      {spotlight && <div className="live-spotlight" role="dialog" aria-modal="true" aria-label="Dice spotlight">
+      {spotlight && config?.tool === 'dice' && <DiceSpotlight campaignId={campaignId} gmConfig={config} onClose={close} onGmRoll={result => {
+        setHistory(prev => [...prev, result]);
+        void supabase.from('campaign_events').insert({
+          campaign_id: campaignId, character_id: null, audience: 'campaign', category: 'system',
+          message: `GM ROLLED D${config.sides} → ${result}`,
+        }).then(({error}) => { if(error) console.error('[Campaign Log] Dice roll was not saved:', error.message); });
+      }} />}
+      {spotlight && config?.tool !== 'dice' && <div className="live-spotlight" role="dialog" aria-modal="true" aria-label="Dice spotlight">
         <div className={'live-dice-scene ' + sceneStyle}>
           <div className="live-spotlight-title">DICE SPOTLIGHT</div>
           <div className="live-dice-controls">
