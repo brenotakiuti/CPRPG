@@ -6,6 +6,7 @@ import { supabase } from './supabase';
 import CampaignSelection from './CampaignSelection';
 import type { Campaign } from './CampaignSelection';
 import GMConsole from './GMConsole';
+import SharedTacticalFeed from './SharedTacticalFeed';
 
 import './App.css';
 
@@ -18,6 +19,9 @@ function App() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [loggingIn, setLoggingIn] = useState(false);
+
+  const [sharedToken] = useState(() => window.location.hash.startsWith('#shared=')
+    ? window.location.hash.slice('#shared='.length) : null);
 
   const [creationToken] = useState(() => window.location.hash.startsWith('#create=')
     ? window.location.hash.slice('#create='.length) : null);
@@ -136,6 +140,10 @@ function App() {
     sessionStorage.removeItem('active-campaign');
     sessionStorage.removeItem('campaign-user');
     sessionStorage.removeItem('gm-page');
+  }
+
+  if (sharedToken !== null) {
+    return <SharedTacticalFeed token={sharedToken} />;
   }
 
   if (creationToken !== null) {
