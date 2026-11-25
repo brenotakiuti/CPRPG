@@ -1,0 +1,25 @@
+.party-detail-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 13px;background:#1a2d3e;color:#e8c157;border:0;border-top:1px solid #40546a;font-size:11px;font-weight:800;letter-spacing:1px;cursor:pointer}
+.party-detail-tabs{display:flex;background:#101d2a;border-bottom:1px solid #34495a}
+.party-detail-tabs button{flex:1;padding:11px;border:0;border-bottom:2px solid transparent;background:transparent;color:#9aaebc;font-size:11px;font-weight:800;cursor:pointer}
+.party-detail-tabs button.active{color:#e8c157;border-bottom-color:#e8c157;background:#1c2b3a}
+.party-detail-stats,.party-detail-cyberware{padding:12px;background:#111f2e}
+.party-detail-stat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.party-detail-stat{min-width:0;border:1px solid #405268;border-radius:6px;background:#202e3e;padding:9px 6px;display:flex;flex-direction:column;gap:3px;text-align:center}
+.party-detail-stat span{font-size:10px;color:#c1ceda;overflow-wrap:anywhere}
+.party-detail-stat strong{font-size:23px}
+.party-detail-cyberware .ps-scan-viewport{max-width:235px;margin:0 auto;background:#101a26;border:1px solid #354d61;border-radius:6px}
+.party-detail-cyberware .ps-scan-layer{transform:none!important}
+.party-detail-cyberware .ps-marker{width:12px;height:12px;cursor:pointer}
+.party-detail-cyberware .ps-marker.installed{background:#e8bd4a;border-color:#fff1ad;box-shadow:0 0 0 3px #e8bd4a44,0 0 12px #e8bd4a}
+.party-detail-cyberware .ps-marker:disabled{cursor:default}
+.party-detail-cyberware .ps-scan-label{margin-top:5px}
+.party-implant-backdrop{position:fixed;inset:0;z-index:25000;background:#000b;display:flex;align-items:center;justify-content:center;padding:20px}
+.party-implant-window{width:min(460px,100%);max-height:90dvh;overflow:auto;border:1px solid #d9b34d;border-radius:9px;background:#101b29;color:#dce6f0;box-shadow:0 16px 70px #000c}
+.party-implant-window header{position:sticky;top:0;background:#17283a;display:flex;align-items:center;justify-content:space-between;padding:13px;color:#e8c157;font-size:11px;letter-spacing:1px}
+.party-implant-window header button{border:0;background:transparent;color:#e8c157;cursor:pointer}
+.party-implant-list{padding:14px;display:grid;gap:14px}
+.party-implant-list article{display:flex;flex-direction:column;gap:9px}
+.party-implant-list h3{margin:0;color:#e8c157;font-size:17px}
+.party-implant-list img{display:block;width:min(100%,310px);max-height:300px;object-fit:contain;align-self:center;border:1px solid #405268;background:#0b131d}
+.party-implant-list p{margin:0;line-height:1.5;white-space:pre-wrap;font-size:13px}
+.party-implant-list small{color:#d5a5ff}
