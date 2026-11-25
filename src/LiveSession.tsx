@@ -408,7 +408,7 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
         setHistory(prev => [...prev, result]);
         void supabase.from('campaign_events').insert({
           campaign_id: campaignId, character_id: null, audience: 'campaign', category: 'system',
-          message: `GM ROLLED D${config.sides} → ${result}`,
+          message: `GM ROLLED D${sides} → ${result}`,
         }).then(({error}) => { if(error) console.error('[Campaign Log] Dice roll was not saved:', error.message); });
       }} />}
       {spotlight && config?.tool !== 'dice' && <div className="live-spotlight" role="dialog" aria-modal="true" aria-label="Dice spotlight">
