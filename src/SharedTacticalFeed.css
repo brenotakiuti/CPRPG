@@ -53,3 +53,20 @@
 /* Match the existing player Tactical//Feed enemy condition badges. */
 .shared-feed-status-badge{position:absolute;right:-9px;top:-9px;z-index:5;width:19px;height:19px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#172637;border:1.5px solid #e8c46d;color:#f1d68b;font-size:10px;font-weight:900;line-height:1;pointer-events:none;box-sizing:border-box;text-shadow:none}
 .shared-feed-status-badge.dead{border-color:#e16c72;color:#f3d4d5}
+
+/* Rebalance the shared-screen dice controls around a prominent die. */
+.shared-feed .dice-scene{width:min(500px,calc(100vw - 24px))}
+.shared-feed .dice-scene .dice-types{gap:5px}
+.shared-feed .dice-scene .dice-types button{padding:7px 8px;min-height:37px;font-size:13px}
+.shared-feed .dice-scene .dice-arena.live-dice-scene{min-height:230px;max-height:none;gap:6px;padding:10px}
+.shared-feed .dice-scene .dice-tray{min-height:150px}
+.shared-feed .dice-scene .live-die{width:126px;height:126px}
+.shared-feed .dice-scene .live-die-face{font-size:46px}
+.shared-feed .dice-scene .dice-roll-action{padding:10px;font-size:14px;letter-spacing:1px}
+.shared-feed .dice-scene .dice-close-action{padding:8px 5px;font-size:12px}
+@media(max-height:700px){
+ .shared-feed .dice-scene .dice-arena.live-dice-scene{min-height:195px;max-height:none}
+ .shared-feed .dice-scene .dice-tray{min-height:120px}
+ .shared-feed .dice-scene .live-die{width:112px;height:112px}
+ .shared-feed .dice-scene .live-die-face{font-size:40px}
+}
