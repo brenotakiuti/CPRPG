@@ -8,7 +8,8 @@
 .shared-feed-tile.wall,.shared-feed-tile.pillar{background:#718696!important;border:2px solid #a6bac8}
 .shared-feed-tile.cover,.shared-feed-tile.coverH,.shared-feed-tile.coverV{border:3px solid #ad8e52}
 .shared-feed-tile.hole{background:#080a0d!important}
-.shared-feed-tile.occluded{background:#050b13!important;border-color:#17222a!important}\n.shared-feed-marker{position:absolute;width:30px;height:30px;border-radius:50%;border:2px solid #40dbe0;background:#174a53;color:#e2ffff;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation}
+.shared-feed-tile.occluded{background:#050b13!important;border-color:#17222a!important}
+.shared-feed-marker{position:absolute;width:30px;height:30px;border-radius:50%;border:2px solid #40dbe0;background:#174a53;color:#e2ffff;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation}
 .shared-feed-marker.enemy{border-color:#ff6778;background:#552632;color:#ffdce1;pointer-events:none}
 .shared-feed-marker.target,.shared-feed-marker.objective{border-color:#e8c54a;background:#5d4e21;pointer-events:none}
 .shared-feed-marker.selected{outline:3px solid #e8c54a;outline-offset:2px}
