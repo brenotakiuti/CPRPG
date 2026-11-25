@@ -7,7 +7,7 @@ import './SharedTacticalFeed.css';
 type Unit = {key:string;label:string;type:string;x:number;y:number;name?:string;visible?:boolean;manualReveal?:Record<string,string>;status?:'normal'|'unconscious'|'dead'};
 type ObjectCell = {type:string;x:number;y:number;color?:string};
 type Layout = {width:number;height:number;objects:ObjectCell[];floorColors?:Record<string,string>};
-type Feed = {broadcasting:boolean;layout?:Layout;units?:Unit[];visibilityMode?:'full'|'light'|'dark';visibilityRadius?:number;revealMode?:string};
+type Feed = {broadcasting:boolean;mapName?:string;layout?:Layout;units?:Unit[];visibilityMode?:'full'|'light'|'dark';visibilityRadius?:number;revealMode?:string};
 const CELL=36;
 function sightCells(ax:number,ay:number,bx:number,by:number):[number,number][] {
  const result:[number,number][]=[];let x=Math.floor(ax),y=Math.floor(ay);
@@ -97,7 +97,7 @@ export default function SharedTacticalFeed({token}:{token:string}) {
  };
  return <main className="shared-feed">
   <section className="shared-feed-frame">
-   <header><span>SECTOR 07 // ACTIVE FEED</span><span className="shared-feed-status">● LIVE</span></header>
+   <header><span>{feed.broadcasting ? (feed.mapName?.trim() || 'TACTICAL MAP') : 'TACTICAL FEED'} // ACTIVE FEED</span><span className="shared-feed-status">● LIVE</span></header>
    <div className="shared-feed-viewport" ref={boardRef}>
     {layout&&feed.broadcasting?<div className="shared-feed-board" style={{width:layout.width*CELL,height:layout.height*CELL,transform:`scale(${zoom})`,marginLeft:Math.max(0,(viewportSize.width-layout.width*CELL*zoom)/2),marginTop:Math.max(0,(viewportSize.height-layout.height*CELL*zoom)/2)}}>
      {Array.from({length:layout.width*layout.height},(_,i)=>{
