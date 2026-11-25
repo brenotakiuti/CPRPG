@@ -225,3 +225,11 @@
 .live-party-capacity-buttons button{display:inline-flex;align-items:center;justify-content:center;width:30px;height:29px;padding:0;border:1px solid #465b70;border-radius:5px;background:#203247;color:#e8c157;cursor:pointer}
 .live-party-capacity-buttons button:disabled{opacity:.3;cursor:not-allowed}
 .live-party-capacity-buttons button:not(:disabled):hover{border-color:#e8c157;background:#2e3c49}
+
+/* Party Monitor must fit as one unit: never scroll or clip the HP/header. */
+.live-party-drawer{max-height:none}
+.live-party-drawer .live-party-panel{max-height:none;overflow:visible;overscroll-behavior:auto}
+@media(max-width:650px){
+ .live-party-drawer{max-height:none}
+ .live-party-drawer .live-party-panel{max-height:none}
+}
