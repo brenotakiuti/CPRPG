@@ -49,7 +49,7 @@ begin
   'x',u.value->'x','y',u.value->'y','name',u.value->>'name',
   'visible',coalesce((u.value->>'visible')::boolean,true),
   'manualReveal',case when v_session.reveal_mode='manual' then coalesce(u.value->'manualReveal','{}'::jsonb) else '{}'::jsonb end,
-  'layers',coalesce(v_layout->'layerVisibility'->u.value->>'key','{}'::jsonb)
+  'layers',coalesce(v_layout->'layerVisibility'->(u.value->>'key'),'{}'::jsonb)
  )), '[]'::jsonb) into v_units
  from jsonb_array_elements(coalesce(v_session.units,'[]'::jsonb)) u
  where u.value->>'type'='player'
