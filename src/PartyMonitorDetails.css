@@ -29,3 +29,33 @@
 .party-implant-prev{left:0;border-radius:0 5px 5px 0}.party-implant-next{right:0;border-radius:5px 0 0 5px}
 .party-implant-prev:disabled,.party-implant-next:disabled{opacity:.3;cursor:default}
 @media(max-height:480px){.party-implant-content{padding-top:6px;padding-bottom:6px;gap:4px}.party-implant-art{flex:0 1 38%;min-height:65px}.party-implant-name{flex-basis:26px}}
+
+/* Reserve the same space for either tab; content never changes the dock height. */
+.live-party-drawer .party-detail-stats,
+.live-party-drawer .party-detail-cyberware{
+ height:calc(var(--party-scan-height, 430px) + 40px);
+ box-sizing:border-box;
+ overflow:hidden;
+}
+.live-party-drawer .party-detail-stats{overflow-y:auto}
+.live-party-drawer .party-detail-cyberware .ps-scan-viewport{
+ height:var(--party-scan-height, 430px);
+ display:flex;align-items:center;justify-content:center;
+ overflow:hidden;
+}
+.live-party-drawer .party-detail-cyberware .ps-scan-layer{
+ display:inline-block;
+ position:relative;
+ width:max-content;
+ height:max-content;
+ max-width:100%;
+ max-height:100%;
+ flex:0 1 auto;
+}
+.live-party-drawer .party-detail-cyberware .ps-scan-layer img{
+ display:block;
+ width:auto;
+ height:auto;
+ max-width:235px;
+ max-height:var(--party-scan-height, 430px);
+}
