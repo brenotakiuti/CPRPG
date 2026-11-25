@@ -519,3 +519,7 @@
 .gm-shared-display-link-row input{flex:1;min-width:0;padding:12px;border-radius:6px;border:1px solid #425566;background:#1b2935;color:#dce6ef}
 .gm-shared-display-link-row button{display:flex;align-items:center;gap:7px;padding:11px 14px;border-radius:6px;border:1px solid #425566;background:#26333f;color:#aab8c3;cursor:not-allowed}
 .gm-shared-display-panel .gm-shared-display-note{font-size:.78rem;margin-top:14px}
+
+/* Shared-display invitation: enabled button must not inherit placeholder lock styling. */
+.gm-shared-display-link-row button:not(:disabled){cursor:pointer;background:#e4c24c;border-color:#e4c24c;color:#15202b;opacity:1}
+.gm-shared-display-link-row button:not(:disabled):hover{filter:brightness(1.1)}
