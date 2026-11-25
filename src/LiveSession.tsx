@@ -6,6 +6,7 @@ import './LiveSession.css';
 import { fortunes } from './FortuneCookieConfigured';
 import SessionToolSettings, { type ToolConfig } from './SessionToolSettings';
 import DiceSpotlight from './DiceSpotlight';
+import PartyMonitorDetails from './PartyMonitorDetails';
 
 type Character = { id: string; name: string; balance: number; body: number | null; current_hp: number | null };
 const maxHP = (body: number) => 10 + 5 * body;
@@ -23,6 +24,7 @@ const symbol = () => symbols[Math.floor(Math.random() * symbols.length)];
 
 export default function LiveSession({ campaignId, characters, onHPChanged, onBalanceChanged }: { campaignId: string; characters: Character[]; onHPChanged: (id: string, hp: number) => void; onBalanceChanged: (id: string, balance: number) => void }) {
   const [monitorOpen, setMonitorOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(1);
   const [visibleStart, setVisibleStart] = useState(0);
   const capacity = Math.min(Math.max(1, visibleCount), Math.max(1, characters.length));
@@ -335,6 +337,7 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
                 <div className="live-hp-actions"><button type="button" title={'Adjust funds for ' + c.name} aria-label={'Adjust funds for ' + c.name} onClick={() => openMoney(c.id)}><Wallet size={17}/></button><button type="button" title="Remove 5 HP" aria-label={'Remove 5 HP from ' + c.name} disabled={hp === null || hp <= 0 || c.body === null} onClick={() => void adjustHP(c, -5)}><Heart size={14}/><Minus size={13}/></button><button type="button" className="live-hp-heal" title="Restore 5 HP" aria-label={'Restore 5 HP to ' + c.name} disabled={hp === null || c.body === null || hp >= maxHP(c.body)} onClick={() => void adjustHP(c, 5)}><Heart size={14}/><Plus size={13}/></button></div>
               </div>
              ); }) : <p className="live-empty">No characters in this campaign yet.</p>}
+            {characters.length > 0 && capacity === 1 && <><button type="button" className="party-detail-toggle" aria-expanded={detailsOpen} onClick={()=>setDetailsOpen(v=>!v)}><span>CHARACTER DETAILS</span><span>{detailsOpen?'▲':'▼'}</span></button>{detailsOpen&&<PartyMonitorDetails campaignId={campaignId} characterId={visibleCharacters[0].id}/>}</>}
             {characters.length > 0 && <div className="live-party-capacity-controls" aria-label="Party Monitor character controls">
               <span className="live-party-count">{capacity} / {characters.length}</span>
               <div className="live-party-capacity-buttons">
