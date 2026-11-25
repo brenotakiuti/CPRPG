@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Dices, Plus, Minus, Focus } from 'lucide-react';
+import { Dices, Plus, Minus, Focus, Skull } from 'lucide-react';
 import DiceSpotlight from './DiceSpotlight';
 import { supabase } from './supabase';
 import './SharedTacticalFeed.css';
 
-type Unit = {key:string;label:string;type:string;x:number;y:number;name?:string;visible?:boolean;manualReveal?:Record<string,string>};
+type Unit = {key:string;label:string;type:string;x:number;y:number;name?:string;visible?:boolean;manualReveal?:Record<string,string>;status?:'normal'|'unconscious'|'dead'};
 type ObjectCell = {type:string;x:number;y:number;color?:string};
 type Layout = {width:number;height:number;objects:ObjectCell[];floorColors?:Record<string,string>};
 type Feed = {broadcasting:boolean;layout?:Layout;units?:Unit[];visibilityMode?:'full'|'light'|'dark';visibilityRadius?:number;revealMode?:string};
@@ -104,7 +104,7 @@ export default function SharedTacticalFeed({token}:{token:string}) {
       const x=i%layout.width,y=Math.floor(i/layout.width),o=terrain.get(x+','+y);
       return <div key={i} className={'shared-feed-tile '+(o?.type||'')+(canSee(x,y)?'':' occluded')} style={{left:x*CELL,top:y*CELL,backgroundColor:canSee(x,y)?o?.color||layout.floorColors?.[x+','+y]||undefined:'#050b13'}} onClick={()=>void move(x,y)} />;
      })}
-     {(feed.units||[]).filter(u=>u.type==='player'||(u.visible!==false&&canSee(u.x,u.y))).map(u=><button type="button" key={u.key} className={'shared-feed-marker '+u.type+(selected===u.key?' selected':'')} style={{left:u.x*CELL+3,top:u.y*CELL+3}} onClick={()=>{if(u.type==='player')setSelected(selected===u.key?null:u.key)}} title={u.name||u.label}>{u.label}</button>)}
+     {(feed.units||[]).filter(u=>u.type==='player'||(u.visible!==false&&canSee(u.x,u.y))).map(u=><button type="button" key={u.key} className={'shared-feed-marker '+u.type+(selected===u.key?' selected':'')} style={{left:u.x*CELL+3,top:u.y*CELL+3}} onClick={()=>{if(u.type==='player')setSelected(selected===u.key?null:u.key)}} title={u.name||u.label}>{u.label}{u.type==='enemy'&&u.status&&u.status!=='normal'&&<span className={'shared-feed-status-badge '+u.status} aria-label={u.status==='unconscious'?'Unconscious':'Dead'}>{u.status==='unconscious'?'Zz':<Skull size={11}/>}</span>}</button>)}
     </div>:<div className="shared-feed-empty">{error||'AWAITING TACTICAL BROADCAST'}</div>}
     <div className="shared-feed-zoom">
      <button aria-label="Zoom in" onClick={()=>setZoom(v=>Math.min(3,+(v+.2).toFixed(2)))}><Plus size={19}/></button>
