@@ -507,3 +507,15 @@
 .gm-character-access-reset{background:#252f3b;color:#e0e5eb;border:1px solid #465361}
 .gm-character-access-buttons button:disabled,.gm-character-access-link-row button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:520px){.gm-character-access-buttons{flex-wrap:wrap}.gm-character-access-buttons button{flex:1 1 140px}}
+
+
+/* Tactical//Feed shared display invitation placeholder */
+.gm-shared-display-panel{max-width:580px;margin:20px auto;padding:24px;text-align:center;color:#e7eef5}
+.gm-shared-display-panel h2{margin:0 0 8px;font-size:1.3rem}
+.gm-shared-display-panel>p{color:#9fb0bf}
+.gm-shared-display-qr{width:210px;height:210px;margin:22px auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#e9edf0;border-radius:10px;color:#667786;font-size:.85rem}
+.gm-shared-display-panel label{display:block;text-align:left;font-size:.85rem;color:#aabac8;margin-bottom:7px}
+.gm-shared-display-link-row{display:flex;gap:8px;align-items:center}
+.gm-shared-display-link-row input{flex:1;min-width:0;padding:12px;border-radius:6px;border:1px solid #425566;background:#1b2935;color:#dce6ef}
+.gm-shared-display-link-row button{display:flex;align-items:center;gap:7px;padding:11px 14px;border-radius:6px;border:1px solid #425566;background:#26333f;color:#aab8c3;cursor:not-allowed}
+.gm-shared-display-panel .gm-shared-display-note{font-size:.78rem;margin-top:14px}
