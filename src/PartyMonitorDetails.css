@@ -84,3 +84,46 @@
 .party-detail-stat-value small{font-size:10px}
 .party-detail-stat-track{height:6px;background:#47515e;border-radius:6px;overflow:hidden}
 .party-detail-stat-fill{height:100%;border-radius:6px}
+
+/* Compact monitor details: keep a common tab height without blank scan bands.
+   The anatomical frame follows the image's intrinsic aspect ratio. */
+.live-party-drawer .party-detail-stats,
+.live-party-drawer .party-detail-cyberware{
+ height:calc(var(--party-scan-height, 390px) + 20px);
+ padding:8px 10px;
+}
+.live-party-drawer .party-detail-cyberware{
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ justify-content:flex-start;
+ gap:5px;
+}
+.live-party-drawer .party-detail-cyberware .ps-scan-viewport{
+ height:auto;
+ width:fit-content;
+ max-width:100%;
+ flex:0 0 auto;
+ display:block;
+ overflow:hidden;
+}
+.live-party-drawer .party-detail-cyberware .ps-scan-layer{
+ display:block;
+ width:fit-content;
+ height:auto;
+ max-width:100%;
+ max-height:none;
+}
+.live-party-drawer .party-detail-cyberware .ps-scan-layer img{
+ width:auto;
+ height:auto;
+ max-width:235px;
+ max-height:calc(var(--party-scan-height, 390px) - 22px);
+ object-fit:contain;
+}
+.live-party-drawer .party-detail-cyberware .ps-scan-label{margin-top:0;padding:2px 0}
+.live-party-drawer .party-detail-stat-list{gap:6px}
+.live-party-drawer .party-detail-stat-row{padding:7px 9px;gap:6px}
+.live-party-drawer .party-detail-stat-icon{width:36px;height:36px;flex-basis:36px}
+.live-party-drawer .party-detail-stat-main{gap:8px}
+.live-party-drawer .party-detail-stat-track{height:5px}
