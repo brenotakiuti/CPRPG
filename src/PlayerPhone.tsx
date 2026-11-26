@@ -30,6 +30,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const [dmUnread,setDmUnread]=useState<Record<string,number>>({});
   const dmSeen=useRef<Record<string,string>>({});
   const dmInitial=useRef(false);
+  const dmCampaignId=useRef('');
   const dmAlerted=useRef<Record<string,string>>({});
   const [selfId, setSelfId] = useState('');
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -136,10 +137,13 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     setContactNotices(nextNotices);
   }, [characterId, alertIncoming]);
   const refreshDM = useCallback(async () => {
-    const character=await supabase.from('characters').select('campaign_id').eq('id',characterId).single();
-    if(character.error)throw character.error;
+    if(!dmCampaignId.current){
+      const character=await supabase.from('characters').select('campaign_id').eq('id',characterId).single();
+      if(character.error)throw character.error;
+      dmCampaignId.current=character.data.campaign_id;
+    }
     const [mode,contacts,threads]=await Promise.all([
-      supabase.rpc('phone_player_dm_mode',{p_campaign_id:character.data.campaign_id}),
+      supabase.rpc('phone_player_dm_mode',{p_campaign_id:dmCampaignId.current}),
       supabase.rpc('phone_player_dm_contacts',{p_character_id:characterId}),
       supabase.rpc('phone_player_dm_threads',{p_character_id:characterId}),
     ]);
