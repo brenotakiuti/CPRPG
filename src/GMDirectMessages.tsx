@@ -38,28 +38,59 @@ export function GMDirectMessageSettings({campaignId}:{campaignId:string}){
 export function GMDirectMessageMonitor({campaignId}:{campaignId:string}){
  const [mode,setMode]=useState<Mode>('disabled');
  const [entries,setEntries]=useState<Entry[]>([]);
+ const [selected,setSelected]=useState<string|null>(null);
  const [error,setError]=useState('');
+ const [loading,setLoading]=useState(true);
  const refresh=useCallback(async()=>{
   const status=await supabase.rpc('phone_player_dm_mode',{p_campaign_id:campaignId});
   if(status.error)throw status.error;
   const next=status.data as Mode;
   setMode(next);
-  if(next!=='monitored'){setEntries([]);return;}
+  if(next!=='monitored'){setEntries([]);setSelected(null);setError('');return;}
   const result=await supabase.rpc('phone_player_dm_monitor',{p_campaign_id:campaignId});
   if(result.error)throw result.error;
   setEntries((result.data??[]) as Entry[]);
+  setError('');
  },[campaignId]);
  useEffect(()=>{
-  void refresh().catch(e=>setError(String(e)));
-  const interval=window.setInterval(()=>{void refresh().catch(e=>setError(String(e)))},5000);
+  setLoading(true);
+  void refresh().catch(e=>setError(e instanceof Error?e.message:String(e))).finally(()=>setLoading(false));
+  const interval=window.setInterval(()=>{void refresh().catch(e=>setError(e instanceof Error?e.message:String(e)))},5000);
   return()=>window.clearInterval(interval);
  },[refresh]);
- return <section className="gl-direct-messages gl-dm-monitor">
-  <h3>Player Direct Messages // GM Monitor</h3>
-  {mode!=='monitored'?<p>Monitoring is not enabled for this campaign. Private player messages cannot be viewed here.</p>:<>
-   <p>Read-only monitoring. Showing the latest 300 messages.</p>
-   <div className="gl-direct-history">{entries.map(m=><div key={m.id} className="incoming"><strong>{m.sender} → {m.recipient}</strong><span>{m.body}</span><small>{new Date(m.created_at).toLocaleString()}</small></div>)}{!entries.length&&<p>No messages yet.</p>}</div>
-  </>}
-  {error&&<p role="alert" className="gl-direct-error">{error}</p>}
+ // A conversation is an unordered pair. The existing monitor RPC returns character names,
+ // not IDs; this groups both directions together without changing the current database.
+ const conversationKey=(m:Entry)=>[m.sender,m.recipient].sort((a,b)=>a.localeCompare(b)).join('\\u0000');
+ const conversations=Array.from(new Map(entries.map(m=>[conversationKey(m),m])).entries()).map(([key,latest])=>({
+  key,latest,participants:key.split('\\u0000')
+ })).sort((a,b)=>b.latest.created_at.localeCompare(a.latest.created_at));
+ const active=selected && conversations.some(c=>c.key===selected)?selected:conversations[0]?.key??null;
+ const current=conversations.find(c=>c.key===active);
+ const history=entries.filter(m=>conversationKey(m)===active).sort((a,b)=>a.created_at.localeCompare(b.created_at));
+ return <section className="gm-ghost-dm-monitor" aria-label="Player direct message monitoring">
+  {loading&&<p className="gm-ghost-muted">Connecting to player message monitor...</p>}
+  {!loading&&mode!=='monitored'&&<div className="gm-ghost-placeholder">Player message monitoring is disabled. Private conversations cannot be viewed by the GM.</div>}
+  {!loading&&mode==='monitored'&&<div className="gm-ghost-dm-workstation">
+   <aside className="gm-ghost-threads">
+    <div className="gm-ghost-section-title">PLAYER CONVERSATIONS <span>{conversations.length}</span></div>
+    {conversations.map(c=><button type="button" key={c.key} className={'gm-ghost-entry'+(active===c.key?' active':'')} onClick={()=>setSelected(c.key)}>
+     <span className="gm-ghost-avatar player">{c.participants[0]?.slice(0,1).toUpperCase()||'P'}</span>
+     <span><strong>{c.participants.join(' ↔ ')}</strong><small className="gm-ghost-preview">{c.latest.sender}: {c.latest.body}</small></span>
+    </button>)}
+    {!conversations.length&&<p className="gm-ghost-muted">No player conversations yet.</p>}
+   </aside>
+   <main className="gm-ghost-chat">
+    {current?<><div className="gm-ghost-chat-header"><div><strong>{current.participants.join(' ↔ ')}</strong><small>PLAYER DIRECT MESSAGES</small></div><span className="gm-ghost-tag">READ ONLY</span></div>
+     <div className="gm-ghost-history gm-ghost-dm-history" key={active}>
+      {history.map(m=><div key={m.id} className={'gm-ghost-bubble '+(m.sender===current.participants[0]?'out':'in')}>
+       <strong className="gm-ghost-dm-sender">{m.sender}</strong>
+       <span>{m.body}</span><small>{new Date(m.created_at).toLocaleString()}</small>
+      </div>)}
+     </div>
+     <div className="gm-ghost-dm-readonly">MONITORING CHANNEL · READ ONLY</div>
+    </>:<div className="gm-ghost-empty">Select a player conversation to view messages.</div>}
+   </main>
+  </div>}
+  {error&&<p role="alert" className="gm-ghost-error">{error}</p>}
  </section>;
 }
