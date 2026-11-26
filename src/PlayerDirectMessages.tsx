@@ -6,7 +6,7 @@ type Contact={id:string;name:string};
 type Message={id:string;sender_id:string;body:string;created_at:string};
 type Mode='disabled'|'private'|'monitored';
 const explain=(e:unknown)=>e instanceof Error?e.message:String(e);
-export default function PlayerDirectMessages({characterId,campaignId,onClose}:{characterId:string;campaignId:string;onClose:()=>void}){
+export default function PlayerDirectMessages({characterId,onClose}:{characterId:string;onClose:()=>void}){
  const [mode,setMode]=useState<Mode>('disabled');
  const [contacts,setContacts]=useState<Contact[]>([]);
  const [selected,setSelected]=useState('');
@@ -15,13 +15,15 @@ export default function PlayerDirectMessages({characterId,campaignId,onClose}:{c
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState('');
  const load=useCallback(async()=>{
+  const character=await supabase.from('characters').select('campaign_id').eq('id',characterId).single();
+  if(character.error)throw character.error;
   const [m,c]=await Promise.all([
-   supabase.rpc('phone_player_dm_mode',{p_campaign_id:campaignId}),
+   supabase.rpc('phone_player_dm_mode',{p_campaign_id:character.data.campaign_id}),
    supabase.rpc('phone_player_dm_contacts',{p_character_id:characterId})
   ]);
   if(m.error||c.error)throw m.error??c.error;
   setMode(m.data as Mode);setContacts((c.data??[]) as Contact[]);
- },[campaignId,characterId]);
+ },[characterId]);
  const loadHistory=useCallback(async(id:string)=>{
   const result=await supabase.rpc('phone_player_dm_history',{p_character_id:characterId,p_other_character_id:id});
   if(result.error)throw result.error;
