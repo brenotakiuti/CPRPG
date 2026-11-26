@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { MessageSquare, Users, Phone, Settings2, Send, RefreshCw, Eye } from 'lucide-react';
 import { supabase } from './supabase';
 import './GMPhone.css';
+import { getHistory,putHistory,appendHistory,removeHistoryId,historyKey } from './phoneMessageCache';
 import GMCallControl from './GMCallControl';
 
 type Thread = { conversation_id: string; npc_identity_id: string; npc_internal_name: string; npc_public_label: string; player_identity_id: string; player_name: string; last_message_at: string | null; last_message: string | null; unread_count: number };
@@ -61,6 +62,7 @@ export default function GMPhone({ campaignId, onRead }: { campaignId: string; on
   const [newChatRecipient, setNewChatRecipient] = useState('');
   const [playerIdentities, setPlayerIdentities] = useState<{ identity_id: string; character_id: string; player_name: string }[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const activeHistoryKey=useRef('');
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -199,9 +201,11 @@ export default function GMPhone({ campaignId, onRead }: { campaignId: string; on
   const read = useCallback(async (conversationId: string) => {
     const result = await supabase.rpc('phone_read_messages', { p_conversation_id: conversationId, p_limit: 100 });
     if (result.error) throw result.error;
-    setMessages(((result.data || []) as Message[]).reverse());
+    const key=historyKey(campaignId,'npc',conversationId);
+    const next=putHistory(key,((result.data || []) as Message[]).reverse());
+    if(activeHistoryKey.current===key)setMessages(next);
 
-  }, []);
+  }, [campaignId]);
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -209,11 +213,14 @@ export default function GMPhone({ campaignId, onRead }: { campaignId: string; on
     return () => { active = false; };
   }, [refresh]);
   useEffect(() => {
-    if (!selectedConversation || tab !== 'messages') { setMessages([]); return; }
+    if (!selectedConversation || tab !== 'messages') { if(!selectedConversation)setMessages([]); return; }
+    const key=historyKey(campaignId,'npc',selectedConversation);
+    activeHistoryKey.current=key;
+    setMessages(getHistory(key)??[]);
     let active = true;
     void read(selectedConversation).catch(e => { if (active) setError(e.message || String(e)); });
     return () => { active = false; };
-  }, [selectedConversation, tab, read]);
+  }, [selectedConversation, tab, read,campaignId]);
   useEffect(() => {
     const channel = supabase.channel('gm-ghost-link-' + campaignId)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'phone_messages' }, () => {
