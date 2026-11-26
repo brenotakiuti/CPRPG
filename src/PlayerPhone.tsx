@@ -300,16 +300,31 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
         await readDM(selected.id);
         void refreshDM().catch(()=>{});return;
       }
-      const response = await supabase.rpc('phone_send_message', {
-        p_sender_identity_id: selfId, p_recipient_identity_id: selected.id, p_body: draft.trim(),
-      });
-      if (response.error) throw response.error;
+      const text=draft.trim();
+      const conversationId=selected.conversationId;
+      const key=conversationId?historyKey(characterId,'npc',conversationId):'';
+      const tempId='pending:'+crypto.randomUUID();
+      if(key){setMessages(appendHistory(key,{message_id:tempId,sender_identity_id:selfId,body:text,created_at:new Date().toISOString()}));}
       setDraft('');
-      await refresh();
-      const result = await supabase.rpc('phone_threads', { p_character_id: characterId });
-      if (result.error) throw result.error;
-      const thread = ((result.data || []) as Thread[]).find(t => t.other_identity_id === selected.id);
-      if (thread) { setSelected(s => s ? { ...s, conversationId: thread.conversation_id } : s); await read(thread.conversation_id); }
+      const response = await supabase.rpc('phone_send_message', {
+        p_sender_identity_id: selfId, p_recipient_identity_id: selected.id, p_body:text,
+      });
+      if (response.error) {
+        if(key)setMessages(removeHistoryId(key,tempId));
+        setDraft(text);
+        throw response.error;
+      }
+      if(conversationId){
+        void read(conversationId).catch(()=>{});
+        setThreads(current=>current.map(t=>t.conversation_id===conversationId?{...t,last_message:text,last_message_at:new Date().toISOString()}:t));
+      }else{
+        const result=await supabase.rpc('phone_threads',{p_character_id:characterId});
+        if(result.error)throw result.error;
+        const next=(result.data||[]) as Thread[];
+        setThreads(next);
+        const thread=next.find(t=>t.other_identity_id===selected.id);
+        if(thread){setSelected(current=>current?{...current,conversationId:thread.conversation_id}:current);void read(thread.conversation_id).catch(()=>{});}
+      }
     } catch (e) { setError(phoneErrorMessage(e)); }
     finally { setBusy(false); }
   };
@@ -358,7 +373,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
         <section className="ghost-carousel-slide" aria-hidden={page !== 1}>
           {!selected ? <>
             <div className="ghost-carousel-heading"><h2>SIGNAL INBOX</h2><small>ENCRYPTED MESSAGES</small></div>
-            {loading && <p className="ghost-muted">Connecting to network...</p>}
+            
             {!loading && threads.length === 0 && dmThreads.length===0 && <p className="ghost-muted">No conversations yet. Find a contact in Contacts.</p>}
             <div className="ghost-list">
               {[...threads.map(t=>({...t,kind:'npc' as const})),...dmThreads.map(t=>({conversation_id:'dm:'+t.other_character_id,other_identity_id:t.other_character_id,other_label:t.other_label,other_anonymous:false,last_message_at:t.last_message_at,last_message:t.last_message,unread_count:dmUnread[t.other_character_id]||0,kind:'player' as const}))].sort((a,b)=>(b.last_message_at||'').localeCompare(a.last_message_at||'')).map(t => <button key={t.conversation_id} className={"ghost-contact" + (pulsingThreads.includes(t.conversation_id) ? " ghost-contact-pulse" : "")} onClick={() => t.kind==='player'?openPlayer(t.other_identity_id,t.other_label):openThread(t)}>
