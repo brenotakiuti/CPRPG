@@ -55,8 +55,20 @@ export function GMDirectMessageMonitor({campaignId}:{campaignId:string}){
  useEffect(()=>{
   setLoading(true);
   void refresh().catch(e=>setError(e instanceof Error?e.message:String(e))).finally(()=>setLoading(false));
-  const interval=window.setInterval(()=>{if(document.visibilityState==='visible')void refresh().catch(e=>setError(e instanceof Error?e.message:String(e)))},12000);
-  return()=>window.clearInterval(interval);
+  let channel:ReturnType<typeof supabase.channel>|null=null;
+  let disposed=false;
+  const connect=async()=>{
+    await supabase.realtime.setAuth();
+    if(disposed)return;
+    channel=supabase.channel('ghost-dm-monitor:'+campaignId,{config:{private:true}})
+      .on('broadcast',{event:'new-message'},()=>{void refresh().catch(e=>setError(String(e)))})
+      .subscribe(status=>{if(status==='SUBSCRIBED')void refresh().catch(()=>{})});
+  };
+  void connect().catch(()=>{});
+  const recover=()=>{if(document.visibilityState==='visible')void refresh().catch(()=>{})};
+  document.addEventListener('visibilitychange',recover);
+  window.addEventListener('online',recover);
+  return()=>{disposed=true;document.removeEventListener('visibilitychange',recover);window.removeEventListener('online',recover);if(channel)void supabase.removeChannel(channel)};
  },[refresh]);
  // A conversation is an unordered pair. The existing monitor RPC returns character names,
  // not IDs; this groups both directions together without changing the current database.
