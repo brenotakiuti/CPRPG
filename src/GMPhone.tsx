@@ -65,7 +65,6 @@ export default function GMPhone({ campaignId, onRead }: { campaignId: string; on
   const activeHistoryKey=useRef('');
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [glowingMessageIds, setGlowingMessageIds] = useState<string[]>([]);
   const glowPending = useRef(new Set<string>());
@@ -208,8 +207,7 @@ export default function GMPhone({ campaignId, onRead }: { campaignId: string; on
   }, [campaignId]);
   useEffect(() => {
     let active = true;
-    setLoading(true);
-    void refresh().catch(e => { if (active) setError(e.message || String(e)); }).finally(() => { if (active) setLoading(false); });
+    void refresh().catch(e => { if (active) setError(e.message || String(e)); });
     return () => { active = false; };
   }, [refresh]);
   useEffect(() => {
