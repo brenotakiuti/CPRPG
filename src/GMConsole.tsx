@@ -42,6 +42,24 @@ function StatIcon({ number }: { number: number }) {
   }
 }
 
+type BodyStatDefinition = { id: string; name: string };
+const bodyStatDefinitionCache = new Map<string, Promise<BodyStatDefinition[]>>();
+function getStatDefinitions(campaignId: string): Promise<BodyStatDefinition[]> {
+  const cached = bodyStatDefinitionCache.get(campaignId);
+  if (cached) return cached;
+  const request = (async () => {
+    const { data, error } = await supabase.from('stat_definitions')
+      .select('id,name').eq('campaign_id',campaignId);
+    if (error) throw error;
+    return (data ?? []) as BodyStatDefinition[];
+  })();
+  bodyStatDefinitionCache.set(campaignId, request);
+  void request.catch(() => {
+    if (bodyStatDefinitionCache.get(campaignId) === request) bodyStatDefinitionCache.delete(campaignId);
+  });
+  return request;
+}
+
 type GMConsoleProps = {
   campaign: Campaign;
   onSwitchCampaign: () => void;
