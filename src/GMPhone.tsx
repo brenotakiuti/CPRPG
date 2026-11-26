@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { MessageSquare, Users, Phone, Settings2, Send, RefreshCw, Eye } from 'lucide-react';
 import { supabase } from './supabase';
 import './GMPhone.css';
-import { getHistory,putHistory,historyKey } from './phoneMessageCache';
+import { getHistory,putHistory,appendHistory,removeHistoryId,historyKey } from './phoneMessageCache';
 import GMCallControl from './GMCallControl';
 
 type Thread = { conversation_id: string; npc_identity_id: string; npc_internal_name: string; npc_public_label: string; player_identity_id: string; player_name: string; last_message_at: string | null; last_message: string | null; unread_count: number };
@@ -326,9 +326,14 @@ export default function GMPhone({ campaignId, onRead }: { campaignId: string; on
     if (!senderId || !recipientId || !draft.trim() || busy) return;
     setBusy(true); setError('');
     try {
-      const result = await supabase.rpc('phone_send_message', { p_sender_identity_id: senderId, p_recipient_identity_id: recipientId, p_body: draft.trim() });
-      if (result.error) throw result.error;
+      const text=draft.trim();
+      const conversationId=!newChat?selected?.conversation_id:undefined;
+      const key=conversationId?historyKey(campaignId,'npc',conversationId):'';
+      const tempId='pending:'+crypto.randomUUID();
+      if(key)setMessages(appendHistory(key,{message_id:tempId,sender_identity_id:senderId,body:text,created_at:new Date().toISOString()}));
       setDraft('');
+      const result = await supabase.rpc('phone_send_message', { p_sender_identity_id: senderId, p_recipient_identity_id: recipientId, p_body:text });
+      if (result.error){if(key)setMessages(removeHistoryId(key,tempId));setDraft(text);throw result.error;}
       if (newChat) {
         const updated = await supabase.rpc('phone_gm_threads', { p_campaign_id: campaignId });
         if (updated.error) throw updated.error;
@@ -341,7 +346,8 @@ export default function GMPhone({ campaignId, onRead }: { campaignId: string; on
         setSelectedConversation(opened.conversation_id);
         await read(opened.conversation_id);
       } else if (selected) {
-        await Promise.all([refresh(), read(selected.conversation_id)]);
+        setThreads(current=>current.map(t=>t.conversation_id===selected.conversation_id?{...t,last_message:text,last_message_at:new Date().toISOString()}:t));
+        void read(selected.conversation_id).catch(()=>{});
       }
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(false); }
@@ -422,7 +428,7 @@ export default function GMPhone({ campaignId, onRead }: { campaignId: string; on
       </div>
       <p>These are potential future features, not currently active settings. Their implementation will depend on the development of the communication and campaign-event systems.</p>
     </section>}
-    {loading && <p className="gm-ghost-muted">Connecting to Ghost//Link...</p>}
+
     {error && <p className="gm-ghost-error" role="alert">{error} <button onClick={() => { setError(''); void refresh().catch(e => setError(String(e))); }}><RefreshCw size={14}/> Retry</button></p>}
     <footer className="gm-ghost-footer">● GHOST//LINK NETWORK <span>DESKTOP / TABLET TERMINAL</span></footer>
   </section>;
