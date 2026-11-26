@@ -1,4 +1,3 @@
-import { GMDirectMessageSettings } from './GMDirectMessages';
 import { GMCampaignStatsProvider, useGMCampaignStats } from './GMCampaignStats';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useGMArtworkCache } from './useGMArtworkCache';
@@ -656,7 +655,6 @@ function GMConsoleContent({
               </button>
             </div>
           </section>
-          <GMDirectMessageSettings campaignId={campaign.id}/>
           <section className="gm-invitations-controls">
             <div><h3>Campaign Controls</h3><p>Switch campaigns or end your GM session</p></div>
             <div className="gm-account-actions">
