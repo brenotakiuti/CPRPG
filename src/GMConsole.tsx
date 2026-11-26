@@ -1,3 +1,4 @@
+import { GMCampaignStatsProvider, useGMCampaignStats } from './GMCampaignStats';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useGMArtworkCache } from './useGMArtworkCache';
 import { GMControlDock, GMUtilityWindow, type UtilityId } from './GMControlDock';
@@ -39,41 +40,6 @@ function StatIcon({ number }: { number: number }) {
     case 5: return <Eye {...iconProps} />;
     default: return <span className="gm-stat-number-icon">{number}</span>;
   }
-}
-
-type StatDefinition = {
-  id: string;
-  name: string;
-  description: string;
-  display_order: number;
-  stat_number: number;
-  max_value: number;
-};
-
-// Cache shared definitions per campaign for the lifetime of this browser session.
-// Cache the in-flight promise as well, so rapid character changes share one request.
-const statDefinitionCache = new Map<string, Promise<StatDefinition[]>>();
-
-function getStatDefinitions(campaignId: string): Promise<StatDefinition[]> {
-  const cached = statDefinitionCache.get(campaignId);
-  if (cached) return cached;
-
-  const request = (async () => {
-    const { data, error } = await supabase
-      .from('stat_definitions')
-      .select('id, name, description, display_order, stat_number, max_value')
-      .eq('campaign_id', campaignId)
-      .order('display_order')
-      .order('stat_number');
-    if (error) throw error;
-    return (data ?? []) as StatDefinition[];
-  })();
-  statDefinitionCache.set(campaignId, request);
-  // Failed requests should be retried next time, not cached indefinitely.
-  void request.catch(() => {
-    if (statDefinitionCache.get(campaignId) === request) statDefinitionCache.delete(campaignId);
-  });
-  return request;
 }
 
 type GMConsoleProps = {
@@ -178,10 +144,7 @@ function GMConsoleContent({
   };
 
   const [characters, setCharacters] = useState<CharacterOption[]>([]);
-  const [stats, setStats] = useState<{ id: string; name: string; value: number; statNumber: number; description: string; maxValue: number }[]>([]);
-  const [statsLoading, setStatsLoading] = useState(false);
-  const [statsError, setStatsError] = useState('');
-
+  const {byCharacter:sharedStats,loading:statsLoading,error:statsError}=useGMCampaignStats();
   const [invitations, setInvitations] = useState<Record<string, string>>({});
 
   const [inviteMessage, setInviteMessage] = useState('');
@@ -458,49 +421,7 @@ function GMConsoleContent({
   useEffect(() => { sessionStorage.setItem('gm-character-tab:' + campaign.id, detailTab); }, [campaign.id, detailTab]);
 
   const selected = characters.find((c) => c.id === selectedId) ?? characters[0];
-  useEffect(() => {
-    let active = true;
-    setStats([]);
-    setStatsError('');
-    if (!selected) return;
-
-    async function loadStats() {
-      setStatsLoading(true);
-      try {
-        // Definitions are shared by all characters; values are character-specific.
-        // Run both independently so network latency doesn't accumulate.
-        const [definitions, { data: values, error: valuesError }] = await Promise.all([
-          getStatDefinitions(campaign.id),
-          supabase
-            .from('character_stats')
-            .select('stat_id, value')
-            .eq('campaign_id', campaign.id)
-            .eq('character_id', selected!.id),
-        ]);
-        if (!active) return;
-        if (valuesError) throw valuesError;
-
-        const byId = new Map((values ?? []).map((entry) => [entry.stat_id, entry.value]));
-        setStats(definitions
-          .filter((definition) => byId.has(definition.id))
-          .map((definition) => ({
-            id: definition.id,
-            name: definition.name,
-            value: byId.get(definition.id)!,
-            statNumber: definition.stat_number,
-            description: definition.description,
-            maxValue: definition.max_value,
-          })));
-      } catch (error) {
-        if (active) setStatsError(error instanceof Error ? error.message : 'Could not load stats');
-      } finally {
-        if (active) setStatsLoading(false);
-      }
-    }
-
-    void loadStats();
-    return () => { active = false; };
-  }, [campaign.id, selected?.id]);
+  const stats = selected ? (sharedStats[selected.id] ?? []) : [];
 
   const visible = characters.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
   const navigation = [
@@ -789,5 +710,5 @@ function GMConsoleContent({
 }
 
 export default function GMConsole(props: GMConsoleProps) {
-  return <GMCharacterDataProvider campaignId={props.campaign.id}><GMConsoleContent {...props}/></GMCharacterDataProvider>;
+  return <GMCharacterDataProvider campaignId={props.campaign.id}><GMCampaignStatsProvider campaignId={props.campaign.id}><GMConsoleContent {...props}/></GMCampaignStatsProvider></GMCharacterDataProvider>;
 }
