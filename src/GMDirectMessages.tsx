@@ -55,7 +55,7 @@ export function GMDirectMessageMonitor({campaignId}:{campaignId:string}){
  useEffect(()=>{
   setLoading(true);
   void refresh().catch(e=>setError(e instanceof Error?e.message:String(e))).finally(()=>setLoading(false));
-  const interval=window.setInterval(()=>{void refresh().catch(e=>setError(e instanceof Error?e.message:String(e)))},5000);
+  const interval=window.setInterval(()=>{if(document.visibilityState==='visible')void refresh().catch(e=>setError(e instanceof Error?e.message:String(e)))},12000);
   return()=>window.clearInterval(interval);
  },[refresh]);
  // A conversation is an unordered pair. The existing monitor RPC returns character names,
@@ -68,7 +68,7 @@ export function GMDirectMessageMonitor({campaignId}:{campaignId:string}){
  const current=conversations.find(c=>c.key===active);
  const history=entries.filter(m=>conversationKey(m)===active).sort((a,b)=>a.created_at.localeCompare(b.created_at));
  return <section className="gm-ghost-dm-monitor" aria-label="Player direct message monitoring">
-  {loading&&<p className="gm-ghost-muted">Connecting to player message monitor...</p>}
+
   {!loading&&mode!=='monitored'&&<div className="gm-ghost-placeholder">Player message monitoring is disabled. Private conversations cannot be viewed by the GM.</div>}
   {!loading&&mode==='monitored'&&<div className="gm-ghost-dm-workstation">
    <aside className="gm-ghost-threads">
