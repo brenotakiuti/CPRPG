@@ -294,8 +294,8 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
             </div>
             <form className="ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input value={draft} onChange={e => setDraft(e.target.value)} maxLength={4000} placeholder="Transmit message..." aria-label="Message"/><button type="submit" disabled={busy || !draft.trim()} aria-label="Send message"><Send size={19}/></button></form>
           </>}
+          </>}
         </section>
-        </>}
         <section className="ghost-carousel-slide" aria-hidden={page !== 2}>
           <div className="ghost-carousel-heading"><h2>CONTACTS</h2><small>REGISTERED IDENTITIES</small></div>
           {loading && <p className="ghost-muted">Connecting to network...</p>}
