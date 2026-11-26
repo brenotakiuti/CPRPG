@@ -19,7 +19,7 @@ function StatIcon({number}:{number:number}) {
  switch(number){case 1:return <Dumbbell {...props}/>;case 2:return <Zap {...props}/>;case 3:return <Wrench {...props}/>;case 4:return <Brain {...props}/>;case 5:return <Eye {...props}/>;default:return <span>{number}</span>}
 }
 
-export default function PartyMonitorDetails({campaignId,characterId}:{campaignId:string;characterId:string}) {
+export default function PartyMonitorDetails({characterId}:{characterId:string}) {
  const [tab,setTab]=useState<'stats'|'cyberware'>('stats');
  const {byCharacter,loading,error}=useGMCampaignStats();
  const stats=byCharacter[characterId]??[];
