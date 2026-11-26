@@ -28,6 +28,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const [dmUnread,setDmUnread]=useState<Record<string,number>>({});
   const dmSeen=useRef<Record<string,string>>({});
   const dmInitial=useRef(false);
+  const dmAlerted=useRef<Record<string,string>>({});
   const [selfId, setSelfId] = useState('');
   const [threads, setThreads] = useState<Thread[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -144,20 +145,21 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     setDmContacts((contacts.data??[]) as {id:string;name:string}[]);
     const next=(threads.data??[]) as {other_character_id:string;other_label:string;last_message:string;last_message_at:string}[];
     setDmThreads(next);
-    if(nextMode==='disabled'){setDmUnread({});return;}
+    if(nextMode==='disabled'){setDmUnread({});if(selectedRef.current?.kind==='player')setSelected(null);return;}
     const unread:Record<string,number>={};
+    let hasNew=false;
     for(const thread of next){
-      const seen=dmSeen.current[thread.other_character_id];
-      if(seen && thread.last_message_at>seen && selectedRef.current?.kind!=='player'){
-        unread[thread.other_character_id]=1;
-      }else if(seen && thread.last_message_at>seen && selectedRef.current?.id!==thread.other_character_id){
-        unread[thread.other_character_id]=1;
+      const id=thread.other_character_id;
+      const seen=dmSeen.current[id];
+      if(!seen && !dmInitial.current){dmSeen.current[id]=thread.last_message_at;continue;}
+      if(selectedRef.current?.kind==='player' && selectedRef.current.id===id)continue;
+      if(!seen || thread.last_message_at>seen){
+        unread[id]=1;
+        if(dmAlerted.current[id]!==thread.last_message_at){hasNew=true;dmAlerted.current[id]=thread.last_message_at;}
       }
-      if(!seen && !dmInitial.current)dmSeen.current[thread.other_character_id]=thread.last_message_at;
-      else if(!seen)unread[thread.other_character_id]=1;
     }
     setDmUnread(unread);
-    if(dmInitial.current && Object.keys(unread).length)alertIncoming('messages','NEW PLAYER MESSAGE');
+    if(dmInitial.current && hasNew)alertIncoming('messages','NEW PLAYER MESSAGE');
     dmInitial.current=true;
   },[characterId,alertIncoming]);
   useEffect(()=>{
@@ -172,15 +174,15 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
       message_id:m.id,sender_identity_id:m.sender_id,body:m.body,created_at:m.created_at
     }));
     setMessages(next);
-    if(next.length)dmSeen.current[id]=next[next.length-1].created_at;
+    if(next.length){dmSeen.current[id]=next[next.length-1].created_at;dmAlerted.current[id]=next[next.length-1].created_at;}
     setDmUnread(current=>({...current,[id]:0}));
   },[characterId]);
   useEffect(()=>{
-    if(selected?.kind!=='player')return;
+    if(selected?.kind!=='player'||dmMode==='disabled')return;
     void readDM(selected.id).catch(e=>setError(phoneErrorMessage(e)));
     const interval=window.setInterval(()=>{void readDM(selected.id).catch(()=>{})},4000);
     return()=>window.clearInterval(interval);
-  },[selected?.id,selected?.kind,readDM]);
+  },[selected?.id,selected?.kind,dmMode,readDM]);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -241,7 +243,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
           pulseTimers.current.push(timer);
         }
         void refresh().catch(() => {});
-        if (current?.conversationId) void read(current.conversationId).catch(() => {});
+        if (current?.conversationId && current.kind!=='player') void read(current.conversationId).catch(() => {});
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'campaign_events', filter: 'character_id=eq.' + characterId }, () => {
         setSignalPulse(true);
@@ -266,10 +268,10 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     } catch (e) { setError(phoneErrorMessage(e)); }
     finally { setCalling(false); }
   };
-  const selectedLabel = selected ? labelFor(selected.id,selected.label) : '';
+  const selectedLabel = selected ? (selected.kind==='player'?selected.label:labelFor(selected.id,selected.label)) : '';
   const selectedMasked = !!selected && selectedLabel === 'Unknown Number';
   const send = async () => {
-    if (!selected || !selfId || !draft.trim() || busy) return;
+    if (!selected || !selfId || !draft.trim() || busy || (selected.kind==='player'&&dmMode==='disabled')) return;
     setBusy(true); setError('');
     try {
       if(selected.kind==='player'){
@@ -336,10 +338,10 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
           {!selected ? <>
             <div className="ghost-carousel-heading"><h2>SIGNAL INBOX</h2><small>ENCRYPTED MESSAGES</small></div>
             {loading && <p className="ghost-muted">Connecting to network...</p>}
-            {!loading && threads.length === 0 && <p className="ghost-muted">No conversations yet. Find a contact in Contacts.</p>}
+            {!loading && threads.length === 0 && dmThreads.length===0 && <p className="ghost-muted">No conversations yet. Find a contact in Contacts.</p>}
             <div className="ghost-list">
               {[...threads.map(t=>({...t,kind:'npc' as const})),...dmThreads.map(t=>({conversation_id:'dm:'+t.other_character_id,other_identity_id:t.other_character_id,other_label:t.other_label,other_anonymous:false,last_message_at:t.last_message_at,last_message:t.last_message,unread_count:dmUnread[t.other_character_id]||0,kind:'player' as const}))].sort((a,b)=>(b.last_message_at||'').localeCompare(a.last_message_at||'')).map(t => <button key={t.conversation_id} className={"ghost-contact" + (pulsingThreads.includes(t.conversation_id) ? " ghost-contact-pulse" : "")} onClick={() => t.kind==='player'?openPlayer(t.other_identity_id,t.other_label):openThread(t)}>
-                <UserRound size={24}/><span><strong>{labelFor(t.other_identity_id,t.other_label)}</strong><small>{t.last_message || 'New conversation'}</small></span>
+                <UserRound size={24}/><span><strong>{t.kind==='player'?t.other_label:labelFor(t.other_identity_id,t.other_label)}</strong><small>{t.last_message || 'New conversation'}</small></span>
                 {Number(t.unread_count) > 0 && <b className="ghost-unread">{t.unread_count}</b>}
               </button>)}
             </div>
