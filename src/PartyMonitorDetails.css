@@ -127,3 +127,9 @@
 .live-party-drawer .party-detail-stat-icon{width:36px;height:36px;flex-basis:36px}
 .live-party-drawer .party-detail-stat-main{gap:8px}
 .live-party-drawer .party-detail-stat-track{height:5px}
+
+/* Keep detail content mounted; animate only the available space. */
+.party-details-reveal{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows 260ms ease,opacity 200ms ease;pointer-events:none}
+.party-details-reveal.expanded{grid-template-rows:1fr;opacity:1;pointer-events:auto}
+.party-details-reveal-inner{min-height:0;overflow:hidden}
+@media(prefers-reduced-motion:reduce){.party-details-reveal{transition:none}}
