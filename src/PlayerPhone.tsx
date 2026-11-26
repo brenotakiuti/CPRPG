@@ -1,4 +1,4 @@
-import PlayerDirectMessages from './PlayerDirectMessages';
+import './PlayerDirectMessages.css';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, LockKeyhole, Mail, Send, ShieldAlert, Smartphone, UserRound, LogOut, Wifi } from 'lucide-react';
 import { supabase } from './supabase';
@@ -22,7 +22,12 @@ const phoneErrorMessage = (error: unknown): string => {
 
 
 export default function PlayerPhone({ characterId, onBack }: { characterId: string; onBack: () => void }) {
-  const [directOpen,setDirectOpen]=useState(false);
+  const [dmMode,setDmMode]=useState<'disabled'|'private'|'monitored'>('disabled');
+  const [dmContacts,setDmContacts]=useState<{id:string;name:string}[]>([]);
+  const [dmThreads,setDmThreads]=useState<{other_character_id:string;other_label:string;last_message:string;last_message_at:string}[]>([]);
+  const [dmUnread,setDmUnread]=useState<Record<string,number>>({});
+  const dmSeen=useRef<Record<string,string>>({});
+  const dmInitial=useRef(false);
   const [selfId, setSelfId] = useState('');
   const [threads, setThreads] = useState<Thread[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -41,7 +46,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const knownNoticeIds = useRef(new Set<string>());
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const [revealedIdentities, setRevealedIdentities] = useState<Record<string,string>>({});
-  const [selected, setSelected] = useState<{ id: string; label: string; conversationId?: string } | null>(null);
+  const [selected, setSelected] = useState<{ id: string; label: string; conversationId?: string; kind?: 'player' } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [expandedContact, setExpandedContact] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
@@ -125,6 +130,57 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     initialNoticesLoaded.current = true;
     setContactNotices(nextNotices);
   }, [characterId, alertIncoming]);
+  const refreshDM = useCallback(async () => {
+    const character=await supabase.from('characters').select('campaign_id').eq('id',characterId).single();
+    if(character.error)throw character.error;
+    const [mode,contacts,threads]=await Promise.all([
+      supabase.rpc('phone_player_dm_mode',{p_campaign_id:character.data.campaign_id}),
+      supabase.rpc('phone_player_dm_contacts',{p_character_id:characterId}),
+      supabase.rpc('phone_player_dm_threads',{p_character_id:characterId}),
+    ]);
+    if(mode.error||contacts.error||threads.error)throw mode.error??contacts.error??threads.error;
+    const nextMode=mode.data as 'disabled'|'private'|'monitored';
+    setDmMode(nextMode);
+    setDmContacts((contacts.data??[]) as {id:string;name:string}[]);
+    const next=(threads.data??[]) as {other_character_id:string;other_label:string;last_message:string;last_message_at:string}[];
+    setDmThreads(next);
+    if(nextMode==='disabled'){setDmUnread({});return;}
+    const unread:Record<string,number>={};
+    for(const thread of next){
+      const seen=dmSeen.current[thread.other_character_id];
+      if(seen && thread.last_message_at>seen && selectedRef.current?.kind!=='player'){
+        unread[thread.other_character_id]=1;
+      }else if(seen && thread.last_message_at>seen && selectedRef.current?.id!==thread.other_character_id){
+        unread[thread.other_character_id]=1;
+      }
+      if(!seen && !dmInitial.current)dmSeen.current[thread.other_character_id]=thread.last_message_at;
+      else if(!seen)unread[thread.other_character_id]=1;
+    }
+    setDmUnread(unread);
+    if(dmInitial.current && Object.keys(unread).length)alertIncoming('messages','NEW PLAYER MESSAGE');
+    dmInitial.current=true;
+  },[characterId,alertIncoming]);
+  useEffect(()=>{
+    void refreshDM().catch(e=>setError(phoneErrorMessage(e)));
+    const interval=window.setInterval(()=>{void refreshDM().catch(()=>{})},4000);
+    return()=>window.clearInterval(interval);
+  },[refreshDM]);
+  const readDM=useCallback(async(id:string)=>{
+    const result=await supabase.rpc('phone_player_dm_history',{p_character_id:characterId,p_other_character_id:id});
+    if(result.error)throw result.error;
+    const next=((result.data??[]) as {id:string;sender_id:string;body:string;created_at:string}[]).map(m=>({
+      message_id:m.id,sender_identity_id:m.sender_id,body:m.body,created_at:m.created_at
+    }));
+    setMessages(next);
+    if(next.length)dmSeen.current[id]=next[next.length-1].created_at;
+    setDmUnread(current=>({...current,[id]:0}));
+  },[characterId]);
+  useEffect(()=>{
+    if(selected?.kind!=='player')return;
+    void readDM(selected.id).catch(e=>setError(phoneErrorMessage(e)));
+    const interval=window.setInterval(()=>{void readDM(selected.id).catch(()=>{})},4000);
+    return()=>window.clearInterval(interval);
+  },[selected?.id,selected?.kind,readDM]);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -158,6 +214,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     await markRead(conversationId);
   }, [markRead]);
   useEffect(() => {
+    if (selected?.kind==='player')return;
     if (!selected?.conversationId) { setMessages([]); return; }
     let cancelled = false;
     read(selected.conversationId).catch(e => { if (!cancelled) setError(phoneErrorMessage(e)); });
@@ -193,6 +250,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     return () => { void supabase.removeChannel(channel); };
   }, [characterId, refresh, read, alertIncoming]);
   const labelFor = (id: string, fallback: string) => revealedIdentities[id] || contacts.find(c => c.identity_id === id)?.label || fallback;
+  const openPlayer=(id:string,label:string)=>{setError('');setPage(1);setSelected({id,label,kind:'player'});setMessages([]);};
   const openThread = (t: Thread) => { setError(''); setPage(1); setSelected({ id: t.other_identity_id, label: labelFor(t.other_identity_id,t.other_label), conversationId: t.conversation_id }); };
   const openContact = (c: Contact) => {
     const existing = threads.find(t => t.other_identity_id === c.identity_id);
@@ -214,6 +272,11 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     if (!selected || !selfId || !draft.trim() || busy) return;
     setBusy(true); setError('');
     try {
+      if(selected.kind==='player'){
+        const result=await supabase.rpc('phone_player_dm_send',{p_character_id:characterId,p_recipient_character_id:selected.id,p_body:draft.trim()});
+        if(result.error)throw result.error;
+        setDraft('');await readDM(selected.id);await refreshDM();return;
+      }
       const response = await supabase.rpc('phone_send_message', {
         p_sender_identity_id: selfId, p_recipient_identity_id: selected.id, p_body: draft.trim(),
       });
@@ -229,7 +292,6 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   };
   const changePage = (delta: number) => {
     setSelected(null);
-    setDirectOpen(false);
     setExpandedContact(null);
     setPage(current => (current + delta + 4) % 4);
   };
@@ -243,7 +305,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     }
   }, [page, contactNotices, readNoticeIds, noticeStorageKey]);
   const unreadNotices = contactNotices.filter(n => !readNoticeIds.includes(n.id)).length;
-  const unreadMessages = threads.reduce((sum, thread) => sum + Math.max(0, Number(thread.unread_count) || 0), 0);
+  const unreadMessages = threads.reduce((sum, thread) => sum + Math.max(0, Number(thread.unread_count) || 0), 0)+Object.values(dmUnread).reduce((a,b)=>a+b,0);
   const time = (date: string) => new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   return <section className="ghost-link ghost-carousel" aria-label="Ghost Link messaging">
     <header className={"ghost-top" + (signalPulse ? " ghost-signal-pulse" : "")}>
@@ -271,36 +333,35 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
           </div>
         </section>
         <section className="ghost-carousel-slide" aria-hidden={page !== 1}>
-          {directOpen ? <PlayerDirectMessages characterId={characterId} onClose={()=>setDirectOpen(false)}/> : <>
           {!selected ? <>
             <div className="ghost-carousel-heading"><h2>SIGNAL INBOX</h2><small>ENCRYPTED MESSAGES</small></div>
-            <button type="button" className="ghost-direct-open" onClick={()=>setDirectOpen(true)}>PLAYER DIRECT MESSAGES</button>
             {loading && <p className="ghost-muted">Connecting to network...</p>}
             {!loading && threads.length === 0 && <p className="ghost-muted">No conversations yet. Find a contact in Contacts.</p>}
             <div className="ghost-list">
-              {threads.map(t => <button key={t.conversation_id} className={"ghost-contact" + (pulsingThreads.includes(t.conversation_id) ? " ghost-contact-pulse" : "")} onClick={() => openThread(t)}>
+              {[...threads.map(t=>({...t,kind:'npc' as const})),...dmThreads.map(t=>({conversation_id:'dm:'+t.other_character_id,other_identity_id:t.other_character_id,other_label:t.other_label,other_anonymous:false,last_message_at:t.last_message_at,last_message:t.last_message,unread_count:dmUnread[t.other_character_id]||0,kind:'player' as const}))].sort((a,b)=>(b.last_message_at||'').localeCompare(a.last_message_at||'')).map(t => <button key={t.conversation_id} className={"ghost-contact" + (pulsingThreads.includes(t.conversation_id) ? " ghost-contact-pulse" : "")} onClick={() => t.kind==='player'?openPlayer(t.other_identity_id,t.other_label):openThread(t)}>
                 <UserRound size={24}/><span><strong>{labelFor(t.other_identity_id,t.other_label)}</strong><small>{t.last_message || 'New conversation'}</small></span>
                 {Number(t.unread_count) > 0 && <b className="ghost-unread">{t.unread_count}</b>}
               </button>)}
             </div>
           </> : <>
             <div className="ghost-heading"><button onClick={() => { setSelected(null); void refresh().catch(() => {}); }} aria-label="Back to inbox"><ArrowLeft size={20}/></button><UserRound size={27}/><div><h2>{selectedLabel}</h2><small>{selectedMasked ? 'IDENTITY MASKED' : 'SECURE CONNECTION'}</small></div></div>
-            <div className="ghost-status"><ShieldAlert size={15}/> {selectedMasked ? 'UNREGISTERED SIGNAL' : 'PRIVATE COMMUNICATION'}</div>
+            <div className="ghost-status"><ShieldAlert size={15}/> {selected.kind==='player' ? 'PLAYER DIRECT MESSAGE' : selectedMasked ? 'UNREGISTERED SIGNAL' : 'PRIVATE COMMUNICATION'}</div>
+            {selected.kind==='player' && dmMode==='monitored' && <div className="gl-direct-warning" role="note"><strong>GM MONITORING ACTIVE</strong><p>In this campaign, all messages between players are monitored by the Game Master. If you want your conversations to be secret, ask the GM to change this in Campaign Settings.</p></div>}
             <div className="ghost-messages" ref={historyRef} onScroll={handleHistoryScroll}>
               {messages.length === 0 && <p className="ghost-muted">No messages yet.</p>}
-              {messages.map(m => m.body.startsWith(REVEAL_EVENT_PREFIX) ?
+              {messages.map(m => selected.kind!=='player' && m.body.startsWith(REVEAL_EVENT_PREFIX) ?
                 <div key={m.message_id} className="ghost-reveal-event" role="status"><div className="ghost-reveal-title">GHOST//LINK · IDENTITY REVEALED</div><div className="ghost-reveal-description">{m.body.slice(REVEAL_EVENT_PREFIX.length)}</div><time className="ghost-reveal-time" dateTime={m.created_at}>{time(m.created_at)}</time></div> :
-                <div key={m.message_id} className={'ghost-bubble ' + (m.sender_identity_id === selfId ? 'outgoing' : 'incoming')}><span>{m.body}</span><small>{time(m.created_at)}</small></div>)}
+                <div key={m.message_id} className={'ghost-bubble ' + (m.sender_identity_id === (selected.kind==='player'?characterId:selfId) ? 'outgoing' : 'incoming')}><span>{m.body}</span><small>{time(m.created_at)}</small></div>)}
             </div>
             <form className="ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input value={draft} onChange={e => setDraft(e.target.value)} maxLength={4000} placeholder="Transmit message..." aria-label="Message"/><button type="submit" disabled={busy || !draft.trim()} aria-label="Send message"><Send size={19}/></button></form>
-          </>}
           </>}
         </section>
         <section className="ghost-carousel-slide" aria-hidden={page !== 2}>
           <div className="ghost-carousel-heading"><h2>CONTACTS</h2><small>REGISTERED IDENTITIES</small></div>
           {loading && <p className="ghost-muted">Connecting to network...</p>}
-          {!loading && contacts.filter(c => c.can_message || c.can_call).length === 0 && <p className="ghost-muted">No contacts available.</p>}
+          {!loading && contacts.filter(c => c.can_message || c.can_call).length === 0 && dmContacts.length===0 && <p className="ghost-muted">No contacts available.</p>}
           <div className="ghost-list">
+            {dmContacts.map(c=><div key={c.id} className="ghost-contact-expand"><button type="button" className="ghost-contact" aria-expanded={expandedContact===c.id} onClick={()=>setExpandedContact(current=>current===c.id?null:c.id)}><UserRound size={24}/><span><strong>{c.name}</strong><small>PLAYER CHARACTER</small></span><ChevronDown size={18}/></button><div className={'ghost-contact-reveal'+(expandedContact===c.id?' open':'')} aria-hidden={expandedContact!==c.id}><div className="ghost-contact-actions"><button type="button" onClick={()=>openPlayer(c.id,c.name)}><Mail size={19}/> Message</button></div></div></div>)}
             {contacts.filter(c => c.kind === 'npc' && (c.can_message || c.can_call)).map(c => <div key={c.identity_id} className="ghost-contact-expand">
               <button type="button" className="ghost-contact" aria-expanded={expandedContact === c.identity_id} onClick={() => setExpandedContact(current => current === c.identity_id ? null : c.identity_id)}>
                 <UserRound size={24}/><span><strong>{labelFor(c.identity_id,c.label)}</strong><small>{c.anonymous && !revealedIdentities[c.identity_id] ? 'ANONYMOUS CONTACT' : 'REGISTERED CONTACT'}</small></span><ChevronDown size={18} className={expandedContact === c.identity_id ? 'ghost-contact-chevron expanded' : 'ghost-contact-chevron'}/>
