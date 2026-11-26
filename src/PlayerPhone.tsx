@@ -23,6 +23,7 @@ const phoneErrorMessage = (error: unknown): string => {
 
 export default function PlayerPhone({ characterId, onBack }: { characterId: string; onBack: () => void }) {
   const [dmMode,setDmMode]=useState<'disabled'|'private'|'monitored'>('disabled');
+  const [monitorNoticeExpanded,setMonitorNoticeExpanded]=useState(false);
   const [dmContacts,setDmContacts]=useState<{id:string;name:string}[]>([]);
   const [dmThreads,setDmThreads]=useState<{other_character_id:string;other_label:string;last_message:string;last_message_at:string}[]>([]);
   const [dmUnread,setDmUnread]=useState<Record<string,number>>({});
@@ -252,7 +253,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     return () => { void supabase.removeChannel(channel); };
   }, [characterId, refresh, read, alertIncoming]);
   const labelFor = (id: string, fallback: string) => revealedIdentities[id] || contacts.find(c => c.identity_id === id)?.label || fallback;
-  const openPlayer=(id:string,label:string)=>{setError('');setPage(1);setSelected({id,label,kind:'player'});setMessages([]);};
+  const openPlayer=(id:string,label:string)=>{setError('');setMonitorNoticeExpanded(false);setPage(1);setSelected({id,label,kind:'player'});setMessages([]);};
   const openThread = (t: Thread) => { setError(''); setPage(1); setSelected({ id: t.other_identity_id, label: labelFor(t.other_identity_id,t.other_label), conversationId: t.conversation_id }); };
   const openContact = (c: Contact) => {
     const existing = threads.find(t => t.other_identity_id === c.identity_id);
@@ -348,7 +349,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
           </> : <>
             <div className="ghost-heading"><button onClick={() => { setSelected(null); void refresh().catch(() => {}); }} aria-label="Back to inbox"><ArrowLeft size={20}/></button><UserRound size={27}/><div><h2>{selectedLabel}</h2><small>{selectedMasked ? 'IDENTITY MASKED' : 'SECURE CONNECTION'}</small></div></div>
             <div className="ghost-status"><ShieldAlert size={15}/> {selected.kind==='player' ? 'PLAYER DIRECT MESSAGE' : selectedMasked ? 'UNREGISTERED SIGNAL' : 'PRIVATE COMMUNICATION'}</div>
-            {selected.kind==='player' && dmMode==='monitored' && <div className="gl-direct-warning" role="note"><strong>GM MONITORING ACTIVE</strong><p>In this campaign, all messages between players are monitored by the Game Master. If you want your conversations to be secret, ask the GM to change this in Campaign Settings.</p></div>}
+            {selected.kind==='player' && dmMode==='monitored' && <div className="gl-monitor-notice" role="note"><div className="gl-monitor-notice-heading"><span><ShieldAlert size={16}/> GM MONITORING ACTIVE</span><button type="button" aria-expanded={monitorNoticeExpanded} onClick={()=>setMonitorNoticeExpanded(value=>!value)}>{monitorNoticeExpanded?'Hide details':'Details'} <ChevronDown size={14} className={monitorNoticeExpanded?'expanded':''}/></button></div>{monitorNoticeExpanded&&<p>The GM can read player-to-player messages in this campaign. Ask the GM to change this under Ghost//Link Settings if you want private conversations.</p>}</div>}
             <div className="ghost-messages" ref={historyRef} onScroll={handleHistoryScroll}>
               {messages.length === 0 && <p className="ghost-muted">No messages yet.</p>}
               {messages.map(m => selected.kind!=='player' && m.body.startsWith(REVEAL_EVENT_PREFIX) ?
