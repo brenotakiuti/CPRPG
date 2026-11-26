@@ -1,4 +1,4 @@
-import { GMDirectMessageMonitor } from './GMDirectMessages';
+import { GMDirectMessageMonitor, GMDirectMessageSettings } from './GMDirectMessages';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MessageSquare, Users, Phone, Settings2, Send, RefreshCw, Eye } from 'lucide-react';
 import { supabase } from './supabase';
@@ -400,6 +400,7 @@ export default function GMPhone({ campaignId, onRead }: { campaignId: string; on
       {!players.length && <p>No player characters found in this campaign.</p>}
     </section> : tab === 'calls' ? <GMCallControl campaignId={campaignId} identities={allIdentities} players={players} /> : tab === 'player-dms' ? <GMDirectMessageMonitor campaignId={campaignId}/> : <section className="gm-ghost-future" aria-label="Ghost Link future capabilities">
       <h3>GHOST//LINK — SETTINGS</h3>
+      <GMDirectMessageSettings campaignId={campaignId}/>
       <p>FUTURE SYSTEM CAPABILITIES · CONCEPTS ONLY</p>
       <p>Ghost//Link is more than a messaging application. Future updates may allow the GM to manipulate the campaign's communication network, creating opportunities for deception, surveillance, interference, and narrative events.</p>
       <div className="gm-ghost-feature-grid">
