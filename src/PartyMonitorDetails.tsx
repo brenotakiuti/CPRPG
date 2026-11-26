@@ -3,12 +3,11 @@ import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Dumbbell, Zap, Wrench, Brain, Eye } from 'lucide-react';
 import { anatomicalPositions } from './anatomicalPositions';
 import { useGMCharacterData } from './GMCharacterData';
-import { supabase } from './supabase';
+import { useGMCampaignStats } from './GMCampaignStats';
 import './PlayerStats.css';
 import './PartyMonitorDetails.css';
 
 type rightOrLeft = 'right'|'left';
-type Stat = { id:string; name:string; description:string; statNumber:number; value:number; maxValue:number };
 const tiers = [
  {min:0,color:'#8b95a4'}, {min:5,color:'#4ade80'},
  {min:10,color:'#32c5c5'}, {min:15,color:'#bd7bea'}, {min:20,color:'#f59e0b'},
@@ -22,9 +21,8 @@ function StatIcon({number}:{number:number}) {
 
 export default function PartyMonitorDetails({campaignId,characterId}:{campaignId:string;characterId:string}) {
  const [tab,setTab]=useState<'stats'|'cyberware'>('stats');
- const [stats,setStats]=useState<Stat[]>([]);
- const [loading,setLoading]=useState(false);
- const [error,setError]=useState('');
+ const {byCharacter,loading,error}=useGMCampaignStats();
+ const stats=byCharacter[characterId]??[];
  const [position,setPosition]=useState<string|null>(null);
  const [page,setPage]=useState(0);
  const [anchor,setAnchor]=useState<{x:number;y:number;side:'right'|'left'}|null>(null);
@@ -57,26 +55,6 @@ export default function PartyMonitorDetails({campaignId,characterId}:{campaignId
   return()=>{window.removeEventListener('resize',update);window.removeEventListener('scroll',update,true)};
  },[position,popoverHeight]);
  const shared=useGMCharacterData();
- useEffect(()=>{
-  let active=true;
-  setStats([]);setError('');setPosition(null);
-  const load=async()=>{
-   setLoading(true);
-   const [definitions,values]=await Promise.all([
-    supabase.from('stat_definitions').select('id,name,description,stat_number,display_order,max_value').eq('campaign_id',campaignId).order('display_order'),
-    supabase.from('character_stats').select('stat_id,value').eq('campaign_id',campaignId).eq('character_id',characterId)
-   ]);
-   if(!active)return;
-   if(definitions.error||values.error)setError(definitions.error?.message??values.error?.message??'Unable to load stats');
-   else {
-    const byId=new Map((values.data??[]).map(row=>[row.stat_id,Number(row.value)]));
-    setStats((definitions.data??[]).map(row=>({id:row.id,name:row.name,description:row.description??'',statNumber:row.stat_number??0,value:byId.get(row.id)??0,maxValue:row.max_value??20})));
-   }
-   setLoading(false);
-  };
-  void load();
-  return()=>{active=false};
- },[campaignId,characterId]);
  useEffect(()=>{setPosition(null);setAnchor(null)},[tab,characterId]);
  useEffect(()=>{
   if(!position)return;
