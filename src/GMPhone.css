@@ -27,3 +27,14 @@
 .gm-ghost-identity-choice.active{border-color:#a983df;box-shadow:inset 0 0 0 1px #a983df55;background:#242039}
 .gm-ghost-identity-summary{display:flex;flex-direction:column;gap:5px;margin:12px 0;padding:13px;background:#1d2232;border-left:3px solid #a983df;color:#e8edf5}
 .gm-ghost-identity-summary span,.gm-ghost-identity-summary small{color:#aebcd0}
+
+/* Player DM monitoring reuses the standard Ghost//Link workstation and chat styles. */
+.gm-ghost-dm-workstation{display:grid;grid-template-columns:minmax(230px,32%) minmax(0,1fr);min-height:475px}
+.gm-ghost-dm-workstation .gm-ghost-threads{min-width:0;overflow-y:auto;max-height:560px}
+.gm-ghost-dm-workstation .gm-ghost-chat{min-width:0}
+.gm-ghost-dm-workstation .gm-ghost-entry>span:last-child{flex:1;min-width:0}
+.gm-ghost-dm-history{height:390px;min-height:0}
+.gm-ghost-dm-sender{display:block;font-size:11px;color:#d8b4ff;margin-bottom:5px}
+.gm-ghost-dm-history .gm-ghost-bubble.out .gm-ghost-dm-sender{color:#6ee7ed}
+.gm-ghost-dm-readonly{margin-top:auto;border-top:1px solid #2b4057;padding:13px 15px;color:#8ea6bf;letter-spacing:1px;font-size:10px;text-align:center;background:#0e1929}
+@media(max-width:680px){.gm-ghost-dm-workstation{grid-template-columns:minmax(155px,40%) minmax(0,1fr)}.gm-ghost-dm-workstation .gm-ghost-entry{padding:10px 6px}.gm-ghost-dm-workstation .gm-ghost-avatar{display:none}}
