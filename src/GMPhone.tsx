@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { MessageSquare, Users, Phone, Settings2, Send, RefreshCw, Eye } from 'lucide-react';
 import { supabase } from './supabase';
 import './GMPhone.css';
-import { getHistory,putHistory,appendHistory,removeHistoryId,historyKey } from './phoneMessageCache';
+import { getHistory,putHistory,historyKey } from './phoneMessageCache';
 import GMCallControl from './GMCallControl';
 
 type Thread = { conversation_id: string; npc_identity_id: string; npc_internal_name: string; npc_public_label: string; player_identity_id: string; player_name: string; last_message_at: string | null; last_message: string | null; unread_count: number };
