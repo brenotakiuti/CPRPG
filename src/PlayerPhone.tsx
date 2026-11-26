@@ -180,15 +180,23 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     const existing=historyRequests.current.get(key);
     if(existing)return existing;
     const request=(async()=>{
-    const result=await supabase.rpc('phone_player_dm_history',{p_character_id:characterId,p_other_character_id:id});
-    if(result.error)throw result.error;
-    const next=((result.data??[]) as {id:string;sender_id:string;body:string;created_at:string}[]).map(m=>({
-      message_id:m.id,sender_identity_id:m.sender_id,body:m.body,created_at:m.created_at
-    }));
-    const cached=putHistory(key,next);
-    if(activeHistoryKey.current===key)setMessages(cached);
-    if(next.length){dmSeen.current[id]=next[next.length-1].created_at;dmAlerted.current[id]=next[next.length-1].created_at;}
-    setDmUnread(current=>({...current,[id]:0}));
+      const cached=getHistory(key);
+      const last=cached?.filter(m=>!m.message_id.startsWith('pending:')).at(-1);
+      const result=last
+        ?await supabase.rpc('phone_player_dm_since',{p_character_id:characterId,p_other_character_id:id,p_after:last.created_at,p_after_id:last.message_id})
+        :await supabase.rpc('phone_player_dm_history',{p_character_id:characterId,p_other_character_id:id});
+      if(result.error)throw result.error;
+      const next=((result.data??[]) as {id:string;sender_id:string;body:string;created_at:string}[]).map(m=>({
+        message_id:m.id,sender_identity_id:m.sender_id,body:m.body,created_at:m.created_at
+      }));
+      // Keep pending messages until the server confirms them, and deduplicate by UUID.
+      const merged=putHistory(key,[...(cached??[]),...next]);
+      if(activeHistoryKey.current===key)setMessages(merged);
+      if(merged.length){
+        const lastSeen=merged.filter(m=>!m.message_id.startsWith('pending:')).at(-1);
+        if(lastSeen){dmSeen.current[id]=lastSeen.created_at;dmAlerted.current[id]=lastSeen.created_at;}
+      }
+      setDmUnread(current=>({...current,[id]:0}));
     })();
     historyRequests.current.set(key,request);
     try{await request}finally{historyRequests.current.delete(key)}
@@ -196,9 +204,45 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   useEffect(()=>{
     if(selected?.kind!=='player'||dmMode==='disabled')return;
     void readDM(selected.id).catch(e=>setError(phoneErrorMessage(e)));
-    const interval=window.setInterval(()=>{void readDM(selected.id).catch(()=>{})},10000);
-    return()=>window.clearInterval(interval);
+    // Realtime notifications drive active history; visibility recovery handles missed events.
   },[selected?.id,selected?.kind,dmMode,readDM]);
+  useEffect(()=>{
+    if(dmMode==='disabled')return;
+    let channel:ReturnType<typeof supabase.channel>|null=null;
+    let disposed=false;
+    const connect=async()=>{
+      if(!dmCampaignId.current)return;
+      await supabase.realtime.setAuth();
+      if(disposed)return;
+      channel=supabase.channel('ghost-dm:'+characterId,{config:{private:true}})
+        .on('broadcast',{event:'new-message'},({payload})=>{
+          const sender=String(payload?.sender??'');
+          const recipient=String(payload?.recipient??'');
+          const other=sender===characterId?recipient:sender;
+          if(!other)return;
+          const current=selectedRef.current;
+          if(current?.kind==='player'&&current.id===other)void readDM(other).catch(()=>{});
+          else if(sender!==characterId)alertIncoming('messages','NEW PLAYER MESSAGE');
+          void refreshDM().catch(()=>{});
+        }).subscribe(status=>{
+          if(status==='SUBSCRIBED'){
+            void refreshDM().catch(()=>{});
+            const current=selectedRef.current;
+            if(current?.kind==='player')void readDM(current.id).catch(()=>{});
+          }
+        });
+    };
+    void connect().catch(()=>{});
+    const recover=()=>{
+      if(document.visibilityState!=='visible')return;
+      void refreshDM().catch(()=>{});
+      const current=selectedRef.current;
+      if(current?.kind==='player')void readDM(current.id).catch(()=>{});
+    };
+    document.addEventListener('visibilitychange',recover);
+    window.addEventListener('online',recover);
+    return()=>{disposed=true;document.removeEventListener('visibilitychange',recover);window.removeEventListener('online',recover);if(channel)void supabase.removeChannel(channel)};
+  },[characterId,dmMode,readDM,refreshDM,alertIncoming]);
   useEffect(() => {
     let cancelled = false;
     (async () => {
