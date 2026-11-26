@@ -1,3 +1,4 @@
+import { GMDirectMessageMonitor } from './GMDirectMessages';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MessageSquare, Users, Phone, Settings2, Send, RefreshCw, Eye } from 'lucide-react';
 import { supabase } from './supabase';
@@ -8,11 +9,12 @@ type Thread = { conversation_id: string; npc_identity_id: string; npc_internal_n
 type Message = { message_id: string; sender_identity_id: string; body: string; created_at: string };
 const REVEAL_EVENT_PREFIX = '[GHOST//LINK IDENTITY REVEALED] ';
 type Identity = { id: string; internal_name: string; display_name: string; anonymous: boolean };
-type Tab = 'messages' | 'contacts' | 'calls' | 'settings';
+type Tab = 'messages' | 'contacts' | 'calls' | 'player-dms' | 'settings';
 const tabs: { id: Tab; label: string; icon: typeof MessageSquare }[] = [
   { id: 'messages', label: 'Messages', icon: MessageSquare },
   { id: 'contacts', label: 'Identities & Contacts', icon: Users },
   { id: 'calls', label: 'Calls', icon: Phone },
+  { id: 'player-dms', label: 'Player DMs', icon: Eye },
   { id: 'settings', label: 'Settings', icon: Settings2 },
 ];
 const time = (value: string) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -396,7 +398,7 @@ export default function GMPhone({ campaignId, onRead }: { campaignId: string; on
       </>}
       {!identities.length && <p>Create an NPC identity above to begin sharing contacts.</p>}
       {!players.length && <p>No player characters found in this campaign.</p>}
-    </section> : tab === 'calls' ? <GMCallControl campaignId={campaignId} identities={allIdentities} players={players} /> : <section className="gm-ghost-future" aria-label="Ghost Link future capabilities">
+    </section> : tab === 'calls' ? <GMCallControl campaignId={campaignId} identities={allIdentities} players={players} /> : tab === 'player-dms' ? <GMDirectMessageMonitor campaignId={campaignId}/> : <section className="gm-ghost-future" aria-label="Ghost Link future capabilities">
       <h3>GHOST//LINK — SETTINGS</h3>
       <p>FUTURE SYSTEM CAPABILITIES · CONCEPTS ONLY</p>
       <p>Ghost//Link is more than a messaging application. Future updates may allow the GM to manipulate the campaign's communication network, creating opportunities for deception, surveillance, interference, and narrative events.</p>
