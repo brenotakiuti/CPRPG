@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, LockKeyhole, Mail, Send, ShieldAlert, Smartphone, UserRound, LogOut, Wifi } from 'lucide-react';
 import { supabase } from './supabase';
 import './PlayerPhone.css';
+import { getHistory, putHistory, appendHistory, removeHistoryId, historyKey } from './phoneMessageCache';
 
 type Contact = { identity_id: string; kind: string; label: string; anonymous: boolean; can_message: boolean; can_call: boolean; has_conversation: boolean };
 type ContactNotice = { id: string; message: string; created_at: string };
@@ -50,6 +51,8 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const [revealedIdentities, setRevealedIdentities] = useState<Record<string,string>>({});
   const [selected, setSelected] = useState<{ id: string; label: string; conversationId?: string; kind?: 'player' } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const activeHistoryKey=useRef('');
+  const historyRequests=useRef(new Map<string,Promise<void>>());
   const [expandedContact, setExpandedContact] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
   const [draft, setDraft] = useState('');
@@ -165,23 +168,31 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   },[characterId,alertIncoming]);
   useEffect(()=>{
     void refreshDM().catch(e=>setError(phoneErrorMessage(e)));
-    const interval=window.setInterval(()=>{void refreshDM().catch(()=>{})},4000);
+    const interval=window.setInterval(()=>{void refreshDM().catch(()=>{})},10000);
     return()=>window.clearInterval(interval);
   },[refreshDM]);
   const readDM=useCallback(async(id:string)=>{
+    const key=historyKey(characterId,'player',id);
+    const existing=historyRequests.current.get(key);
+    if(existing)return existing;
+    const request=(async()=>{
     const result=await supabase.rpc('phone_player_dm_history',{p_character_id:characterId,p_other_character_id:id});
     if(result.error)throw result.error;
     const next=((result.data??[]) as {id:string;sender_id:string;body:string;created_at:string}[]).map(m=>({
       message_id:m.id,sender_identity_id:m.sender_id,body:m.body,created_at:m.created_at
     }));
-    setMessages(next);
+    const cached=putHistory(key,next);
+    if(activeHistoryKey.current===key)setMessages(cached);
     if(next.length){dmSeen.current[id]=next[next.length-1].created_at;dmAlerted.current[id]=next[next.length-1].created_at;}
     setDmUnread(current=>({...current,[id]:0}));
+    })();
+    historyRequests.current.set(key,request);
+    try{await request}finally{historyRequests.current.delete(key)}
   },[characterId]);
   useEffect(()=>{
     if(selected?.kind!=='player'||dmMode==='disabled')return;
     void readDM(selected.id).catch(e=>setError(phoneErrorMessage(e)));
-    const interval=window.setInterval(()=>{void readDM(selected.id).catch(()=>{})},4000);
+    const interval=window.setInterval(()=>{void readDM(selected.id).catch(()=>{})},10000);
     return()=>window.clearInterval(interval);
   },[selected?.id,selected?.kind,dmMode,readDM]);
   useEffect(() => {
@@ -202,8 +213,9 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     if (!selfId) return;
     const result = await supabase.rpc('phone_mark_read', { p_conversation_id: conversationId, p_reader_identity_id: selfId });
     if (result.error) throw result.error;
-    await refresh();
-  }, [selfId, refresh]);
+    // Update unread metadata without reloading contacts and notices.
+    setThreads(current=>current.map(t=>t.conversation_id===conversationId?{...t,unread_count:0}:t));
+  }, [selfId]);
   const read = useCallback(async (conversationId: string) => {
     const result = await supabase.rpc('phone_read_messages', { p_conversation_id: conversationId, p_limit: 100 });
     if (result.error) throw result.error;
@@ -213,12 +225,14 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
       next.forEach(m => knownMessages.current.add(m.message_id));
       initializedConversations.current.add(conversationId);
     }
-    setMessages(next);
-    await markRead(conversationId);
-  }, [markRead]);
+    const key=historyKey(characterId,'npc',conversationId);
+    const cached=putHistory(key,next);
+    if(activeHistoryKey.current===key)setMessages(cached);
+    void markRead(conversationId).catch(()=>{});
+  }, [markRead,characterId]);
   useEffect(() => {
     if (selected?.kind==='player')return;
-    if (!selected?.conversationId) { setMessages([]); return; }
+    if (!selected?.conversationId) { if(!selected)setMessages([]); return; }
     let cancelled = false;
     read(selected.conversationId).catch(e => { if (!cancelled) setError(phoneErrorMessage(e)); });
     return () => { cancelled = true; };
@@ -253,11 +267,12 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     return () => { void supabase.removeChannel(channel); };
   }, [characterId, refresh, read, alertIncoming]);
   const labelFor = (id: string, fallback: string) => revealedIdentities[id] || contacts.find(c => c.identity_id === id)?.label || fallback;
-  const openPlayer=(id:string,label:string)=>{setError('');setMonitorNoticeExpanded(false);setPage(1);setSelected({id,label,kind:'player'});setMessages([]);};
-  const openThread = (t: Thread) => { setError(''); setPage(1); setSelected({ id: t.other_identity_id, label: labelFor(t.other_identity_id,t.other_label), conversationId: t.conversation_id }); };
+  const openPlayer=(id:string,label:string)=>{const key=historyKey(characterId,'player',id);activeHistoryKey.current=key;setMessages(getHistory(key)??[]);setError('');setMonitorNoticeExpanded(false);setPage(1);setSelected({id,label,kind:'player'});};
+  const openThread = (t: Thread) => { const key=historyKey(characterId,'npc',t.conversation_id);activeHistoryKey.current=key;setMessages(getHistory(key)??[]);setError(''); setPage(1); setSelected({ id: t.other_identity_id, label: labelFor(t.other_identity_id,t.other_label), conversationId: t.conversation_id }); };
   const openContact = (c: Contact) => {
     const existing = threads.find(t => t.other_identity_id === c.identity_id);
     setError(''); setPage(1);
+    if(existing?.conversation_id){const key=historyKey(characterId,'npc',existing.conversation_id);activeHistoryKey.current=key;setMessages(getHistory(key)??[])}else{activeHistoryKey.current='';setMessages([])}
     setSelected({ id: c.identity_id, label: labelFor(c.identity_id,c.label), conversationId: existing?.conversation_id });
   };
   const callContact = async (c: Contact) => {
@@ -276,9 +291,14 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     setBusy(true); setError('');
     try {
       if(selected.kind==='player'){
-        const result=await supabase.rpc('phone_player_dm_send',{p_character_id:characterId,p_recipient_character_id:selected.id,p_body:draft.trim()});
-        if(result.error)throw result.error;
-        setDraft('');await readDM(selected.id);await refreshDM();return;
+        const key=historyKey(characterId,'player',selected.id);
+        const text=draft.trim();const tempId='pending:'+crypto.randomUUID();
+        const optimistic={message_id:tempId,sender_identity_id:characterId,body:text,created_at:new Date().toISOString()};
+        setMessages(appendHistory(key,optimistic));setDraft('');
+        const result=await supabase.rpc('phone_player_dm_send',{p_character_id:characterId,p_recipient_character_id:selected.id,p_body:text});
+        if(result.error){setMessages(removeHistoryId(key,tempId));setDraft(text);throw result.error;}
+        await readDM(selected.id);
+        void refreshDM().catch(()=>{});return;
       }
       const response = await supabase.rpc('phone_send_message', {
         p_sender_identity_id: selfId, p_recipient_identity_id: selected.id, p_body: draft.trim(),
