@@ -1,3 +1,4 @@
+import PlayerDirectMessages from './PlayerDirectMessages';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, LockKeyhole, Mail, Send, ShieldAlert, Smartphone, UserRound, LogOut, Wifi } from 'lucide-react';
 import { supabase } from './supabase';
@@ -21,6 +22,7 @@ const phoneErrorMessage = (error: unknown): string => {
 
 
 export default function PlayerPhone({ characterId, onBack }: { characterId: string; onBack: () => void }) {
+  const [directOpen,setDirectOpen]=useState(false);
   const [selfId, setSelfId] = useState('');
   const [threads, setThreads] = useState<Thread[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -227,6 +229,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   };
   const changePage = (delta: number) => {
     setSelected(null);
+    setDirectOpen(false);
     setExpandedContact(null);
     setPage(current => (current + delta + 4) % 4);
   };
@@ -268,8 +271,10 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
           </div>
         </section>
         <section className="ghost-carousel-slide" aria-hidden={page !== 1}>
+          {directOpen ? <PlayerDirectMessages characterId={characterId} onClose={()=>setDirectOpen(false)}/> : <>
           {!selected ? <>
             <div className="ghost-carousel-heading"><h2>SIGNAL INBOX</h2><small>ENCRYPTED MESSAGES</small></div>
+            <button type="button" className="ghost-direct-open" onClick={()=>setDirectOpen(true)}>PLAYER DIRECT MESSAGES</button>
             {loading && <p className="ghost-muted">Connecting to network...</p>}
             {!loading && threads.length === 0 && <p className="ghost-muted">No conversations yet. Find a contact in Contacts.</p>}
             <div className="ghost-list">
@@ -290,6 +295,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
             <form className="ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input value={draft} onChange={e => setDraft(e.target.value)} maxLength={4000} placeholder="Transmit message..." aria-label="Message"/><button type="submit" disabled={busy || !draft.trim()} aria-label="Send message"><Send size={19}/></button></form>
           </>}
         </section>
+        </>}
         <section className="ghost-carousel-slide" aria-hidden={page !== 2}>
           <div className="ghost-carousel-heading"><h2>CONTACTS</h2><small>REGISTERED IDENTITIES</small></div>
           {loading && <p className="ghost-muted">Connecting to network...</p>}
