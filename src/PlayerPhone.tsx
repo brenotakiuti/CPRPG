@@ -172,9 +172,8 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     dmInitial.current=true;
   },[characterId,alertIncoming]);
   useEffect(()=>{
+    // Initial metadata load only. Incoming broadcasts and reconnects refresh it.
     void refreshDM().catch(e=>setError(phoneErrorMessage(e)));
-    const interval=window.setInterval(()=>{void refreshDM().catch(()=>{})},10000);
-    return()=>window.clearInterval(interval);
   },[refreshDM]);
   const readDM=useCallback(async(id:string)=>{
     const key=historyKey(characterId,'player',id);
@@ -190,7 +189,6 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
         const cached=getHistory(key);
         const confirmed=cached?.filter(m=>!m.message_id.startsWith('pending:'))??[];
         const last=confirmed.at(-1);
-        console.debug('[Ghost//Link DM] sync start',{characterId,peer:id,after:last?.message_id??null});
         const result=last
           ?await supabase.rpc('phone_player_dm_since',{p_character_id:characterId,p_other_character_id:id,p_after:last.created_at,p_after_id:last.message_id})
           :await supabase.rpc('phone_player_dm_history',{p_character_id:characterId,p_other_character_id:id});
@@ -201,7 +199,6 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
         // Read the cache again after awaiting the network: sends may have added
         // pending messages while this request was in flight.
         const merged=putHistory(key,[...(getHistory(key)??[]),...next]);
-        console.debug('[Ghost//Link DM] sync complete',{peer:id,received:next.length,total:merged.length});
         if(activeHistoryKey.current===key)setMessages(merged);
         const lastSeen=merged.filter(m=>!m.message_id.startsWith('pending:')).at(-1);
         if(lastSeen){dmSeen.current[id]=lastSeen.created_at;dmAlerted.current[id]=lastSeen.created_at;}
@@ -223,32 +220,12 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     const connect=async()=>{
       if(!dmCampaignId.current){console.warn('[Ghost//Link DM] no campaign ID for subscription');return;}
       const {data:{session},error:sessionError}=await supabase.auth.getSession();
-      // Log only identity and token-comparison metadata; never print JWTs.
-      const realtimeAuthBefore=(supabase.realtime as unknown as {accessToken?:string}).accessToken;
-      console.info('[Ghost//Link DM] auth diagnostic',{
-        characterId,
-        sessionUserId:session?.user?.id??null,
-        sessionRole:session?.user?.role??null,
-        sessionExpiresAt:session?.expires_at??null,
-        sessionError:sessionError?.message??null,
-        realtimeTokenPresent:!!realtimeAuthBefore,
-        realtimeTokenMatchesSession:session?.access_token
-          ?realtimeAuthBefore===session.access_token:null
-      });
       if(sessionError||!session?.access_token){
         console.error('[Ghost//Link DM] session unavailable for realtime',{error:sessionError?.message??'No access token'});
         setError('Ghost//Link realtime authentication unavailable. Check F12 Console.');
         return;
       }
       await supabase.realtime.setAuth(session.access_token);
-      const realtimeAuthAfter=(supabase.realtime as unknown as {accessToken?:string}).accessToken;
-      console.info('[Ghost//Link DM] realtime auth diagnostic',{
-        characterId,
-        realtimeTokenPresent:!!realtimeAuthAfter,
-        realtimeTokenMatchesSession:session?.access_token
-          ?realtimeAuthAfter===session.access_token:null
-      });
-      console.debug('[Ghost//Link DM] joining private channel',characterId);
       if(disposed)return;
       channel=supabase.channel('ghost-dm:'+characterId,{config:{private:true}})
         .on('broadcast',{event:'new-message'},({payload})=>{
@@ -256,13 +233,11 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
           const recipient=String(payload?.recipient??'');
           const other=sender===characterId?recipient:sender;
           if(!other)return;
-          console.debug('[Ghost//Link DM] broadcast received',{characterId,other,messageId:payload?.id});
           const current=selectedRef.current;
           if(current?.kind==='player'&&current.id===other)void readDM(other).catch(()=>{});
           else if(sender!==characterId)alertIncoming('messages','NEW PLAYER MESSAGE');
           void refreshDM().catch(()=>{});
         }).subscribe((status,error)=>{
-          console.debug('[Ghost//Link DM] channel status',{characterId,status,error:error?.message});
           if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')setError('Ghost//Link realtime connection failed. Check F12 Console.');
           if(status==='SUBSCRIBED'){
             void refreshDM().catch(()=>{});
