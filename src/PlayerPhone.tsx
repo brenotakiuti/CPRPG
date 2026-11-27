@@ -197,6 +197,9 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
           ?await supabase.rpc('phone_player_dm_since',{p_character_id:characterId,p_other_character_id:id,p_after:last.created_at,p_after_id:last.message_id})
           :await supabase.rpc('phone_player_dm_history',{p_character_id:characterId,p_other_character_id:id});
         if(result.error){console.error('[Ghost//Link DM] sync failed',result.error);throw result.error;}
+        // An in-flight history fetch may finish after an optimistic send begins.
+        // Wait for the RPC's UUID before merging any database rows.
+        if(dmSendingKeys.current.has(key))return;
         const next=((result.data??[]) as {id:string;sender_id:string;body:string;created_at:string}[]).map(m=>({
           message_id:m.id,database_id:m.id,delivery:'sent' as const,sender_identity_id:m.sender_id,body:m.body,created_at:m.created_at
         }));
