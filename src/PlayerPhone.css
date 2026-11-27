@@ -95,3 +95,43 @@
 
 /* Override legacy dot sizing on the new indicator containers. */
 .ghost-carousel-dots > span.ghost-carousel-indicator,.ghost-carousel-dots > span.ghost-carousel-indicator.active{width:21px;height:27px;background:transparent;border-radius:0}
+
+/* Responsive messaging: allocate the available viewport to conversation history. */
+.ghost-carousel{
+  box-sizing:border-box;
+  height:calc(100dvh - 24px);
+  min-height:min(440px,calc(100dvh - 24px));
+  max-height:none;
+}
+.ghost-carousel .ghost-carousel-stage,
+.ghost-carousel .ghost-carousel-slide{min-height:0}
+.ghost-carousel .ghost-messages{
+  flex:1 1 0;
+  min-height:0;
+  max-height:none;
+  gap:9px;
+  padding:8px 4px;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+}
+.ghost-carousel .ghost-bubble{flex-shrink:0}
+.ghost-carousel .ghost-heading{padding:0 0 8px}
+.ghost-carousel .ghost-status{margin:7px 0;padding:7px 9px}
+.ghost-carousel .ghost-compose{padding:7px 0 2px}
+.ghost-carousel .ghost-carousel-slide{padding:12px 14px 6px}
+@media(max-height:720px){
+  .ghost-carousel{height:calc(100dvh - 16px);min-height:min(340px,calc(100dvh - 16px))}
+  .ghost-carousel .ghost-top{padding:8px 12px}
+  .ghost-carousel .ghost-carousel-slide{padding:7px 10px 3px}
+  .ghost-carousel .ghost-heading{padding:0 0 5px}
+  .ghost-carousel .ghost-heading h2{font-size:15px}
+  .ghost-carousel .ghost-status{margin:4px 0;padding:5px 7px;font-size:10px}
+  .ghost-carousel .gl-monitor-notice{margin:4px 0 2px;padding:5px 8px}
+  .ghost-carousel .ghost-compose{padding:5px 0 1px}
+  .ghost-carousel .ghost-compose input{padding:8px}
+  .ghost-carousel .ghost-carousel-nav{height:42px}
+  .ghost-carousel .ghost-footer{min-height:27px;padding:0 10px}
+}
+@media(min-height:1000px){
+  .ghost-carousel{height:calc(100dvh - 24px)}
+}

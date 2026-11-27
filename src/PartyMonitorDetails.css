@@ -1,0 +1,135 @@
+.party-detail-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 13px;background:#1a2d3e;color:#e8c157;border:0;border-top:1px solid #40546a;font-size:11px;font-weight:800;letter-spacing:1px;cursor:pointer}
+.party-detail-tabs{display:flex;background:#101d2a;border-bottom:1px solid #34495a}
+.party-detail-tabs button{flex:1;padding:11px;border:0;border-bottom:2px solid transparent;background:transparent;color:#9aaebc;font-size:11px;font-weight:800;cursor:pointer}
+.party-detail-tabs button.active{color:#e8c157;border-bottom-color:#e8c157;background:#1c2b3a}
+.party-detail-stats,.party-detail-cyberware{padding:12px;background:#111f2e}
+.party-detail-stat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.party-detail-stat{min-width:0;border:1px solid #405268;border-radius:6px;background:#202e3e;padding:9px 6px;display:flex;flex-direction:column;gap:3px;text-align:center}
+.party-detail-stat span{font-size:10px;color:#c1ceda;overflow-wrap:anywhere}
+.party-detail-stat strong{font-size:23px}
+.party-detail-cyberware .ps-scan-viewport{max-width:235px;margin:0 auto;background:#101a26;border:1px solid #354d61;border-radius:6px}
+.party-detail-cyberware .ps-scan-layer{transform:none!important}
+.party-detail-cyberware .ps-marker{width:12px;height:12px;cursor:pointer}
+.party-detail-cyberware .ps-marker.installed{background:#e8bd4a;border-color:#fff1ad;box-shadow:0 0 0 3px #e8bd4a44,0 0 12px #e8bd4a}
+.party-detail-cyberware .ps-marker:disabled{cursor:default}
+.party-detail-cyberware .ps-scan-label{margin-top:5px}
+.party-implant-popover{position:fixed;z-index:25000;width:min(300px,calc(100vw - 24px));height:auto;max-height:calc(100dvh - 24px);box-sizing:border-box;display:flex;align-items:stretch;border:1px solid #d9b34d;border-radius:9px;background:#101b29;color:#dce6f0;box-shadow:0 12px 35px #000b;overflow:visible}
+.party-implant-popover:before{content:"";position:absolute;top:50%;width:12px;height:12px;background:#101b29;border:1px solid #d9b34d;transform:translateY(-50%) rotate(45deg);pointer-events:none}
+.party-implant-right:before{left:-7px;border-top:0;border-right:0}
+.party-implant-left:before{right:-7px;border-bottom:0;border-left:0}
+.party-implant-content{min-width:0;min-height:0;flex:1;display:flex;flex-direction:column;padding:12px 26px;gap:8px}
+.party-implant-name{flex:0 0 auto;min-height:0;overflow-wrap:anywhere;display:flex;align-items:center;justify-content:center;text-align:center;color:#e8c157;font-size:14px;font-weight:800}
+.party-implant-art{flex:0 0 175px;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;background:#0b131d;border:1px solid #405268;border-radius:5px;box-sizing:border-box;overflow:hidden}
+.party-implant-art img{width:100%;height:100%;object-fit:contain;display:block}
+.party-implant-art span{font-size:11px;color:#91a2b3}
+.party-implant-description{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.party-implant-footer{flex:0 0 auto;min-height:0;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;color:#d5a5ff}
+.party-implant-footer span:last-child{margin-left:auto;color:#e8c157}
+.party-implant-prev,.party-implant-next{position:absolute;top:50%;transform:translateY(-50%);z-index:2;width:24px;height:42px;display:flex;align-items:center;justify-content:center;padding:0;border:0;background:#25384bd9;color:#e8c157;cursor:pointer}
+.party-implant-prev{left:0;border-radius:0 5px 5px 0}.party-implant-next{right:0;border-radius:5px 0 0 5px}
+.party-implant-prev:disabled,.party-implant-next:disabled{opacity:.3;cursor:default}
+@media(max-height:480px){.party-implant-content{padding-top:6px;padding-bottom:6px;gap:4px}.party-implant-art{flex:0 1 38%;min-height:65px}.party-implant-name{flex-basis:26px}}
+
+/* Reserve the same space for either tab; content never changes the dock height. */
+.live-party-drawer .party-detail-stats,
+.live-party-drawer .party-detail-cyberware{
+ height:calc(var(--party-scan-height, 430px) + 40px);
+ box-sizing:border-box;
+ overflow:hidden;
+}
+.live-party-drawer .party-detail-stats{overflow-y:auto}
+.live-party-drawer .party-detail-cyberware .ps-scan-viewport{
+ height:var(--party-scan-height, 430px);
+ display:flex;align-items:center;justify-content:center;
+ overflow:hidden;
+}
+.live-party-drawer .party-detail-cyberware .ps-scan-layer{
+ display:inline-block;
+ position:relative;
+ width:max-content;
+ height:max-content;
+ max-width:100%;
+ max-height:100%;
+ flex:0 1 auto;
+}
+.live-party-drawer .party-detail-cyberware .ps-scan-layer img{
+ display:block;
+ width:auto;
+ height:auto;
+ max-width:235px;
+ max-height:var(--party-scan-height, 430px);
+}
+
+/* Offscreen layout uses the same width, typography and padding as the real card.
+   Measuring every page before reveal prevents any resizing during pagination. */
+.party-implant-measure{position:fixed;left:-10000px;top:0;visibility:hidden;pointer-events:none;z-index:-1;width:min(300px,calc(100vw - 24px));box-sizing:border-box}
+.party-implant-measure-page{display:flex;flex-direction:column;box-sizing:border-box;width:100%;padding:12px 26px;gap:8px;background:#101b29;color:#dce6f0}
+.party-implant-measure-page .party-implant-description{flex:none;overflow:visible}
+.party-implant-measure-page .party-implant-art{flex:0 0 175px}
+.party-implant-measure-page .party-implant-name{flex:none}
+.party-implant-measure-page .party-implant-footer{flex:none}
+.party-implant-popover .party-implant-content{overflow:hidden}
+@media(max-height:480px){.party-implant-measure-page{padding-top:6px;padding-bottom:6px;gap:4px}.party-implant-measure-page .party-implant-art{flex-basis:38%;min-height:65px}}
+
+/* Compact counterpart of the Character window's attribute rows. */
+.party-detail-stat-list{display:flex;flex-direction:column;gap:8px}
+.party-detail-stat-row{padding:10px;background:#222d39;border-radius:7px;display:flex;flex-direction:column;gap:9px}
+.party-detail-stat-main{display:flex;align-items:center;gap:10px;min-width:0}
+.party-detail-stat-icon{width:40px;height:40px;flex:0 0 40px;display:flex;align-items:center;justify-content:center;border-radius:7px;background:#3c3526;color:#e8c157}
+.party-detail-stat-label{display:flex;flex-direction:column;flex:1;min-width:0;gap:3px}
+.party-detail-stat-label strong{font-size:12px;color:#e5eaf0}
+.party-detail-stat-label small{font-size:10px;line-height:1.3;color:#9da9b7}
+.party-detail-stat-value{display:flex;flex-direction:column;align-items:flex-end;flex:0 0 70px;gap:2px}
+.party-detail-stat-value strong{font-size:21px;line-height:1.1}
+.party-detail-stat-value small{font-size:10px}
+.party-detail-stat-track{height:6px;background:#47515e;border-radius:6px;overflow:hidden}
+.party-detail-stat-fill{height:100%;border-radius:6px}
+
+/* Compact monitor details: keep a common tab height without blank scan bands.
+   The anatomical frame follows the image's intrinsic aspect ratio. */
+.live-party-drawer .party-detail-stats,
+.live-party-drawer .party-detail-cyberware{
+ height:calc(var(--party-scan-height, 390px) + 20px);
+ padding:8px 10px;
+}
+.live-party-drawer .party-detail-cyberware{
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ justify-content:flex-start;
+ gap:5px;
+}
+.live-party-drawer .party-detail-cyberware .ps-scan-viewport{
+ height:auto;
+ width:fit-content;
+ max-width:100%;
+ flex:0 0 auto;
+ display:block;
+ overflow:hidden;
+}
+.live-party-drawer .party-detail-cyberware .ps-scan-layer{
+ display:block;
+ width:fit-content;
+ height:auto;
+ max-width:100%;
+ max-height:none;
+}
+.live-party-drawer .party-detail-cyberware .ps-scan-layer img{
+ width:auto;
+ height:auto;
+ max-width:235px;
+ max-height:calc(var(--party-scan-height, 390px) - 22px);
+ object-fit:contain;
+}
+.live-party-drawer .party-detail-cyberware .ps-scan-label{margin-top:0;padding:2px 0}
+.live-party-drawer .party-detail-stat-list{gap:6px}
+.live-party-drawer .party-detail-stat-row{padding:7px 9px;gap:6px}
+.live-party-drawer .party-detail-stat-icon{width:36px;height:36px;flex-basis:36px}
+.live-party-drawer .party-detail-stat-main{gap:8px}
+.live-party-drawer .party-detail-stat-track{height:5px}
+
+/* Keep detail content mounted; animate only the available space. */
+.party-details-reveal{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows 260ms ease,opacity 200ms ease;pointer-events:none}
+.party-details-reveal.expanded{grid-template-rows:1fr;opacity:1;pointer-events:auto}
+.party-details-reveal-inner{min-height:0;overflow:hidden}
+@media(prefers-reduced-motion:reduce){.party-details-reveal{transition:none}}

@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { Heart, Minus, Plus, Wallet } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { createPortal } from 'react-dom';
+import { Heart, Minus, Plus, Wallet, ChevronUp, ChevronDown } from 'lucide-react';
 import { supabase } from './supabase';
 import './LiveSession.css';
 import { fortunes } from './FortuneCookieConfigured';
 import SessionToolSettings, { type ToolConfig } from './SessionToolSettings';
+import DiceSpotlight from './DiceSpotlight';
+import PartyMonitorDetails from './PartyMonitorDetails';
 
 type Character = { id: string; name: string; balance: number; body: number | null; current_hp: number | null };
 const maxHP = (body: number) => 10 + 5 * body;
@@ -20,6 +23,80 @@ const random = (max: number) => Math.floor(Math.random() * max) + 1;
 const symbol = () => symbols[Math.floor(Math.random() * symbols.length)];
 
 export default function LiveSession({ campaignId, characters, onHPChanged, onBalanceChanged }: { campaignId: string; characters: Character[]; onHPChanged: (id: string, hp: number) => void; onBalanceChanged: (id: string, balance: number) => void }) {
+  const [monitorOpen, setMonitorOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(1);
+  const [visibleStart, setVisibleStart] = useState(0);
+  const capacity = Math.min(Math.max(1, visibleCount), Math.max(1, characters.length));
+  const firstVisible = Math.min(visibleStart, Math.max(0, characters.length - capacity));
+  const visibleCharacters = characters.slice(firstVisible, firstVisible + capacity);
+  const [monitorTop, setMonitorTop] = useState(90);
+  const monitorDrawer = useRef<HTMLElement | null>(null);
+  const monitorDrag = useRef(false);
+  const startMonitorDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    const startY = event.clientY;
+    const initialTop = monitorDrawer.current?.getBoundingClientRect().top ?? monitorTop;
+    let moved = false;
+    const move = (e: PointerEvent) => {
+      const delta = e.clientY - startY;
+      if (Math.abs(delta) <= 5 && !moved) return;
+      moved = true;
+      const height = monitorDrawer.current?.getBoundingClientRect().height ?? 120;
+      const maxTop = Math.max(4, window.innerHeight - Math.min(height, window.innerHeight) - 4);
+      setMonitorTop(Math.max(4, Math.min(maxTop, initialTop + delta)));
+    };
+    const end = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      if (moved) {
+        monitorDrag.current = true;
+        window.setTimeout(() => { monitorDrag.current = false; }, 0);
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end, { once: true });
+    window.addEventListener('pointercancel', end, { once: true });
+  };
+  // Fit the complete Party Monitor in the viewport: move it up before shrinking
+  // the scan. ResizeObserver also catches async stat loading and tab switches.
+  useLayoutEffect(() => {
+    const drawer = monitorDrawer.current;
+    const panel = drawer?.querySelector<HTMLElement>('.live-party-panel');
+    if (!drawer || !panel) return;
+    let measuring = false;
+    const fit = () => {
+      if (measuring) return;
+      measuring = true;
+      try {
+        const viewportHeight = window.innerHeight;
+        const margin = 6;
+        const detail = panel.querySelector<HTMLElement>('.party-detail-stats, .party-detail-cyberware');
+        if (detail && detailsOpen && capacity === 1) {
+          const fixedHeight = panel.scrollHeight - detail.offsetHeight;
+          const scanHeight = Math.max(80, Math.min(390, Math.floor(viewportHeight - margin * 2 - fixedHeight - 20)));
+          const next = scanHeight + 'px';
+          if (drawer.style.getPropertyValue('--party-scan-height') !== next) {
+            drawer.style.setProperty('--party-scan-height', next);
+          }
+        }
+        const height = drawer.getBoundingClientRect().height;
+        const maxTop = Math.max(margin, viewportHeight - height - margin);
+        setMonitorTop(current => {
+          const next = Math.max(margin, Math.min(current, maxTop));
+          return Math.abs(current - next) < 0.5 ? current : next;
+        });
+      } finally {
+        measuring = false;
+      }
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(panel);
+    window.addEventListener('resize', fit);
+    return () => { observer.disconnect(); window.removeEventListener('resize', fit); };
+  }, [capacity, monitorOpen, detailsOpen, firstVisible]);
   const [hpError, setHpError] = useState('');
   const [hpOverrides, setHpOverrides] = useState<Record<string, number>>({});
   const hpOverridesRef = useRef<Record<string, number>>({});
@@ -275,12 +352,10 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
   }
   return (
     <div className="live-session">
-      <div className="live-session-grid">
-        <div className="live-column">
-          <section className="live-panel">
-            <h2>PARTY MONITOR</h2>
+      {createPortal(<aside ref={monitorDrawer} style={{top:monitorTop}} className={'live-party-drawer' + (monitorOpen ? ' is-open' : ' is-closed')} aria-label="Party Monitor">
+        <section className="live-panel live-party-panel">
             {hpError && <p className="live-hp-error" role="alert">{hpError}</p>}
-            {characters.length ? characters.map(c => { const hp = hpOverrides[c.id] ?? c.current_hp; return (
+            {characters.length ? visibleCharacters.map(c => { const hp = hpOverrides[c.id] ?? c.current_hp; return (
               <div className="live-character" key={c.id}>
                 <div className="live-character-main"><strong>{c.name}</strong><div className="live-character-money"><span>{Number(c.balance).toLocaleString('en-US')} E$</span></div></div>
                 {c.body !== null && hp !== null ? <div className="live-character-vitals">
@@ -290,7 +365,24 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
                 <div className="live-hp-actions"><button type="button" title={'Adjust funds for ' + c.name} aria-label={'Adjust funds for ' + c.name} onClick={() => openMoney(c.id)}><Wallet size={17}/></button><button type="button" title="Remove 5 HP" aria-label={'Remove 5 HP from ' + c.name} disabled={hp === null || hp <= 0 || c.body === null} onClick={() => void adjustHP(c, -5)}><Heart size={14}/><Minus size={13}/></button><button type="button" className="live-hp-heal" title="Restore 5 HP" aria-label={'Restore 5 HP to ' + c.name} disabled={hp === null || c.body === null || hp >= maxHP(c.body)} onClick={() => void adjustHP(c, 5)}><Heart size={14}/><Plus size={13}/></button></div>
               </div>
              ); }) : <p className="live-empty">No characters in this campaign yet.</p>}
+            {characters.length > 0 && capacity === 1 && <><button type="button" className="party-detail-toggle" aria-expanded={detailsOpen} onClick={()=>setDetailsOpen(v=>!v)}><span>CHARACTER DETAILS</span><span>{detailsOpen?'▲':'▼'}</span></button><div className={'party-details-reveal'+(detailsOpen?' expanded':'')} aria-hidden={!detailsOpen}><div className="party-details-reveal-inner"><PartyMonitorDetails characterId={visibleCharacters[0].id}/></div></div></>}
+            {characters.length > 0 && <div className="live-party-capacity-controls" aria-label="Party Monitor character controls">
+              <span className="live-party-count">{capacity} / {characters.length}</span>
+              <div className="live-party-capacity-buttons">
+                <button type="button" title="Previous character" aria-label="Previous character" disabled={capacity >= characters.length || firstVisible === 0} onClick={() => setVisibleStart(Math.max(0, firstVisible - 1))}><ChevronUp size={17}/></button>
+                <button type="button" title="Next character" aria-label="Next character" disabled={capacity >= characters.length || firstVisible >= characters.length - capacity} onClick={() => setVisibleStart(Math.min(characters.length - capacity, firstVisible + 1))}><ChevronDown size={17}/></button>
+                <button type="button" title="Show one more character" aria-label="Show one more character" disabled={capacity >= characters.length} onClick={() => { setVisibleCount(capacity + 1); setVisibleStart(Math.min(firstVisible, Math.max(0, characters.length - capacity - 1))); }}><Plus size={17}/></button>
+                <button type="button" title="Show one fewer character" aria-label="Show one fewer character" disabled={capacity <= 1} onClick={() => setVisibleCount(capacity - 1)}><Minus size={17}/></button>
+              </div>
+            </div>}
           </section>
+        <button type="button" className="live-party-drawer-edge" onPointerDown={startMonitorDrag} onClick={() => { if (!monitorDrag.current) setMonitorOpen(v => !v); }} aria-label={monitorOpen ? 'Retract Party Monitor' : 'Expand Party Monitor'} aria-expanded={monitorOpen} title={monitorOpen ? 'Retract Party Monitor' : 'Expand Party Monitor'}>
+          <span className="live-party-drawer-chevron" aria-hidden="true">{monitorOpen ? '‹' : '›'}</span>
+          <span className="live-party-drawer-edge-label">PARTY MONITOR</span>
+        </button>
+      </aside>, document.body)}
+      <div className="live-session-grid">
+        <div className="live-column">
           <section className="live-panel">
             <h2>ACTIVE MAP</h2>
             <div className="live-map-placeholder">MAP PLACEHOLDER</div>
@@ -310,15 +402,13 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
               ))}
             </div>
           </section>
-          <section className="live-panel">
-            <h2>SESSION TOOLS</h2>
-            <SessionToolSettings onOpen={next => void launch(next)} characters={characters}/>
-            {deliveryError && <p className="live-hp-error" role="alert">{deliveryError}</p>}
-            {deliveryNotice && <p role="status" style={{ color: '#69dba8' }}>{deliveryNotice}</p>}
-            {delivering && <small>Sending spotlights...</small>}
-          </section>
+
         </div>
       </div>
+      {!spotlight && !moneyCharacter && createPortal(<>
+        <SessionToolSettings onOpen={next => void launch(next)} characters={characters}/>
+        {(deliveryError || deliveryNotice || delivering) && <div className="session-dock-feedback" role="status">{deliveryError || deliveryNotice || (delivering ? 'Sending spotlights...' : '')}</div>}
+      </>, document.body)}
       {moneyCharacter && <div className="live-spotlight" role="dialog" aria-modal="true" aria-label={'Adjust funds for ' + moneyCharacter.name}>
         <div className="live-money-scene">
           <div className="live-spotlight-title">BANK SPOTLIGHT</div>
@@ -345,7 +435,14 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
           </div>
         </div>
       </div>}
-      {spotlight && <div className="live-spotlight" role="dialog" aria-modal="true" aria-label="Dice spotlight">
+      {spotlight && config?.tool === 'dice' && createPortal(<DiceSpotlight campaignId={campaignId} gmConfig={config} onClose={close} onGmRoll={result => {
+        setHistory(prev => [...prev, result]);
+        void supabase.from('campaign_events').insert({
+          campaign_id: campaignId, character_id: null, audience: 'campaign', category: 'system',
+          message: `GM ROLLED D${sides} → ${result}`,
+        }).then(({error}) => { if(error) console.error('[Campaign Log] Dice roll was not saved:', error.message); });
+      }} />, document.body)}
+      {spotlight && config?.tool !== 'dice' && <div className="live-spotlight" role="dialog" aria-modal="true" aria-label="Dice spotlight">
         <div className={'live-dice-scene ' + sceneStyle}>
           <div className="live-spotlight-title">DICE SPOTLIGHT</div>
           <div className="live-dice-controls">
@@ -363,7 +460,7 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
             </select>
           </div>
           <button type="button" className={'live-die ' + dieStyle}
-            onClick={roll} disabled={phase === 'rolling' || (config?.tool === 'dice' && history.length >= config.rolls)} aria-label="Roll die">
+            onClick={roll} disabled={phase === 'rolling'} aria-label="Roll die">
             <svg viewBox="0 0 200 200" aria-hidden="true">
               <polygon className="live-die-outline" points="100,8 178,66 148,170 52,170 22,66"/>
             </svg>
@@ -371,7 +468,7 @@ export default function LiveSession({ campaignId, characters, onHPChanged, onBal
           </button>
           <div className="live-dice-status">{phase === 'ready' ? 'CLICK THE DIE TO ROLL' : phase === 'rolling' ? 'ROLLING…' : 'RESULT: ' + face}</div>
           <div className="live-dice-history">{history.length ? history.join(' · ') : 'No rolls yet'}</div>
-          <small>{config?.tool === 'dice' ? `${history.length} / ${config.rolls} rolls` : 'Click the die to roll'}</small>
+          <small>Click the die to roll</small>
           <button type="button" className="live-spotlight-close" onClick={close} disabled={phase === 'rolling'}>Close</button>
         </div>
       </div>}

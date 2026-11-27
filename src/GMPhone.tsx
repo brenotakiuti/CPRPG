@@ -1,18 +1,21 @@
+import { GMDirectMessageMonitor, GMDirectMessageSettings } from './GMDirectMessages';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MessageSquare, Users, Phone, Settings2, Send, RefreshCw, Eye } from 'lucide-react';
 import { supabase } from './supabase';
 import './GMPhone.css';
+import { getHistory,putHistory,appendHistory,removeHistoryId,historyKey } from './phoneMessageCache';
 import GMCallControl from './GMCallControl';
 
 type Thread = { conversation_id: string; npc_identity_id: string; npc_internal_name: string; npc_public_label: string; player_identity_id: string; player_name: string; last_message_at: string | null; last_message: string | null; unread_count: number };
 type Message = { message_id: string; sender_identity_id: string; body: string; created_at: string };
 const REVEAL_EVENT_PREFIX = '[GHOST//LINK IDENTITY REVEALED] ';
 type Identity = { id: string; internal_name: string; display_name: string; anonymous: boolean };
-type Tab = 'messages' | 'contacts' | 'calls' | 'settings';
+type Tab = 'messages' | 'contacts' | 'calls' | 'player-dms' | 'settings';
 const tabs: { id: Tab; label: string; icon: typeof MessageSquare }[] = [
   { id: 'messages', label: 'Messages', icon: MessageSquare },
   { id: 'contacts', label: 'Identities & Contacts', icon: Users },
   { id: 'calls', label: 'Calls', icon: Phone },
+  { id: 'player-dms', label: 'Player DMs', icon: Eye },
   { id: 'settings', label: 'Settings', icon: Settings2 },
 ];
 const time = (value: string) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -32,7 +35,7 @@ const describePhoneError = (error: unknown): string => {
   }
   return String(error);
 };
-export default function GMPhone({ campaignId, campaignName, onRead }: { campaignId: string; campaignName: string; onRead?: () => void }) {
+export default function GMPhone({ campaignId, onRead }: { campaignId: string; onRead?: () => void }) {
   const [tab, setTab] = useState<Tab>('messages');
   const [threads, setThreads] = useState<Thread[]>([]);
   const [revealedConversations, setRevealedConversations] = useState<string[]>([]);
@@ -59,9 +62,9 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
   const [newChatRecipient, setNewChatRecipient] = useState('');
   const [playerIdentities, setPlayerIdentities] = useState<{ identity_id: string; character_id: string; player_name: string }[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const activeHistoryKey=useRef('');
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [glowingMessageIds, setGlowingMessageIds] = useState<string[]>([]);
   const glowPending = useRef(new Set<string>());
@@ -197,21 +200,25 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
   const read = useCallback(async (conversationId: string) => {
     const result = await supabase.rpc('phone_read_messages', { p_conversation_id: conversationId, p_limit: 100 });
     if (result.error) throw result.error;
-    setMessages(((result.data || []) as Message[]).reverse());
+    const key=historyKey(campaignId,'npc',conversationId);
+    const next=putHistory(key,((result.data || []) as Message[]).reverse());
+    if(activeHistoryKey.current===key)setMessages(next);
 
-  }, []);
+  }, [campaignId]);
   useEffect(() => {
     let active = true;
-    setLoading(true);
-    void refresh().catch(e => { if (active) setError(e.message || String(e)); }).finally(() => { if (active) setLoading(false); });
+    void refresh().catch(e => { if (active) setError(e.message || String(e)); });
     return () => { active = false; };
   }, [refresh]);
   useEffect(() => {
-    if (!selectedConversation || tab !== 'messages') { setMessages([]); return; }
+    if (!selectedConversation || tab !== 'messages') { if(!selectedConversation)setMessages([]); return; }
+    const key=historyKey(campaignId,'npc',selectedConversation);
+    activeHistoryKey.current=key;
+    setMessages(getHistory(key)??[]);
     let active = true;
     void read(selectedConversation).catch(e => { if (active) setError(e.message || String(e)); });
     return () => { active = false; };
-  }, [selectedConversation, tab, read]);
+  }, [selectedConversation, tab, read,campaignId]);
   useEffect(() => {
     const channel = supabase.channel('gm-ghost-link-' + campaignId)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'phone_messages' }, () => {
@@ -317,9 +324,14 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
     if (!senderId || !recipientId || !draft.trim() || busy) return;
     setBusy(true); setError('');
     try {
-      const result = await supabase.rpc('phone_send_message', { p_sender_identity_id: senderId, p_recipient_identity_id: recipientId, p_body: draft.trim() });
-      if (result.error) throw result.error;
+      const text=draft.trim();
+      const conversationId=!newChat?selected?.conversation_id:undefined;
+      const key=conversationId?historyKey(campaignId,'npc',conversationId):'';
+      const tempId='pending:'+crypto.randomUUID();
+      if(key)setMessages(appendHistory(key,{message_id:tempId,sender_identity_id:senderId,body:text,created_at:new Date().toISOString()}));
       setDraft('');
+      const result = await supabase.rpc('phone_send_message', { p_sender_identity_id: senderId, p_recipient_identity_id: recipientId, p_body:text });
+      if (result.error){if(key)setMessages(removeHistoryId(key,tempId));setDraft(text);throw result.error;}
       if (newChat) {
         const updated = await supabase.rpc('phone_gm_threads', { p_campaign_id: campaignId });
         if (updated.error) throw updated.error;
@@ -332,13 +344,14 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
         setSelectedConversation(opened.conversation_id);
         await read(opened.conversation_id);
       } else if (selected) {
-        await Promise.all([refresh(), read(selected.conversation_id)]);
+        setThreads(current=>current.map(t=>t.conversation_id===selected.conversation_id?{...t,last_message:text,last_message_at:new Date().toISOString()}:t));
+        void read(selected.conversation_id).catch(()=>{});
       }
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(false); }
   };
   return <section className="gm-ghost" aria-label="Ghost Link GM communications">
-    <header className="gm-ghost-header"><div className="gm-ghost-brand"><img src="/ghost-link-icon.svg" width={43} height={43} alt="Ghost Link icon"/><div><strong>GHOST//LINK</strong><small>GM COMMUNICATIONS WORKSTATION</small></div></div><div className="gm-ghost-network">● NETWORK TERMINAL <small>{campaignName}</small></div></header>
+    
     <nav className="gm-ghost-tabs" aria-label="Ghost Link tools">{tabs.map(item => <button key={item.id} type="button" className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}><item.icon size={15}/>{item.label}</button>)}</nav>
     {tab === 'messages' ? <div className="gm-ghost-workstation">
       <aside className="gm-ghost-identities"><div className="gm-ghost-section-title">NPC IDENTITIES <span>{allIdentities.length}</span></div>
@@ -396,8 +409,9 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
       </>}
       {!identities.length && <p>Create an NPC identity above to begin sharing contacts.</p>}
       {!players.length && <p>No player characters found in this campaign.</p>}
-    </section> : tab === 'calls' ? <GMCallControl campaignId={campaignId} identities={allIdentities} players={players} /> : <section className="gm-ghost-future" aria-label="Ghost Link future capabilities">
+    </section> : tab === 'calls' ? <GMCallControl campaignId={campaignId} identities={allIdentities} players={players} /> : tab === 'player-dms' ? <GMDirectMessageMonitor campaignId={campaignId}/> : <section className="gm-ghost-future" aria-label="Ghost Link future capabilities">
       <h3>GHOST//LINK — SETTINGS</h3>
+      <GMDirectMessageSettings campaignId={campaignId}/>
       <p>FUTURE SYSTEM CAPABILITIES · CONCEPTS ONLY</p>
       <p>Ghost//Link is more than a messaging application. Future updates may allow the GM to manipulate the campaign's communication network, creating opportunities for deception, surveillance, interference, and narrative events.</p>
       <div className="gm-ghost-feature-grid">
@@ -412,7 +426,7 @@ export default function GMPhone({ campaignId, campaignName, onRead }: { campaign
       </div>
       <p>These are potential future features, not currently active settings. Their implementation will depend on the development of the communication and campaign-event systems.</p>
     </section>}
-    {loading && <p className="gm-ghost-muted">Connecting to Ghost//Link...</p>}
+
     {error && <p className="gm-ghost-error" role="alert">{error} <button onClick={() => { setError(''); void refresh().catch(e => setError(String(e))); }}><RefreshCw size={14}/> Retry</button></p>}
     <footer className="gm-ghost-footer">● GHOST//LINK NETWORK <span>DESKTOP / TABLET TERMINAL</span></footer>
   </section>;

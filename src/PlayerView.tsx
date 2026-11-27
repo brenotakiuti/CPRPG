@@ -10,6 +10,7 @@ import PlayerStats from './PlayerStats';
 import PlayerTransfers from './PlayerTransfers';
 import PlayerLoading from './PlayerLoading';
 import PlayerPhone from './PlayerPhone';
+import PlayerTacticalFeed from './PlayerTacticalFeed';
 import PlayerCallSpotlight from './PlayerCallSpotlight';
 import HudNotification, { type HudNotice } from './HudNotification';
 import { usePlayerCyberware } from './usePlayerCyberware';
@@ -279,12 +280,12 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const cyberwareData = usePlayerCyberware(character?.id ?? null);
   const [body, setBody] = useState<number | null>(null);
   const [diceOpen, setDiceOpen] = useState(false);
-  type PlayerScreen = { inventory: boolean; selected: string | null; logs: boolean; stats?: boolean; diagnostics?: boolean; statsView?: 'map' | 'list'; statsPosition?: string | null; transfer?: 'money' | 'item' | null; phone?: boolean };
+  type PlayerScreen = { inventory: boolean; selected: string | null; logs: boolean; stats?: boolean; diagnostics?: boolean; statsView?: 'map' | 'list'; statsPosition?: string | null; transfer?: 'money' | 'item' | null; phone?: boolean; tactical?: boolean };
   const screenKey = 'player-screen:' + (token ?? 'current');
   function restoreScreen(): PlayerScreen {
     try {
       const value = JSON.parse(sessionStorage.getItem(screenKey) || 'null');
-      return { inventory: value?.inventory === true, selected: typeof value?.selected === 'string' ? value.selected : null, logs: value?.logs === true, stats: value?.stats === true, statsView: value?.statsView === 'list' ? 'list' : 'map', statsPosition: typeof value?.statsPosition === 'string' ? value.statsPosition : null, diagnostics: value?.diagnostics === true, phone: value?.phone === true, transfer: value?.transfer === 'money' || value?.transfer === 'item' ? value.transfer : null };
+      return { inventory: value?.inventory === true, selected: typeof value?.selected === 'string' ? value.selected : null, logs: value?.logs === true, stats: value?.stats === true, statsView: value?.statsView === 'list' ? 'list' : 'map', statsPosition: typeof value?.statsPosition === 'string' ? value.statsPosition : null, diagnostics: value?.diagnostics === true, phone: value?.phone === true, tactical: value?.tactical === true, transfer: value?.transfer === 'money' || value?.transfer === 'item' ? value.transfer : null };
     } catch { return { inventory: false, selected: null, logs: false, diagnostics: false }; }
   }
   const [initialScreen] = useState(restoreScreen);
@@ -295,6 +296,8 @@ export default function PlayerView({ token }: PlayerViewProps) {
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(initialScreen.diagnostics === true);
   const [inventoryOpen, setInventoryOpen] = useState(initialScreen.inventory);
   const [phoneOpen, setPhoneOpen] = useState(initialScreen.phone === true);
+  const [tacticalOpen, setTacticalOpen] = useState(initialScreen.tactical === true);
+  const [tacticalVisited, setTacticalVisited] = useState(initialScreen.tactical === true);
   const [transferOpen, setTransferOpen] = useState<'money' | 'item' | null>(initialScreen.transfer ?? null);
   const [inventorySelection, setInventorySelection] = useState<string | null>(initialScreen.selected);
   const [inventoryVisited, setInventoryVisited] = useState(initialScreen.inventory);
@@ -308,6 +311,8 @@ export default function PlayerView({ token }: PlayerViewProps) {
     setInventoryOpen(next.inventory);
     setTransferOpen(next.transfer ?? null);
     setPhoneOpen(next.phone === true);
+    setTacticalOpen(next.tactical === true);
+    if (next.tactical) setTacticalVisited(true);
     setInventorySelection(next.selected);
     setLogsOpen(next.logs);
     setStatsOpen(next.stats === true);
@@ -340,10 +345,10 @@ export default function PlayerView({ token }: PlayerViewProps) {
   function navigate(next: PlayerScreen) {
     applyScreen(next);
     window.history.pushState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: next }, '');
-    if (next.transfer || next.phone) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (next.transfer || next.phone || next.tactical) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }
   function goBack() {
-    if (navRef.current.logs || navRef.current.diagnostics || navRef.current.stats || navRef.current.selected || navRef.current.inventory || navRef.current.transfer || navRef.current.phone) window.history.back();
+    if (navRef.current.logs || navRef.current.diagnostics || navRef.current.stats || navRef.current.selected || navRef.current.inventory || navRef.current.transfer || navRef.current.phone || navRef.current.tactical) window.history.back();
   }
   useEffect(() => {
     window.history.replaceState({ ...window.history.state, playerNavigationKey: navigationKey.current, playerScreen: navRef.current }, '');
@@ -521,13 +526,18 @@ export default function PlayerView({ token }: PlayerViewProps) {
     } catch { /* Invalid storage is treated as a fresh device. */ }
     hudWrite();
 
-    const validEvent = (event: { audience?: string; character_id?: string | null; category?: string; message?: string }) =>
-      (event.audience === 'campaign' || (event.audience === 'character' && event.character_id === character.id)) &&
-      (event.category === 'system' || event.category === 'text') &&
-      typeof event.message === 'string' && !!event.message.trim() &&
-      !/^(?:(?:TAROT REVEALED|TAROT CARD|FORTUNE REVEALED):|HEALTH [+-]\\d+ HP$)/i.test(event.message.trim()) &&
-      !/^GHOST\/\/LINK CALL:/i.test(event.message.trim()) &&
-      !/\\[UNAPPROVED\\]/i.test(event.message);
+    const validEvent = (event: { audience?: string; character_id?: string | null; category?: string; message?: string }) => {
+      if (!(event.audience === 'campaign' || (event.audience === 'character' && event.character_id === character.id))) return false;
+      if (event.category !== 'system' && event.category !== 'text') return false;
+      const message = event.message?.trim();
+      if (!message) return false;
+      // These events already have dedicated result/health displays on the player's screen.
+      if (/^(?:TAROT REVEALED|TAROT CARD|FORTUNE REVEALED):/i.test(message)) return false;
+      if (/^HEALTH [+-]\d+ HP$/i.test(message)) return false;
+      if (/^GHOST\/\/LINK CALL:/i.test(message)) return false;
+      if (/\[UNAPPROVED\]/i.test(message) && event.character_id === character.id) return false;
+      return true;
+    };
 
     const recover = async () => {
       if (!alive || hudRecovering.current) return;
@@ -993,11 +1003,23 @@ export default function PlayerView({ token }: PlayerViewProps) {
           <p>CHARACTER DASHBOARD</p>
         </header>
         {!diagnosticsOpen && character && phoneOpen && <PlayerPhone characterId={character.id} onBack={goBack} />}
+        {character && tacticalVisited && <div style={{ display: tacticalOpen && !diagnosticsOpen ? undefined : 'none' }}><PlayerTacticalFeed active={tacticalOpen && !diagnosticsOpen} characterId={character.id} onBack={goBack} onDice={() => setDiceOpen(true)}
+          renderStats={onClose => <PlayerStats onBack={onClose} cyberware={cyberwareData} view={statsView} selectedPosition={statsPosition} onNavigate={(view,position)=>{setStatsView(view);setStatsPosition(position)}} />}
+          renderInventory={onClose => <PlayerInventory inventory={inventoryData} onBack={onClose} onSelect={id=>setInventorySelection(id)} initialSelectedId={inventorySelection} />}
+          onOpenInventory={() => setInventorySelection(null)} currentHp={hp} maxHp={maximum} weapons={(['weapon_1','weapon_2'] as const).map(slot => {
+          const entry=inventoryData.entries.find(row=>row.equipped_slot===slot);
+          const item=entry?inventoryData.catalog[entry.item_id]:undefined;
+          const properties=item?.properties??{};
+          const attack=(properties.attack??{}) as Record<string,unknown>;
+          const magazine=(properties.magazine??{}) as Record<string,unknown>;
+          const remaining=entry?.instance_data?.remaining_attacks;
+          return entry&&item?{name:item.name,type:String(properties.weapon_class??'Weapon'),dice:typeof attack.dice==='number'?attack.dice+'d6':'—',accuracy:typeof attack.accuracy_threshold==='number'?attack.accuracy_threshold+'+':'—',damage:typeof attack.damage_per_success==='number'?String(attack.damage_per_success):'—',ammo:(typeof remaining==='number'?remaining:magazine.capacity)===undefined?'—':String(typeof remaining==='number'?remaining:magazine.capacity)+'/'+String(magazine.capacity??'—')}:null;
+        }).filter((weapon):weapon is NonNullable<typeof weapon>=>weapon!==null)} /></div>}
         {!diagnosticsOpen && character && transferOpen && <PlayerTransfers key={transferOpen + character.id} kind={transferOpen} character={character} inventory={inventoryData} onBack={goBack} />}
         {!diagnosticsOpen && character && statsOpen && <PlayerStats onBack={goBack} cyberware={cyberwareData} view={statsView} selectedPosition={statsPosition} onNavigate={updateStats} />}
-        {!diagnosticsOpen && character && inventoryVisited && <div style={{ display: inventoryOpen && !statsOpen && !transferOpen && !phoneOpen ? undefined : 'none' }}><PlayerInventory inventory={inventoryData} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
+        {!diagnosticsOpen && character && inventoryVisited && <div style={{ display: inventoryOpen && !statsOpen && !transferOpen && !phoneOpen && !tacticalOpen ? undefined : 'none' }}><PlayerInventory inventory={inventoryData} initialSelectedId={inventorySelection} onBack={goBack} onSelect={selectInventoryItem} /></div>}
         {!diagnosticsOpen && character ? (
-          <div style={{ display: inventoryOpen || statsOpen || transferOpen || phoneOpen ? 'none' : 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: inventoryOpen || statsOpen || transferOpen || phoneOpen || tacticalOpen ? 'none' : 'flex', flexDirection: 'column', gap: 12 }}>
             <section className="player-card player-health" aria-label="Character health">
               <div className="player-section-heading"><span><HeartPulse size={19} aria-hidden="true" /> HEALTH</span><strong>{hp !== null && maximum !== null ? `${hp} / ${maximum} HP` : 'HP unavailable'}</strong></div>
               <div className="player-hp-track" role="progressbar" aria-label="HP" aria-valuemin={0} aria-valuemax={maximum ?? 100} aria-valuenow={hp ?? 0}>
@@ -1022,6 +1044,7 @@ export default function PlayerView({ token }: PlayerViewProps) {
                 <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, stats: true })} style={{ cursor: "pointer", font: "inherit" }}><UserRound size={24} aria-hidden="true" /><span>STATS</span></button>
                 <button type="button" className="player-nav-tile" onClick={() => openInventory()} style={{ cursor: "pointer", font: "inherit" }}><Backpack size={24} aria-hidden="true" /><span>INVENTORY</span></button>
                 <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, phone: true })} style={{ cursor: "pointer", font: "inherit" }}><span className="player-phone-icon"><img src="/ghost-link-icon.svg" width={30} height={30} alt="" aria-hidden="true" />{phoneUnread > 0 && <b className="player-phone-unread">{phoneUnread > 99 ? "99+" : phoneUnread}</b>}</span><span>GHOST//LINK</span></button>
+                <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, tactical: true })} style={{ cursor: "pointer", font: "inherit" }}><span className="player-phone-icon"><img src="/tactical-feed-icon.svg" width={30} height={30} alt="" aria-hidden="true" /></span><span>TACTICAL//FEED</span></button>
                 <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, transfer: "money" })} style={{ cursor: "pointer", font: "inherit" }}><Send size={24} aria-hidden="true" /><span>SEND MONEY</span></button>
                 <button type="button" className="player-nav-tile" onClick={() => navigate({ inventory: false, selected: null, logs: false, transfer: "item" })} style={{ cursor: "pointer", font: "inherit" }}><Package size={24} aria-hidden="true" /><span>SEND ITEM</span></button>
               </div>

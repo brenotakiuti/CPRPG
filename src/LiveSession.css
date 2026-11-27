@@ -16,7 +16,7 @@
 .live-tools{padding:12px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;text-align:center}
 .live-tools small,.live-dice-scene small{font-size:11px;color:#92a5b7}
 .live-roll-open{min-width:0;min-height:112px;background:#e8bd4a;color:#111922;border:1px solid #e8bd4a;border-radius:5px;padding:14px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;font-weight:850;letter-spacing:.5px;font-size:12px;cursor:pointer;text-align:center;overflow-wrap:anywhere}
-.live-spotlight{position:fixed;inset:0;z-index:1000;background:rgba(2,5,10,.97);display:flex;align-items:center;justify-content:center;padding:15px}
+.live-spotlight{position:fixed;inset:0;z-index:20000;background:rgba(2,5,10,.97);display:flex;align-items:center;justify-content:center;padding:15px}
 .live-dice-scene{width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px}
 .live-spotlight-title{font-size:11px;letter-spacing:3px;color:#e8c05a}
 .live-dice-controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:8px 0}
@@ -102,3 +102,134 @@
 .live-hp-actions button{box-sizing:border-box;flex:0 0 58px;width:58px;height:40px;padding:0;gap:3px}
 .live-hp-actions button:first-child{color:#e8bd4a}
 .live-hp-row .live-hp-track{width:100%}
+
+/* The original Party Monitor is a full-height, left-edge sliding drawer. */
+.live-party-drawer{
+  position:fixed;top:clamp(64px,10vh,100px);left:0;
+  width:min(360px,calc(100vw - 42px));max-height:calc(100dvh - 90px);
+  z-index:1050;display:flex;align-items:stretch;
+  transform:translateX(0);transition:transform 260ms ease;
+  filter:drop-shadow(3px 4px 12px #0008);
+}
+.live-party-drawer.is-closed{transform:translateX(calc(-100% + 30px))}
+.live-party-drawer .live-party-panel{
+  flex:1;min-width:0;max-height:calc(100dvh - 100px);
+  overflow-y:auto;overscroll-behavior:contain;
+  border-radius:0 8px 8px 0;
+}
+.live-party-drawer-edge{
+  flex:0 0 30px;align-self:stretch;min-height:120px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:9px;padding:10px 4px;background:#25384b;
+  color:#e8c157;border:1px solid #526477;border-left:0;
+  border-radius:0 7px 7px 0;cursor:pointer;
+}
+.live-party-drawer-edge-label{writing-mode:vertical-rl;font-size:10px;font-weight:800;letter-spacing:1.3px}
+.live-party-drawer-chevron{font-size:24px;line-height:1}
+.live-party-drawer-edge:focus-visible{outline:2px solid #e8c157;outline-offset:-2px}
+@media(max-width:650px){
+  .live-party-drawer{top:56px;width:min(340px,calc(100vw - 34px));max-height:calc(100dvh - 64px)}
+  .live-party-drawer .live-party-panel{max-height:calc(100dvh - 64px)}
+}
+@media(prefers-reduced-motion:reduce){
+  .live-party-drawer{transition:none}
+}
+
+/* Wide, compact party rows: vitals and actions share the same line. */
+.live-party-drawer{width:min(540px,calc(100vw - 34px))}
+.live-party-drawer .live-character{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;
+  column-gap:12px;row-gap:9px;align-items:center;
+  padding:10px 12px;
+}
+.live-party-drawer .live-character-main{grid-column:1/-1;min-width:0}
+.live-party-drawer .live-character-vitals{grid-column:1;min-width:0;margin-top:0}
+.live-party-drawer .live-hp-actions{grid-column:2;justify-content:flex-end;gap:5px;margin-top:0}
+.live-party-drawer .live-hp-actions button{flex:0 0 37px;width:37px;height:36px;padding:0}
+.live-party-drawer .live-hp-unavailable{grid-column:1;margin:0}
+@media(max-width:650px){
+  .live-party-drawer{width:min(540px,calc(100vw - 34px))}
+}
+@media(max-width:390px){
+  .live-party-drawer .live-character{column-gap:6px;padding:9px 7px}
+  .live-party-drawer .live-hp-actions{gap:3px}
+  .live-party-drawer .live-hp-actions button{flex-basis:31px;width:31px;height:34px}
+}
+
+/* Smooth uninterrupted monitor-to-handle seam and shorter relative HP tracks. */
+.live-party-drawer .live-party-panel{
+  border-radius:0;
+  border-right:0;
+}
+.live-party-drawer-edge{
+  border-radius:0 12px 12px 0;
+  border-left:1px solid #354b60;
+  margin-left:0;
+  background:#25384b;
+}
+.live-party-drawer .live-hp-row .live-hp-track{
+  flex:0 1 70%;
+  width:70%;
+  max-width:70%;
+}
+.live-party-drawer .live-hp-info{
+  width:70%;
+}
+@media(max-width:390px){
+  .live-party-drawer .live-hp-row .live-hp-track{
+    flex-basis:70%;
+  }
+}
+
+/* Give the HP track its own compact grid column so actions move with it. */
+@media(min-width:651px){
+  .live-party-drawer .live-character{
+    grid-template-columns:minmax(0,310px) auto;
+    justify-content:start;
+  }
+}
+.live-party-drawer .live-character-main{
+  grid-column:1/-1;
+  width:100%;
+}
+.live-party-drawer .live-hp-info,
+.live-party-drawer .live-hp-row .live-hp-track{
+  width:100%;
+  max-width:100%;
+}
+.live-party-drawer .live-hp-row .live-hp-track{flex:1 1 auto}
+@media(max-width:650px){
+  .live-party-drawer .live-character{
+    grid-template-columns:minmax(0,1fr) auto;
+  }
+}
+
+/* Match drawer width to the compact HP/actions row; no empty right wing. */
+@media(min-width:651px){
+  .live-party-drawer{width:470px}
+  .live-party-drawer .live-character{
+    grid-template-columns:minmax(0,310px) auto;
+    column-gap:10px;
+  }
+}
+@media(max-width:650px){
+  .live-party-drawer{width:min(470px,calc(100vw - 34px))}
+}
+
+/* Drag handle vertically along the left edge; prevent touch panning during drag. */
+.live-party-drawer-edge{touch-action:none;user-select:none;-webkit-user-select:none}
+
+.live-party-capacity-controls{display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 10px;border-top:1px solid #344657;background:#152333}
+.live-party-count{font-size:11px;color:#aabaca;font-weight:700;white-space:nowrap}
+.live-party-capacity-buttons{display:flex;align-items:center;justify-content:center;gap:7px}
+.live-party-capacity-buttons button{display:inline-flex;align-items:center;justify-content:center;width:30px;height:29px;padding:0;border:1px solid #465b70;border-radius:5px;background:#203247;color:#e8c157;cursor:pointer}
+.live-party-capacity-buttons button:disabled{opacity:.3;cursor:not-allowed}
+.live-party-capacity-buttons button:not(:disabled):hover{border-color:#e8c157;background:#2e3c49}
+
+/* Party Monitor must fit as one unit: never scroll or clip the HP/header. */
+.live-party-drawer{max-height:none}
+.live-party-drawer .live-party-panel{max-height:none;overflow:visible;overscroll-behavior:auto}
+@media(max-width:650px){
+ .live-party-drawer{max-height:none}
+ .live-party-drawer .live-party-panel{max-height:none}
+}

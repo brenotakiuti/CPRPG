@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { GMCampaignStatsProvider, useGMCampaignStats } from './GMCampaignStats';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useGMArtworkCache } from './useGMArtworkCache';
+import { GMControlDock, GMUtilityWindow, type UtilityId } from './GMControlDock';
+import { GMCharacterDataProvider, useGMCharacterData } from './GMCharacterData';
 import { QRCodeSVG } from 'qrcode.react';
-import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Mail, LockKeyhole, Copy, Settings2, ScrollText, Package, Shield, Users, Wrench, Zap, Slice } from 'lucide-react';
+import { Brain, Dumbbell, Eye, Landmark, LayoutDashboard, Settings, LockKeyhole, Copy, Settings2, ScrollText, Package, Users, Wrench, Zap, Slice, ChevronsUpDown, Check } from 'lucide-react';
 import type { Campaign } from './CampaignSelection';
 import { supabase } from './supabase';
 import Bank from './Bank';
@@ -11,6 +14,7 @@ import CampaignLogs from './CampaignLogs';
 import Ripperdoc from './Ripperdoc';
 import GMPhone from './GMPhone';
 import GMCallSpotlight from './GMCallSpotlight';
+import CombatMaps from './CombatMaps';
 
 // Temporary visual thresholds; can later be supplied by campaign stat-tier records.
 const DEFAULT_STAT_TIERS = [
@@ -38,37 +42,20 @@ function StatIcon({ number }: { number: number }) {
   }
 }
 
-type StatDefinition = {
-  id: string;
-  name: string;
-  description: string;
-  display_order: number;
-  stat_number: number;
-  max_value: number;
-};
-
-// Cache shared definitions per campaign for the lifetime of this browser session.
-// Cache the in-flight promise as well, so rapid character changes share one request.
-const statDefinitionCache = new Map<string, Promise<StatDefinition[]>>();
-
-function getStatDefinitions(campaignId: string): Promise<StatDefinition[]> {
-  const cached = statDefinitionCache.get(campaignId);
+type BodyStatDefinition = { id: string; name: string };
+const bodyStatDefinitionCache = new Map<string, Promise<BodyStatDefinition[]>>();
+function getStatDefinitions(campaignId: string): Promise<BodyStatDefinition[]> {
+  const cached = bodyStatDefinitionCache.get(campaignId);
   if (cached) return cached;
-
   const request = (async () => {
-    const { data, error } = await supabase
-      .from('stat_definitions')
-      .select('id, name, description, display_order, stat_number, max_value')
-      .eq('campaign_id', campaignId)
-      .order('display_order')
-      .order('stat_number');
+    const { data, error } = await supabase.from('stat_definitions')
+      .select('id,name').eq('campaign_id',campaignId);
     if (error) throw error;
-    return (data ?? []) as StatDefinition[];
+    return (data ?? []) as BodyStatDefinition[];
   })();
-  statDefinitionCache.set(campaignId, request);
-  // Failed requests should be retried next time, not cached indefinitely.
+  bodyStatDefinitionCache.set(campaignId, request);
   void request.catch(() => {
-    if (statDefinitionCache.get(campaignId) === request) statDefinitionCache.delete(campaignId);
+    if (bodyStatDefinitionCache.get(campaignId) === request) bodyStatDefinitionCache.delete(campaignId);
   });
   return request;
 }
@@ -78,26 +65,67 @@ type GMConsoleProps = {
   onSwitchCampaign: () => void;
 };
 
-export default function GMConsole({
+function GMConsoleContent({
   campaign,
   onSwitchCampaign,
 }: GMConsoleProps) {
   useGMArtworkCache();
-  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'ripperdoc' | 'factions' | 'logs' | 'phone'>(() => {
+  const sharedCharacterData = useGMCharacterData();
+  const [page, setPage] = useState<'live' | 'overview' | 'bank' | 'characters' | 'inventory' | 'ripperdoc' | 'logs' | 'phone' | 'combat'>(() => {
     const saved = sessionStorage.getItem('gm-page:' + campaign.id);
-    return saved === 'overview' || saved === 'live' || saved === 'bank' || saved === 'characters' || saved === 'inventory' || saved === 'ripperdoc' || saved === 'factions' || saved === 'logs' || saved === 'phone' ? saved : 'live';
+    return saved === 'map-editor' ? 'combat' : saved === 'live' || saved === 'logs' || saved === 'phone' || saved === 'combat' ? saved : 'phone';
   });
   // Mount data-heavy tools on first visit, then retain their data and Realtime subscriptions.
   const [visitedTools, setVisitedTools] = useState<string[]>(() => {
-    const saved = sessionStorage.getItem('gm-page:' + campaign.id) ?? 'live';
-    return ['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone'].includes(saved) ? [saved] : [];
+    const saved = sessionStorage.getItem('gm-page:' + campaign.id) ?? 'phone';
+    return ['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone', 'combat', 'map-editor'].includes(saved) ? [saved === 'map-editor' ? 'combat' : saved] : [];
   });
   const openPage = (next: typeof page) => {
+    if (next === 'bank' || next === 'inventory' || next === 'ripperdoc' || next === 'characters' || next === 'overview') {
+      openUtility(next);
+      return;
+    }
     setPage(next);
-    if (['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone'].includes(next)) {
+    if (['live', 'bank', 'logs', 'inventory', 'ripperdoc', 'phone', 'combat'].includes(next)) {
       setVisitedTools(previous => previous.includes(next) ? previous : [...previous, next]);
     }
   };
+  const [appSwitcherOpen, setAppSwitcherOpen] = useState(false);
+  const [pageBeforeLogs, setPageBeforeLogs] = useState<Exclude<typeof page, 'logs'>>('phone');
+  const openLogs = () => {
+    if (page !== 'logs') setPageBeforeLogs(page);
+    openPage('logs');
+  };
+  const closeLogs = () => openPage(pageBeforeLogs);
+  const [utilityWindows, setUtilityWindows] = useState<UtilityId[]>([]);
+  const [focusedUtility, setFocusedUtility] = useState<UtilityId | null>(null);
+  const openUtility = (id: UtilityId) => {
+    setUtilityWindows(previous => previous.includes(id) ? previous : [...previous, id]);
+    setFocusedUtility(id);
+    if (['bank', 'inventory', 'ripperdoc'].includes(id)) setVisitedTools(previous => previous.includes(id) ? previous : [...previous, id]);
+  };
+  const closeUtility = (id: UtilityId) => {
+    setUtilityWindows(previous => previous.filter(item => item !== id));
+    setFocusedUtility(previous => previous === id ? null : previous);
+  };
+  const utilityWindow = (id: UtilityId, children: ReactNode) => utilityWindows.includes(id) ? (
+    <GMUtilityWindow key={id} title={{bank:'Bank',ripperdoc:'Ripperdoc',inventory:'Inventory',overview:'Campaign Settings',characters:'Characters'}[id]} active={focusedUtility === id} onFocus={() => setFocusedUtility(id)} onClose={() => closeUtility(id)} offset={utilityWindows.indexOf(id)}>{children}</GMUtilityWindow>
+  ) : null;
+  const [tacticalTab, setTacticalTab] = useState<'broadcast' | 'editor' | 'shared'>('broadcast');
+  const [editorVisited, setEditorVisited] = useState(false);
+  const [sharedDisplayToken,setSharedDisplayToken] = useState('');
+  const [sharedDisplayError,setSharedDisplayError] = useState('');
+  useEffect(()=>{
+    let active=true;
+    void supabase.rpc('ensure_tactical_shared_display',{p_campaign_id:campaign.id}).then(({data,error})=>{
+      if(!active)return;
+      if(error)setSharedDisplayError(error.message);
+      else setSharedDisplayToken(String(data||''));
+    });
+    return ()=>{active=false};
+  },[campaign.id]);
+  const sharedDisplayLink=sharedDisplayToken ? window.location.origin+window.location.pathname+'#shared='+sharedDisplayToken : '';
+
   const [phoneUnread, setPhoneUnread] = useState(0);
   const refreshPhoneUnread = useCallback(async () => {
     const result = await supabase.rpc('phone_gm_unread', { p_campaign_id: campaign.id });
@@ -134,10 +162,7 @@ export default function GMConsole({
   };
 
   const [characters, setCharacters] = useState<CharacterOption[]>([]);
-  const [stats, setStats] = useState<{ id: string; name: string; value: number; statNumber: number; description: string; maxValue: number }[]>([]);
-  const [statsLoading, setStatsLoading] = useState(false);
-  const [statsError, setStatsError] = useState('');
-
+  const {byCharacter:sharedStats,loading:statsLoading,error:statsError}=useGMCampaignStats();
   const [invitations, setInvitations] = useState<Record<string, string>>({});
 
   const [inviteMessage, setInviteMessage] = useState('');
@@ -414,61 +439,18 @@ export default function GMConsole({
   useEffect(() => { sessionStorage.setItem('gm-character-tab:' + campaign.id, detailTab); }, [campaign.id, detailTab]);
 
   const selected = characters.find((c) => c.id === selectedId) ?? characters[0];
-  useEffect(() => {
-    let active = true;
-    setStats([]);
-    setStatsError('');
-    if (!selected) return;
-
-    async function loadStats() {
-      setStatsLoading(true);
-      try {
-        // Definitions are shared by all characters; values are character-specific.
-        // Run both independently so network latency doesn't accumulate.
-        const [definitions, { data: values, error: valuesError }] = await Promise.all([
-          getStatDefinitions(campaign.id),
-          supabase
-            .from('character_stats')
-            .select('stat_id, value')
-            .eq('campaign_id', campaign.id)
-            .eq('character_id', selected!.id),
-        ]);
-        if (!active) return;
-        if (valuesError) throw valuesError;
-
-        const byId = new Map((values ?? []).map((entry) => [entry.stat_id, entry.value]));
-        setStats(definitions
-          .filter((definition) => byId.has(definition.id))
-          .map((definition) => ({
-            id: definition.id,
-            name: definition.name,
-            value: byId.get(definition.id)!,
-            statNumber: definition.stat_number,
-            description: definition.description,
-            maxValue: definition.max_value,
-          })));
-      } catch (error) {
-        if (active) setStatsError(error instanceof Error ? error.message : 'Could not load stats');
-      } finally {
-        if (active) setStatsLoading(false);
-      }
-    }
-
-    void loadStats();
-    return () => { active = false; };
-  }, [campaign.id, selected?.id]);
+  const stats = selected ? (sharedStats[selected.id] ?? []) : [];
 
   const visible = characters.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
   const navigation = [
     { id: 'live', label: 'Live Session', icon: LayoutDashboard },
-    { id: 'overview', label: 'Campaign Invitations', icon: Mail },
     { id: 'characters', label: 'Characters', icon: Users },
     { id: 'bank', label: 'Bank', icon: Landmark },
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'phone', label: 'Ghost//Link', icon: null },
     { id: 'ripperdoc', label: 'Ripperdoc', icon: Slice },
-    { id: 'factions', label: 'Factions', icon: Shield },
-    { id: 'logs', label: 'Logs', icon: ScrollText },
+    { id: 'combat', label: 'Tactical//Feed', icon: null },
+    { id: 'overview', label: 'Campaign Settings', icon: Settings },
   ] as const;
   const creationControls = (
     <div className="gm-invitations-layout">
@@ -522,31 +504,7 @@ export default function GMConsole({
     </div>
   );
 
-  return (
-    <div className="gm-dashboard">
-      <header className="gm-dashboard-header">
-        <div>
-          <div className="gm-eyebrow">CYBERPUNK RPG · GM TERMINAL</div>
-          <h1>{campaign.name}</h1>
-        </div>
-        <span className="gm-online">◉ &nbsp; GM Online</span>
-      </header>
-      <nav className="gm-tabs" aria-label="GM tools">
-        {navigation.map((item) => (
-          <button key={item.id} type="button" className={page === item.id ? 'gm-tab active' : 'gm-tab'}
-            aria-current={page === item.id ? 'page' : undefined} onClick={() => openPage(item.id)}>
-            <span className="gm-phone-nav-icon">{item.id === "phone" ? <img src="/ghost-link-icon.svg" width={22} height={22} alt="" aria-hidden="true" /> : item.icon ? <item.icon size={19} strokeWidth={1.9} aria-hidden="true" /> : null}{item.id === "phone" && phoneUnread > 0 && <b className="gm-phone-nav-badge">{phoneUnread > 99 ? "99+" : phoneUnread}</b>}</span>
-            <span className="gm-sr-only">{item.label}</span>
-          </button>
-        ))}
-      </nav>
-      {page !== 'phone' && <h2 className="gm-page-title">
-        {(() => {
-          const current = navigation.find((item) => item.id === page)!;
-          return <>{current.icon ? <current.icon size={19} strokeWidth={1.9} aria-hidden="true" /> : null}{current.label}</>;
-        })()}
-      </h2>}
-      {page === 'live' ? null : page === 'characters' ? (
+  const charactersContent = (
         <div className="gm-characters-layout">
           <aside className="gm-roster">
             <div className="gm-roster-heading"><strong>Roster</strong><span>{characters.length}</span></div>
@@ -572,17 +530,14 @@ export default function GMConsole({
               <>
                 <div className="gm-character-header">
                   <div><h2>{selected.name}</h2><p>Character</p></div>
-                  <div className="gm-character-balance">
-                    <strong>{selected.balance.toLocaleString('en-US')} E$</strong>
-                    <small className={selected.player_id ? 'gm-assigned' : 'gm-unassigned'}>
-                      {selected.player_id ? 'Assigned to player' : 'Unassigned'}
-                    </small>
+                  <div className="gm-character-header-actions">
+                    <strong className="gm-character-balance-value">{selected.balance.toLocaleString('en-US')} E$</strong>
+                    <small className={selected.player_id ? 'gm-assigned' : 'gm-unassigned'}>{selected.player_id ? '● Assigned to player' : '○ Unassigned'}</small>
                   </div>
                 </div>
                 <div className="gm-detail-tabs" role="tablist" aria-label="Character details">
-                  {(['stats', 'cyberware', 'inventory', 'access'] as const).map((tab) => (
-                    <button key={tab} role="tab" aria-selected={detailTab === tab}
-                      className={detailTab === tab ? 'selected' : ''}
+                  {(['stats', 'cyberware', 'inventory', 'access'] as const).map(tab => (
+                    <button key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? 'selected' : ''}
                       onClick={() => setDetailTab(tab)}>{tab[0].toUpperCase() + tab.slice(1)}</button>
                   ))}
                 </div>
@@ -621,51 +576,47 @@ export default function GMConsole({
                         </div>}
                   </div>
                 )}
-                {detailTab === 'cyberware' && <div className="gm-empty-detail">No cyberware installed</div>}
-                {detailTab === 'inventory' && <div className="gm-empty-detail">Inventory is empty</div>}
+                {detailTab === 'cyberware' && <div className="gm-character-stats">{sharedCharacterData.loading ? <p className="gm-muted">Loading cyberware...</p> : sharedCharacterData.error ? <p role="alert">{sharedCharacterData.error}</p> : sharedCharacterData.cyberware.filter(entry => entry.character_id === selected.id).length === 0 ? <p className="gm-empty-detail">No cyberware installed</p> : <div className="gm-character-simple-list">{sharedCharacterData.cyberware.filter(entry => entry.character_id === selected.id).map(entry => <div className="gm-character-simple-row" key={entry.id}><div className="gm-character-simple-description"><strong>{entry.name}</strong>{entry.description && <small>{entry.description}</small>}{entry.position_id && <small>{entry.position_id}</small>}</div></div>)}</div>}</div>}
+                {detailTab === 'inventory' && <div className="gm-character-stats">{sharedCharacterData.loading ? <p className="gm-muted">Loading inventory...</p> : sharedCharacterData.error ? <p role="alert">{sharedCharacterData.error}</p> : sharedCharacterData.inventory.filter(entry => entry.character_id === selected.id).length === 0 ? <p className="gm-empty-detail">Inventory is empty</p> : <div className="gm-character-simple-list">{sharedCharacterData.inventory.filter(entry => entry.character_id === selected.id).map(entry => { const item = sharedCharacterData.items.find(item => item.id === entry.item_id); return <div className="gm-character-simple-row" key={entry.id}><div className="gm-character-simple-description"><strong>{item?.name ?? 'Unknown item'}</strong><small>{item?.category ?? ''}{entry.equipped_slot ? ' · Equipped: ' + entry.equipped_slot : ''}</small></div><span className="gm-character-simple-quantity">× {entry.quantity}</span></div> })}</div>}</div>}
                 {detailTab === 'access' && (
-                  <div className="gm-access-panel">
-                    {selected.player_id ? (
-                      <div className="character-assignment-row">
-                        <span className="character-assignment-status">Assigned to player</span>
-                        <button type="button" className="revoke-access-button"
-                          title="Revoke player access" aria-label={`Revoke player access for ${selected.name}`}
-                          disabled={resettingCharacterId !== null}
-                          onClick={() => void resetPlayerAccess(selected.id, selected.name)}>↻</button>
+                  <section className="gm-character-access-tab" aria-label="Player access">
+                    <div className="gm-character-access-heading">
+                      <strong>Player Access</strong>
+                      <small className={selected.player_id ? 'gm-assigned' : 'gm-unassigned'}>{selected.player_id ? 'Assigned to player' : 'Unassigned'}</small>
+                    </div>
+                    <div className="gm-character-access-body">
+                      <div className="gm-character-access-qr" aria-label={invitations[selected.id] && !selected.player_id ? 'Character invitation QR code' : 'No active invitation'}>
+                        {invitations[selected.id] && !selected.player_id
+                          ? <QRCodeSVG value={invitations[selected.id]} size={176} marginSize={2} bgColor="#ffffff" fgColor="#111111" />
+                          : <span aria-hidden="true">?</span>}
                       </div>
-                    ) : (
-                      <>
-                        {!invitations[selected.id] && (
-                          <button type="button" onClick={() => void generateInvitation(selected.id)}>Generate Invitation</button>
-                        )}
-                        {invitations[selected.id] && (
-                          <div className="gm-invitation">
-                            <div className="gm-qr-panel">
-                              <QRCodeSVG value={invitations[selected.id]} size={220} marginSize={2} bgColor="#ffffff" fgColor="#111111" />
-                              <span>Scan to access {selected.name} · valid until claimed</span>
-                            </div>
-                            <div className="gm-invitation-link-row">
-                              <input readOnly aria-label="Character invitation" value={invitations[selected.id]} />
-                              <button type="button" className="gm-invitation-copy-button"
-                                aria-label="Copy character invitation link" title="Copy character invitation link"
-                                onClick={() => void navigator.clipboard.writeText(invitations[selected.id])}>
-                                <Copy size={23} aria-hidden="true" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                    {inviteMessage && <p className="transfer-message" role="alert">{inviteMessage}</p>}
-                  </div>
+                      <label className="gm-character-access-link-label" htmlFor="gm-character-invite-link">INVITATION LINK</label>
+                      <div className="gm-character-access-link-row">
+                        <input id="gm-character-invite-link" readOnly aria-label="Character invitation" value={!selected.player_id ? (invitations[selected.id] || '') : ''} placeholder="Not generated" />
+                        <button type="button" aria-label="Copy character invitation link" title="Copy character invitation link"
+                          disabled={selected.player_id !== null || !invitations[selected.id]}
+                          onClick={() => void navigator.clipboard.writeText(invitations[selected.id])}><Copy size={20} aria-hidden="true" /></button>
+                      </div>
+                      <div className="gm-character-access-buttons">
+                        <button type="button" className="gm-character-access-generate" disabled={Boolean(selected.player_id) || Boolean(invitations[selected.id])}
+                          onClick={() => void generateInvitation(selected.id)}>Generate Invitation</button>
+                        <button type="button" className="gm-character-access-reset" disabled={!selected.player_id || resettingCharacterId !== null}
+                          onClick={() => void resetPlayerAccess(selected.id, selected.name)}>Reset Access</button>
+                      </div>
+                      {inviteMessage && <p className="transfer-message" role="alert">{inviteMessage}</p>}
+                    </div>
+                  </section>
                 )}
               </>
             ) : <p className="gm-muted">No characters in this campaign yet.</p>}
           </main>
         </div>
-      ) : page === 'bank' || page === 'logs' ? null : page === 'overview' ? (
+      );
+
+  const campaignSettingsContent = (
         <div className="gm-dashboard-panel gm-overview">
-          <p className="gm-invitations-intro">Manage how new players join this campaign.</p>
+          <section className="gm-campaign-identity"><h3>Campaign</h3><strong>{campaign.name}</strong><small>GM control system · Active campaign</small></section>
+          <section className="gm-campaign-shortcuts"><h3>Campaign tools</h3><p>Open other GM tools without the old top navigation.</p><div>{navigation.filter(item=>item.id!=='phone'&&item.id!=='combat'&&item.id!=='overview').map(item=><button type="button" key={item.id} onClick={()=>{if(item.id==='live'){openPage('live')}else{openUtility(item.id as UtilityId)}}}>{item.icon&&<item.icon size={17}/>} {item.label}</button>)}<button type="button" onClick={()=>{openLogs();closeUtility('overview')}}><ScrollText size={17}/> Logs</button></div></section>
           {creationControls}
           <section className="gm-invitations-settings" aria-label="Character creation settings">
             <div className="gm-invitations-settings-heading">
@@ -712,16 +663,70 @@ export default function GMConsole({
             </div>
           </section>
         </div>
-      ) : page === 'inventory' || page === 'ripperdoc' || page === 'phone' ? null : (
-        <div className="gm-dashboard-panel gm-empty-detail">Factions — coming later</div>
-      )}
-      {visitedTools.includes('live') && <div style={{ display: page === 'live' ? undefined : 'none' }}><LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} /></div>}
-      {visitedTools.includes('bank') && <div style={{ display: page === 'bank' ? undefined : 'none' }} className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>}
-      {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
-      {visitedTools.includes('inventory') && <div style={{ display: page === 'inventory' ? undefined : 'none' }}><GMInventory campaignId={campaign.id} /></div>}
-      {visitedTools.includes('phone') && <div style={{ display: page === 'phone' ? undefined : 'none' }}><GMPhone campaignId={campaign.id} campaignName={campaign.name} onRead={refreshPhoneUnread} /></div>}
-      {visitedTools.includes('ripperdoc') && <div style={{ display: page === 'ripperdoc' ? undefined : 'none' }}><Ripperdoc characters={characters} /></div>}
+      );
+  return (
+    <div className="gm-dashboard">
+      <header className="gm-app-header">
+        <div className="gm-app-switcher">
+          <button type="button" className="gm-app-switcher-trigger" aria-label="Switch application" aria-expanded={appSwitcherOpen} onClick={()=>setAppSwitcherOpen(v=>!v)}>
+            <img src={page==='combat'?'/tactical-feed-icon.svg':'/ghost-link-icon.svg'} alt="" />
+            <span className="gm-app-brand-copy"><strong>{page==='combat'?'TACTICAL//FEED':'GHOST//LINK'}</strong><small>{page==='combat'?'A GHOST//LINK SYSTEMS DIVISION':'GM COMMUNICATIONS WORKSTATION'}</small></span>
+            <ChevronsUpDown size={17} aria-hidden="true"/>
+          </button>
+          {appSwitcherOpen && <div className="gm-app-switcher-menu" role="menu" aria-label="Applications">
+            {([{id:'phone',name:'Ghost//Link',desc:'Communications workstation',image:'/ghost-link-icon.svg'},{id:'combat',name:'Tactical//Feed',desc:'Combat management',image:'/tactical-feed-icon.svg'}] as const).map(app=><button key={app.id} type="button" role="menuitem" onClick={()=>{openPage(app.id);setAppSwitcherOpen(false)}}><img src={app.image} alt=""/><span><strong>{app.name}{app.id==='phone' && phoneUnread>0 && <b className="gm-app-unread" aria-label={`${phoneUnread} unread messages`}>{phoneUnread>99?'99+':phoneUnread}</b>}</strong><small>{app.desc}</small></span>{page===app.id&&<Check size={17}/>}</button>)}
+          </div>}
+        </div>
+        <div className="gm-app-header-actions">
+          <button type="button" className="gm-app-log-button" onClick={page === 'logs' ? closeLogs : openLogs} title={page === 'logs' ? "Return to previous page" : "Campaign Logs"} aria-label="Campaign Logs"><ScrollText size={19}/><span>{page === 'logs' ? 'Back' : 'Log'}</span></button>
+          <span className="gm-app-online">● <span>GM ONLINE</span></span>
+        </div>
+      </header>
+      {page !== 'phone' && page !== 'combat' && <h2 className="gm-page-title">
+        {(() => {
+          const current = page === 'logs' ? {id:'logs',label:'Logs',icon:ScrollText} : navigation.find((item) => item.id === page)!;
+          return <>{current.icon ? <current.icon size={19} strokeWidth={1.9} aria-hidden="true" /> : null}{current.label}</>;
+        })()}
+      </h2>}
+      {<div style={{ display: page === 'live' ? undefined : 'none' }}><LiveSession campaignId={campaign.id} characters={characters} onHPChanged={(id, hp) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, current_hp: hp } : c))} onBalanceChanged={(id, balance) => setCharacters(previous => previous.map(c => c.id === id ? { ...c, balance } : c))} /></div>}
+      {utilityWindows.includes('bank') && utilityWindow('bank', <div className="gm-dashboard-panel"><Bank campaignId={campaign.id} /></div>)}
+      {visitedTools.includes('logs') && <div style={{ display: page === 'logs' ? undefined : 'none' }}><button type="button" className="gm-logs-return" onClick={closeLogs}>← Back to {pageBeforeLogs === 'combat' ? 'Tactical//Feed' : pageBeforeLogs === 'phone' ? 'Ghost//Link' : 'previous page'}</button><CampaignLogs campaignId={campaign.id} characters={characters} /></div>}
+      {utilityWindows.includes('inventory') && utilityWindow('inventory', <GMInventory campaignId={campaign.id} />)}
+      {visitedTools.includes('phone') && <div style={{ display: page === 'phone' ? undefined : 'none' }}><GMPhone campaignId={campaign.id} onRead={refreshPhoneUnread} /></div>}
+      {utilityWindows.includes('ripperdoc') && utilityWindow('ripperdoc', <Ripperdoc characters={characters} />)}
+      {visitedTools.includes('combat') && <div style={{ display: page === 'combat' ? undefined : 'none' }}>
+        
+        <div className="gm-tactical-mode-tabs" role="tablist" aria-label="Tactical Feed mode">
+          <button type="button" role="tab" aria-selected={tacticalTab === 'broadcast'} className={tacticalTab === 'broadcast' ? 'active' : ''} onClick={() => setTacticalTab('broadcast')}>Map Broadcast</button>
+          <button type="button" role="tab" aria-selected={tacticalTab === 'editor'} className={tacticalTab === 'editor' ? 'active' : ''} onClick={() => { setEditorVisited(true); setTacticalTab('editor'); }}>Map Editor</button>
+          <button type="button" role="tab" aria-selected={tacticalTab === 'shared'} className={tacticalTab === 'shared' ? 'active' : ''} onClick={() => setTacticalTab('shared')}>Shared Display</button>
+        </div>
+        <div role="tabpanel" aria-label="Map Broadcast" style={{ display: tacticalTab === 'broadcast' ? undefined : 'none' }}><CombatMaps key={'combat-'+campaign.id} campaignId={campaign.id} mode="combat" /></div>
+        {editorVisited && <div role="tabpanel" aria-label="Map Editor" style={{ display: tacticalTab === 'editor' ? undefined : 'none' }}><CombatMaps key={'editor-'+campaign.id} campaignId={campaign.id} mode="editor" /></div>}
+        <div role="tabpanel" aria-label="Shared Display" style={{ display: tacticalTab === 'shared' ? undefined : 'none' }}>
+          <section className="gm-shared-display-panel" aria-label="Shared Tactical Display">
+            <h2>Shared Tactical Display</h2>
+            <p>Open Tactical//Feed on an unregistered device.</p>
+            <div className="gm-shared-display-qr" aria-label="QR code placeholder">
+              {sharedDisplayLink ? <QRCodeSVG value={sharedDisplayLink} size={184} marginSize={2} bgColor="#ffffff" fgColor="#111111" /> : <><LockKeyhole size={42} strokeWidth={1.5} aria-hidden="true" /><span>QR code unavailable</span></>}
+            </div>
+            <label htmlFor="gm-shared-display-link">Display link</label>
+            <div className="gm-shared-display-link-row">
+              <input id="gm-shared-display-link" type="text" readOnly value={sharedDisplayLink} placeholder="Link not yet available" aria-label="Shared display link" />
+              <button type="button" disabled={!sharedDisplayLink} onClick={()=>void navigator.clipboard.writeText(sharedDisplayLink)} aria-label="Copy shared display link" title="Copy shared display link"><Copy size={18} aria-hidden="true" /> Copy</button>
+            </div>
+            <p className="gm-shared-display-note">{sharedDisplayError || 'This link opens the live shared map without requiring a login. Anyone with the link can move player markers.'}</p>
+          </section>
+        </div>
+      </div>}
+      <GMControlDock open={utilityWindows} onOpen={openUtility} />
+      {utilityWindow('overview', campaignSettingsContent)}
+      {utilityWindow('characters', charactersContent)}
       <GMCallSpotlight campaignId={campaign.id} />
     </div>
   );
+}
+
+export default function GMConsole(props: GMConsoleProps) {
+  return <GMCharacterDataProvider campaignId={props.campaign.id}><GMCampaignStatsProvider campaignId={props.campaign.id}><GMConsoleContent {...props}/></GMCampaignStatsProvider></GMCharacterDataProvider>;
 }

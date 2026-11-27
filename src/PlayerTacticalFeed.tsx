@@ -1,0 +1,316 @@
+import { LogOut, Expand, Shrink, HeartPulse, Dices, Crosshair, Swords, ScanEye, ArrowLeft, Eye, Moon, Flame, AudioLines, Network, Skull } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { useEffect, useRef, useState } from 'react';
+import { supabase } from './supabase';
+import './PlayerTacticalFeed.css';
+
+// Supercover traversal includes corner-touching cells so diagonal cracks cannot expose targets.
+function sightCells(ax:number,ay:number,bx:number,by:number):[number,number][]{
+  const cells:[number,number][]=[];let x=Math.floor(ax),y=Math.floor(ay);
+  const ex=Math.floor(bx),ey=Math.floor(by),dx=bx-ax,dy=by-ay;
+  const sx=Math.sign(dx),sy=Math.sign(dy);
+  const tx=sx?(sx>0?x+1-ax:ax-x)/Math.abs(dx):Infinity;
+  const ty=sy?(sy>0?y+1-ay:ay-y)/Math.abs(dy):Infinity;
+  const stepx=sx?1/Math.abs(dx):Infinity,stepy=sy?1/Math.abs(dy):Infinity;
+  let nx=tx,ny=ty;
+  const push=(cx:number,cy:number)=>{if(!cells.some(c=>c[0]===cx&&c[1]===cy))cells.push([cx,cy]);};
+  push(x,y);
+  for(let i=0;i<2048&&(x!==ex||y!==ey);i++){
+    if(Math.abs(nx-ny)<1e-9){push(x+sx,y);push(x,y+sy);x+=sx;y+=sy;nx+=stepx;ny+=stepy;}
+    else if(nx<ny){x+=sx;nx+=stepx;}else{y+=sy;ny+=stepy;}
+    push(x,y);
+  }
+  return cells;
+}
+type TacticalUnit = {key:string;label:string;type:'player'|'enemy'|'target'|'objective';x:number;y:number;name?:string;mine?:boolean;visible?:boolean;manualReveal?:Record<string,'hidden'|'direction'|'revealed'>;status?:'normal'|'unconscious'|'dead';layers?:Record<string,boolean>};
+type TacticalObject = {type:string;x:number;y:number;color?:string};
+type TacticalLayout = {width:number;height:number;objects:TacticalObject[];floorColors?:Record<string,string>;groups?:{id:string;cells:string[]}[];layerVisibility?:Record<string,Record<string,boolean>>};
+type TacticalState = {revealMode?:'automatic'|'manual';visibilityMode?:'full'|'dark'|'light';visibilityRadius?:number;broadcasting:boolean;mapId?:string;layout?:TacticalLayout;units?:TacticalUnit[]};
+type TacticalWeaponStats={name:string;type:string;dice:string;accuracy:string;damage:string;ammo:string};
+export default function PlayerTacticalFeed({ active, onBack, characterId, currentHp, maxHp, weapons, onDice, renderStats, renderInventory, onOpenInventory }: { active:boolean; onBack: () => void; characterId: string; currentHp:number|null; maxHp:number|null; weapons:TacticalWeaponStats[]; onDice:()=>void; renderStats:(onClose:()=>void)=>React.ReactNode; renderInventory:(onClose:()=>void)=>React.ReactNode; onOpenInventory:()=>void }) {
+  const [state,setState] = useState<TacticalState>({broadcasting:false});
+  const [loading,setLoading] = useState(false);
+  const [error,setError] = useState('');
+  const [zoom,setZoom] = useState(1);
+  const [expanded,setExpanded] = useState(false);
+  const [panel,setPanel] = useState<'stats'|'inventory'|null>(null);
+  const [scanning,setScanning] = useState(false);
+  const [vision,setVision] = useState<'normal'|'thermal'|'night'|'sonic'|'network'>('normal');
+  const [visionStartup,setVisionStartup] = useState(0);
+  const [selected,setSelected] = useState(false);
+  const [moveFlash,setMoveFlash] = useState(false);
+  const moveFlashTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  useEffect(()=>()=>{if(moveFlashTimer.current)clearTimeout(moveFlashTimer.current)},[]);
+  const [offset,setOffset] = useState({x:0,y:0});
+  const [destination,setDestination] = useState<{x:number;y:number}|null>(null);
+  const [pendingMove,setPendingMove]=useState<{key:string;x:number;y:number}|null>(null);
+  const pendingRef=useRef<{key:string;x:number;y:number}|null>(null);
+  const [locked,setLocked]=useState(false);
+  const viewport=useRef<HTMLDivElement>(null);
+  const gesture=useRef<{mode:'pan'|'aim'|'pinch';x:number;y:number;ox:number;oy:number;distance?:number;zoom?:number}|null>(null);
+  const pointers=useRef(new Map<number,{x:number;y:number}>());
+  const destinationRef=useRef<{x:number;y:number}|null>(null);
+  const chooseDestination=(cell:{x:number;y:number}|null)=>{destinationRef.current=cell;setDestination(cell)};
+  const cellAt=(clientX:number,clientY:number)=>{const rect=viewport.current?.getBoundingClientRect();const layout=state.layout;if(!rect||!layout)return null;const x=Math.floor((clientX-rect.left-offset.x-24)/(36*zoom));const y=Math.floor((clientY-rect.top-offset.y-24)/(36*zoom));return x>=0&&y>=0&&x<layout.width&&y<layout.height?{x,y}:null;};
+  const colLabel=(x:number)=>{let n=x+1,out='';while(n>0){n--;out=String.fromCharCode(65+n%26)+out;n=Math.floor(n/26)}return out;};
+  const clampZoom=(z:number)=>Math.max(.5,Math.min(3,z));
+  const recenter=()=>{
+    const mine=state.units?.find(u=>u.mine);
+    const rect=viewport.current?.getBoundingClientRect();
+    if(!mine||!rect)return;
+    setOffset({x:rect.width/2-(mine.x+.5)*36*zoom-24,y:rect.height/2-(mine.y+.5)*36*zoom-24});
+  };
+  useEffect(()=>{if(!expanded)return;const onKey=(e:KeyboardEvent)=>{if(e.key==='Escape')setExpanded(false)};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey)},[expanded]);
+  const saveMove=async(key:string,x:number,y:number)=>{
+    const optimistic={key,x,y};
+    pendingRef.current=optimistic;
+    setPendingMove(optimistic);
+    setLocked(true);
+    setError('');
+    try {
+      const {error:moveError}=await supabase.rpc('move_player_tactical_unit',{p_character_id:characterId,p_marker_key:key,p_x:x,p_y:y});
+      if(moveError)throw moveError;
+      // Read back the confirmed position before releasing the optimistic override.
+      const {data,error:readError}=await supabase.rpc('get_player_tactical_feed',{p_character_id:characterId});
+      if(readError)throw readError;
+      const confirmed=data as TacticalState;
+      if(!confirmed.broadcasting || !confirmed.units?.some(u=>u.mine&&u.key===key&&u.x===x&&u.y===y)){
+        throw new Error('Movement could not be confirmed');
+      }
+      setState(confirmed);
+      setMoveFlash(false);
+      if(moveFlashTimer.current)clearTimeout(moveFlashTimer.current);
+      moveFlashTimer.current=setTimeout(()=>{setMoveFlash(true);moveFlashTimer.current=setTimeout(()=>setMoveFlash(false),480)},0);
+    } catch (e) {
+      setError(e instanceof Error?e.message:'Movement failed');
+    } finally {
+      pendingRef.current=null;
+      setPendingMove(null);
+      setLocked(false);
+    }
+  };
+  const pointerDown=(e:React.PointerEvent<HTMLDivElement>)=>{
+    if(!state.layout)return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    pointers.current.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    const target=e.target as HTMLElement;
+    if(pointers.current.size===2){
+      chooseDestination(null);
+      const [a,b]=Array.from(pointers.current.values());
+      gesture.current={mode:'pinch',x:0,y:0,ox:offset.x,oy:offset.y,distance:Math.hypot(a.x-b.x,a.y-b.y),zoom};
+      return;
+    }
+    if(target.closest('.tactical-feed-unit.mine')){
+      gesture.current=null;
+      if(!locked){setSelected(v=>!v);chooseDestination(null);}
+      return;
+    }
+    if(selected&&!locked){
+      const cell=cellAt(e.clientX,e.clientY);
+      if(cell){chooseDestination(cell);gesture.current={mode:'aim',x:e.clientX,y:e.clientY,ox:0,oy:0};}
+      else gesture.current=null;
+      return;
+    }
+    gesture.current={mode:'pan',x:e.clientX,y:e.clientY,ox:offset.x,oy:offset.y};
+  };
+  const pointerMove=(e:React.PointerEvent<HTMLDivElement>)=>{
+    if(!pointers.current.has(e.pointerId))return;
+    pointers.current.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    const g=gesture.current;
+    if(!g)return;
+    if(g.mode==='pinch'&&pointers.current.size>=2){
+      const [a,b]=Array.from(pointers.current.values());
+      const next=clampZoom((g.zoom||1)*Math.hypot(a.x-b.x,a.y-b.y)/(g.distance||1));
+      const rect=viewport.current?.getBoundingClientRect();
+      if(rect){const cx=(a.x+b.x)/2-rect.left,cy=(a.y+b.y)/2-rect.top;
+        setOffset({x:cx-(cx-g.ox-24)*next/(g.zoom||1)-24,y:cy-(cy-g.oy-24)*next/(g.zoom||1)-24});}
+      setZoom(next);
+    }else if(g.mode==='pan'){setOffset({x:g.ox+e.clientX-g.x,y:g.oy+e.clientY-g.y});}
+    else if(g.mode==='aim'){chooseDestination(cellAt(e.clientX,e.clientY));}
+  };
+  const pointerUp=(e:React.PointerEvent<HTMLDivElement>)=>{
+    pointers.current.delete(e.pointerId);
+    const g=gesture.current;
+    if(g?.mode==='aim'&&pointers.current.size===0){
+      const cell=cellAt(e.clientX,e.clientY);
+      const mine=state.units?.find(u=>u.mine);
+      if(cell&&mine&&!locked){setSelected(false);void saveMove(mine.key,cell.x,cell.y);}
+      chooseDestination(null);
+    }
+    if(g?.mode==='pinch'&&pointers.current.size>0){gesture.current=null;return;}
+    gesture.current=null;
+  };
+  const pointerCancel=(e:React.PointerEvent<HTMLDivElement>)=>{
+    pointers.current.delete(e.pointerId);gesture.current=null;chooseDestination(null);
+  };
+  useEffect(()=>{
+    let active=true, inflight=false, transition:ReturnType<typeof setTimeout>|undefined;
+    async function refresh(){
+      if(inflight || document.visibilityState==='hidden')return;
+      inflight=true;
+      try{
+        const {data,error:requestError}=await supabase.rpc('get_player_tactical_feed',{p_character_id:characterId});
+        if(!active)return;
+        if(requestError){setError(requestError.message);return;}
+        setError('');
+        const next=data as TacticalState;
+        // Keep the local marker at its dropped position until the write is confirmed.
+        if(pendingRef.current && next.units){
+          const pending=pendingRef.current;
+          next.units=next.units.map(u=>u.mine&&u.key===pending.key?{...u,x:pending.x,y:pending.y}:u);
+        }
+        setState(previous=>{
+          if(next.broadcasting && !previous.broadcasting){
+            setLoading(true);
+            if(transition)clearTimeout(transition);
+            transition=setTimeout(()=>{if(active)setLoading(false)},1100);
+          } else if(!next.broadcasting){setLoading(false);}
+          return next;
+        });
+      }finally{inflight=false;}
+    }
+    void refresh();
+    const timer=setInterval(()=>void refresh(),1400);
+    const onVisible=()=>{if(document.visibilityState==='visible')void refresh()};
+    document.addEventListener('visibilitychange',onVisible);
+    return ()=>{active=false;clearInterval(timer);if(transition)clearTimeout(transition);document.removeEventListener('visibilitychange',onVisible)};
+  },[characterId]);
+  const live=state.broadcasting && !loading && state.layout && Number.isInteger(state.layout.width) && Number.isInteger(state.layout.height) && state.layout.width>0 && state.layout.height>0;
+  const map=state.layout;
+  const layerKey=vision==='normal'?'tactical':vision==='sonic'?'acoustic':vision;
+  const allowed=(flags:Record<string,boolean>|undefined)=>flags?.[layerKey]??(layerKey==='tactical');
+  const walls=new Set<string>();
+  // Physical occlusion uses all walls, even when their group is hidden in the active layer.
+  if(live&&map)for(const obj of map.objects||[]){
+    if(obj.type==='wall')walls.add(obj.x+','+obj.y);
+    if(obj.type==='pillar')for(let dy=0;dy<2;dy++)for(let dx=0;dx<2;dx++)walls.add((obj.x+dx)+','+(obj.y+dy));
+  }
+  const objects=new Map<string,TacticalObject>();
+  if(live&&map)for(const obj of map.objects||[])if(!['player','enemy','target','poi','objective'].includes(obj.type)){
+    const size=obj.type==='pillar'?[2,2]:obj.type==='coverH'?[2,1]:obj.type==='coverV'?[1,2]:[1,1];
+    for(let dy=0;dy<size[1];dy++)for(let dx=0;dx<size[0];dx++){
+      const cell=(obj.x+dx)+','+(obj.y+dy);
+      const group=map.groups?.find(g=>g.cells.includes(cell));
+      if(!group||allowed(map.layerVisibility?.[group.id]))objects.set(cell,obj);
+    }
+  }
+  const minePosition=state.units?.find(u=>u.mine);
+  const dark=state.visibilityMode==='dark'&&vision==='normal'&&!!minePosition;
+  const sightRadius=Math.max(1,Math.min(8,state.visibilityRadius||3))*36;
+  const displayUnits=(state.units||[]).map(u=>u.mine&&pendingMove?{...u,x:pendingMove.x,y:pendingMove.y}:u);
+  const origin=minePosition?{x:minePosition.x+.5,y:minePosition.y+.5}:null;
+  const lineWalls=(x:number,y:number)=>origin?sightCells(origin.x,origin.y,x+.5,y+.5).filter(([cx,cy])=>walls.has(cx+','+cy)):[];
+  const clearSight=(x:number,y:number)=>!origin||lineWalls(x,y).length===0;
+  const tileVisible=(x:number,y:number)=>{
+    if(state.visibilityMode==='full'||vision==='network'||!origin)return true;
+    // Wall faces themselves are visible; the area beyond is not.
+    const crossed=lineWalls(x,y);
+    return crossed.length===0||(crossed.length===1&&crossed[0][0]===x&&crossed[0][1]===y);
+  };
+  // Sonic resolves connected walkable areas rather than tracing a ray to each target.
+  // A listener next to a wall can hear into the entire area immediately beyond it.
+  const sonicAreas=new Map<string,number>();
+  if(vision==='sonic'&&live&&map){
+    let nextArea=0;
+    for(let y=0;y<map.height;y++)for(let x=0;x<map.width;x++){
+      const start=x+','+y;
+      if(walls.has(start)||sonicAreas.has(start))continue;
+      const queue:[[number,number]]=[[x,y]];
+      sonicAreas.set(start,nextArea);
+      for(let i=0;i<queue.length;i++){
+        const [cx,cy]=queue[i];
+        for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+          const nx=cx+dx,ny=cy+dy,key=nx+','+ny;
+          if(nx<0||ny<0||nx>=map.width||ny>=map.height||walls.has(key)||sonicAreas.has(key))continue;
+          sonicAreas.set(key,nextArea);
+          queue.push([nx,ny]);
+        }
+      }
+      nextArea++;
+    }
+  }
+  const sonicReachable=new Set<number>();
+  if(vision==='sonic'&&minePosition&&map){
+    const playerArea=sonicAreas.get(minePosition.x+','+minePosition.y);
+    if(playerArea!==undefined)sonicReachable.add(playerArea);
+    // Only the player's side of an adjacent wall qualifies as a listening surface.
+    // Resolve areas directly opposite a single wall cell, including long rooms.
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const wx=minePosition.x+dx,wy=minePosition.y+dy;
+      if(!walls.has(wx+','+wy))continue;
+      const tx=wx+dx,ty=wy+dy;
+      if(tx<0||ty<0||tx>=map.width||ty>=map.height)continue;
+      const opposite=sonicAreas.get(tx+','+ty);
+      if(opposite!==undefined)sonicReachable.add(opposite);
+    }
+  }
+  const sonicResolution=(u:TacticalUnit)=>{
+    if(!origin)return 'full';
+    const area=sonicAreas.get(u.x+','+u.y);
+    return area!==undefined&&sonicReachable.has(area)?'full':'direction';
+  };
+  const visibleUnit=(u:TacticalUnit)=>u.mine||(
+    (state.revealMode!=='manual'||u.manualReveal?.[layerKey]==='revealed')&&
+    (state.revealMode==='manual'||
+    allowed(u.layers)&&
+    (vision!=='normal'||u.visible!==false)&&
+    (vision==='network'||(vision==='sonic'?sonicResolution(u)==='full':clearSight(u.x,u.y)))&&
+    (!dark||u.type==='player'||(minePosition&&Math.hypot(u.x-minePosition.x,u.y-minePosition.y)*36<=sightRadius)))
+  );
+  const soundDirections=vision==='sonic'&&origin?displayUnits.filter(u=>!u.mine&&(state.revealMode==='manual'?u.manualReveal?.acoustic==='direction':allowed(u.layers)&&sonicResolution(u)==='direction')).map(u=>{
+    const angle=Math.atan2(u.y+.5-origin.y,u.x+.5-origin.x);
+    // Fixed offset from listener: direction only, never the target's range.
+    return {key:u.key,x:origin.x*36+Math.cos(angle)*55,y:origin.y*36+Math.sin(angle)*55,angle:angle*180/Math.PI};
+  }):[];
+  const unitStacks=new Map<string,TacticalUnit[]>();for(const u of displayUnits){const key=u.x+','+u.y;unitStacks.set(key,[...(unitStacks.get(key)||[]),u]);}
+  return <section className="tactical-feed" aria-label="Tactical//Feed">
+    <div className="tactical-feed-accent" />
+    <header className="tactical-feed-header">
+      <div><div className="tactical-feed-brand"><img src="/ghost-link-icon.svg" alt="" /> GHOST // LINK — NET 07</div><h2>TACTICAL//FEED</h2></div>
+      <span className="tactical-feed-offline">{live?'● LIVE':loading?'◌ LINKING':'○ OFFLINE'}</span>
+    </header>
+    <div className="tactical-feed-meta"><span>SECTOR <strong>{live?'CONNECTED':'UNAVAILABLE'}</strong></span><span>{live?'SIGNAL ACTIVE':'NO SIGNAL'}</span></div>
+    <div className="tactical-feed-screen">
+      {live&&map?(expanded&&active?createPortal(<div className={"tactical-feed-live-scroll tactical-vision-"+vision+(expanded?" tactical-feed-expanded":"")} ref={viewport} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerCancel}><div className={"tactical-feed-live-board"+(vision!=='normal'&&visionStartup>0?" optics-acquiring optics-acquiring-"+vision:"")} style={{width:map.width*36,height:map.height*36,transform:`translate(${offset.x+24}px,${offset.y+24}px) scale(${zoom})`,transformOrigin:'top left'}}>
+        {Array.from({length:map.width},(_,x)=><div key={'col-'+x} className={'tactical-map-coordinate tactical-map-col'+(destination?.x===x?' tactical-coordinate-active':'')} style={{left:x*36,top:-22,width:36}}>{colLabel(x)}</div>)}
+        {Array.from({length:map.height},(_,y)=><div key={'row-'+y} className={'tactical-map-coordinate tactical-map-row'+(destination?.y===y?' tactical-coordinate-active':'')} style={{top:y*36,left:-23,height:36}}>{y+1}</div>)}
+        {Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),o=objects.get(x+','+y);return <div key={i+"-"+visionStartup+"-"+vision} className={'tactical-feed-tile '+(o?.type||'')+(tileVisible(x,y)?'':' tactical-tile-occluded')+(destination&&(destination.x===x||destination.y===y)?' tactical-aim-line':'')+(destination?.x===x&&destination?.y===y?' tactical-aim-target':'')} style={{left:x*36,top:y*36,backgroundColor:o?.color||map.floorColors?.[x+','+y]||undefined}}/>})}
+        {dark&&minePosition&&<svg aria-hidden="true" style={{position:'absolute',inset:0,width:map.width*36,height:map.height*36,pointerEvents:'none',zIndex:5}} viewBox={`0 0 ${map.width*36} ${map.height*36}`}><defs><mask id="tactical-fog-mask"><rect width="100%" height="100%" fill="white"/><circle cx={(minePosition.x+.5)*36} cy={(minePosition.y+.5)*36} r={sightRadius} fill="black"/></mask></defs><rect width="100%" height="100%" fill="#02050a" fillOpacity=".97" mask="url(#tactical-fog-mask)"/><circle cx={(minePosition.x+.5)*36} cy={(minePosition.y+.5)*36} r={sightRadius} fill="none" stroke="#67dce8" strokeOpacity=".35" strokeDasharray="5 6"/></svg>}
+         {displayUnits.filter(visibleUnit).map(u=>{const stack=unitStacks.get(u.x+','+u.y)||[u];const index=stack.findIndex(v=>v.key===u.key);const spread=stack.length>1;const dx=spread?(index%2===0?-6:6):0;const dy=spread?(Math.floor(index/2)*10+(index%2===0?-6:6)):0;return <div key={u.key+"-"+visionStartup+"-"+vision} title={u.name||u.label} className={'tactical-feed-unit '+u.type+(u.mine?' mine':'')+(u.mine&&selected?' selected':'')+(u.mine&&locked?' syncing':'')+(u.mine&&moveFlash?' moved':'')} style={{left:u.x*36+4+dx,top:u.y*36+4+dy,zIndex:spread?10+index:undefined}}>{u.mine?'YOU':u.label}{u.type==='enemy'&&u.status&&u.status!=='normal'&&<span className={'tactical-status-badge '+u.status} aria-label={u.status==='unconscious'?'Unconscious':'Dead'}>{u.status==='unconscious'?'Zz':<Skull size={11}/>}</span>}</div>})}
+        {soundDirections.map(d=><div key={'sound-'+d.key} className="tactical-sonic-direction" aria-label="Unresolved sound direction" style={{left:d.x,top:d.y,transform:'translate(-50%,-50%) rotate('+d.angle+'deg)'}}>➤</div>)}
+      </div>{vision!=='normal'&&visionStartup>0&&<div key={vision+visionStartup} className={"tactical-vision-startup tactical-vision-startup-"+vision} aria-hidden="true"><span className="tactical-vision-startup-sweep"/></div>}<div className="tactical-feed-map-controls" onPointerDown={e=>e.stopPropagation()}><button type="button" aria-label={expanded?"Exit expanded map":"Expand map"} title={expanded?"Exit expanded map":"Expand map"} onClick={()=>setExpanded(v=>!v)}>{expanded?<Shrink size={21}/>:<Expand size={21}/>}</button><button type="button" aria-label="Zoom in" onClick={()=>setZoom(z=>clampZoom(z*1.25))}>+</button><button type="button" aria-label="Zoom out" onClick={()=>setZoom(z=>clampZoom(z/1.25))}>−</button><button type="button" aria-label="Center on character" onClick={recenter}>⌖</button></div>{<div className="tactical-feed-hud-stack"><div className="tactical-feed-hud-actions" onPointerDown={e=>e.stopPropagation()}><button type="button" aria-label={scanning?'Exit scan mode':'Enter scan mode'} title={scanning?'Exit scan mode':'Scan layers'} aria-pressed={scanning} onClick={()=>{setScanning(v=>{if(v){setVision('normal');setVisionStartup(0)}return !v})}}><ScanEye size={20}/></button><button type="button" aria-label="Open dice spotlight" title="Roll dice" onClick={onDice}><Dices size={20}/></button></div>
+        <aside className="tactical-feed-compact-hud" aria-label="Character tactical stats" onPointerDown={e=>e.stopPropagation()} onPointerMove={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()}>
+          <button type="button" className="tactical-feed-hud-health" onClick={()=>setPanel('stats')} aria-label="Open character stats"><div className="tactical-feed-hud-heading"><span><HeartPulse size={15}/> HEALTH</span><strong>{currentHp!==null&&maxHp!==null?`${currentHp} / ${maxHp} HP`:'HP —'}</strong></div><div className="tactical-feed-hud-track"><div style={{width:maxHp&&currentHp!==null?`${Math.max(0,Math.min(100,currentHp/maxHp*100))}%`:'0%'}}/></div></button>
+          <div className="tactical-feed-hud-weapons">{weapons.length?weapons.map((weapon,i)=><button type="button" className="tactical-feed-hud-weapon" key={i} onClick={()=>{onOpenInventory();setPanel('inventory')}} aria-label={'Open inventory for '+weapon.name}>
+            <div className="tactical-feed-hud-weapon-name"><strong>{weapon.name}</strong><span>{weapon.type}</span></div>
+            <div className="tactical-feed-hud-stats"><span title="Attack dice"><Dices size={13}/>{weapon.dice}</span><span title="Hit threshold"><Crosshair size={13}/>{weapon.accuracy}</span><span title="Damage per success"><Swords size={13}/>{weapon.damage}</span><span title="Ammo">▥ {weapon.ammo}</span></div>
+          </button>):<div className="tactical-feed-hud-empty">NO WEAPONS EQUIPPED</div>}</div>
+        </aside></div>}{scanning&&<div className="tactical-feed-scan-panel" onPointerDown={e=>e.stopPropagation()}><strong>SCAN // LAYERS</strong><div className="tactical-feed-vision-options">{(['normal','night','thermal','sonic','network'] as const).map(mode=><button type="button" key={mode} aria-pressed={vision===mode} onClick={()=>{setVision(mode);setVisionStartup(mode==='normal'?0:v=>v+1)}} title={mode==='normal'?'Normal vision':mode==='night'?'Night vision':mode==='sonic'?'Sonic vision':mode==='thermal'?'Thermal vision':'Network vision'} aria-label={mode+' vision'}>{mode==='normal'?<Eye size={23}/>:mode==='night'?<Moon size={23}/>:mode==='thermal'?<Flame size={23}/>:mode==='sonic'?<AudioLines size={23}/>:<Network size={23}/>}</button>)}</div></div>}
+        {panel&&<div className="tactical-feed-subscreen" onPointerDown={e=>e.stopPropagation()} onPointerMove={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()}><div className="tactical-feed-subscreen-top"><button type="button" onClick={()=>setPanel(null)}><ArrowLeft size={19}/> BACK TO MAP</button></div>{panel==='stats'?renderStats(()=>setPanel(null)):renderInventory(()=>setPanel(null))}</div>}
+        {selected&&<div className="tactical-feed-move-hint">MOVE MODE · DRAG YOUR MARKER</div>}{error&&<div className="tactical-feed-error">{error}</div>}</div>,document.body):<div className={"tactical-feed-live-scroll tactical-vision-"+vision+(expanded?" tactical-feed-expanded":"")} ref={viewport} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerCancel}><div className={"tactical-feed-live-board"+(vision!=='normal'&&visionStartup>0?" optics-acquiring optics-acquiring-"+vision:"")} style={{width:map.width*36,height:map.height*36,transform:`translate(${offset.x+24}px,${offset.y+24}px) scale(${zoom})`,transformOrigin:'top left'}}>
+        {Array.from({length:map.width},(_,x)=><div key={'col-'+x} className={'tactical-map-coordinate tactical-map-col'+(destination?.x===x?' tactical-coordinate-active':'')} style={{left:x*36,top:-22,width:36}}>{colLabel(x)}</div>)}
+        {Array.from({length:map.height},(_,y)=><div key={'row-'+y} className={'tactical-map-coordinate tactical-map-row'+(destination?.y===y?' tactical-coordinate-active':'')} style={{top:y*36,left:-23,height:36}}>{y+1}</div>)}
+        {Array.from({length:map.width*map.height},(_,i)=>{const x=i%map.width,y=Math.floor(i/map.width),o=objects.get(x+','+y);return <div key={i+"-"+visionStartup+"-"+vision} className={'tactical-feed-tile '+(o?.type||'')+(tileVisible(x,y)?'':' tactical-tile-occluded')+(destination&&(destination.x===x||destination.y===y)?' tactical-aim-line':'')+(destination?.x===x&&destination?.y===y?' tactical-aim-target':'')} style={{left:x*36,top:y*36,backgroundColor:o?.color||map.floorColors?.[x+','+y]||undefined}}/>})}
+        {dark&&minePosition&&<svg aria-hidden="true" style={{position:'absolute',inset:0,width:map.width*36,height:map.height*36,pointerEvents:'none',zIndex:5}} viewBox={`0 0 ${map.width*36} ${map.height*36}`}><defs><mask id="tactical-fog-mask"><rect width="100%" height="100%" fill="white"/><circle cx={(minePosition.x+.5)*36} cy={(minePosition.y+.5)*36} r={sightRadius} fill="black"/></mask></defs><rect width="100%" height="100%" fill="#02050a" fillOpacity=".97" mask="url(#tactical-fog-mask)"/><circle cx={(minePosition.x+.5)*36} cy={(minePosition.y+.5)*36} r={sightRadius} fill="none" stroke="#67dce8" strokeOpacity=".35" strokeDasharray="5 6"/></svg>}
+         {displayUnits.filter(visibleUnit).map(u=>{const stack=unitStacks.get(u.x+','+u.y)||[u];const index=stack.findIndex(v=>v.key===u.key);const spread=stack.length>1;const dx=spread?(index%2===0?-6:6):0;const dy=spread?(Math.floor(index/2)*10+(index%2===0?-6:6)):0;return <div key={u.key+"-"+visionStartup+"-"+vision} title={u.name||u.label} className={'tactical-feed-unit '+u.type+(u.mine?' mine':'')+(u.mine&&selected?' selected':'')+(u.mine&&locked?' syncing':'')+(u.mine&&moveFlash?' moved':'')} style={{left:u.x*36+4+dx,top:u.y*36+4+dy,zIndex:spread?10+index:undefined}}>{u.mine?'YOU':u.label}{u.type==='enemy'&&u.status&&u.status!=='normal'&&<span className={'tactical-status-badge '+u.status} aria-label={u.status==='unconscious'?'Unconscious':'Dead'}>{u.status==='unconscious'?'Zz':<Skull size={11}/>}</span>}</div>})}
+        {soundDirections.map(d=><div key={'sound-'+d.key} className="tactical-sonic-direction" aria-label="Unresolved sound direction" style={{left:d.x,top:d.y,transform:'translate(-50%,-50%) rotate('+d.angle+'deg)'}}>➤</div>)}
+      </div>{vision!=='normal'&&visionStartup>0&&<div key={vision+visionStartup} className={"tactical-vision-startup tactical-vision-startup-"+vision} aria-hidden="true"><span className="tactical-vision-startup-sweep"/></div>}<div className="tactical-feed-map-controls" onPointerDown={e=>e.stopPropagation()}><button type="button" aria-label={expanded?"Exit expanded map":"Expand map"} title={expanded?"Exit expanded map":"Expand map"} onClick={()=>setExpanded(v=>!v)}>{expanded?<Shrink size={21}/>:<Expand size={21}/>}</button><button type="button" aria-label="Zoom in" onClick={()=>setZoom(z=>clampZoom(z*1.25))}>+</button><button type="button" aria-label="Zoom out" onClick={()=>setZoom(z=>clampZoom(z/1.25))}>−</button><button type="button" aria-label="Center on character" onClick={recenter}>⌖</button></div>{<div className="tactical-feed-hud-stack"><div className="tactical-feed-hud-actions" onPointerDown={e=>e.stopPropagation()}><button type="button" aria-label={scanning?'Exit scan mode':'Enter scan mode'} title={scanning?'Exit scan mode':'Scan layers'} aria-pressed={scanning} onClick={()=>{setScanning(v=>{if(v){setVision('normal');setVisionStartup(0)}return !v})}}><ScanEye size={20}/></button><button type="button" aria-label="Open dice spotlight" title="Roll dice" onClick={onDice}><Dices size={20}/></button></div>
+        <aside className="tactical-feed-compact-hud" aria-label="Character tactical stats" onPointerDown={e=>e.stopPropagation()} onPointerMove={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()}>
+          <button type="button" className="tactical-feed-hud-health" onClick={()=>setPanel('stats')} aria-label="Open character stats"><div className="tactical-feed-hud-heading"><span><HeartPulse size={15}/> HEALTH</span><strong>{currentHp!==null&&maxHp!==null?`${currentHp} / ${maxHp} HP`:'HP —'}</strong></div><div className="tactical-feed-hud-track"><div style={{width:maxHp&&currentHp!==null?`${Math.max(0,Math.min(100,currentHp/maxHp*100))}%`:'0%'}}/></div></button>
+          <div className="tactical-feed-hud-weapons">{weapons.length?weapons.map((weapon,i)=><button type="button" className="tactical-feed-hud-weapon" key={i} onClick={()=>{onOpenInventory();setPanel('inventory')}} aria-label={'Open inventory for '+weapon.name}>
+            <div className="tactical-feed-hud-weapon-name"><strong>{weapon.name}</strong><span>{weapon.type}</span></div>
+            <div className="tactical-feed-hud-stats"><span title="Attack dice"><Dices size={13}/>{weapon.dice}</span><span title="Hit threshold"><Crosshair size={13}/>{weapon.accuracy}</span><span title="Damage per success"><Swords size={13}/>{weapon.damage}</span><span title="Ammo">▥ {weapon.ammo}</span></div>
+          </button>):<div className="tactical-feed-hud-empty">NO WEAPONS EQUIPPED</div>}</div>
+        </aside></div>}{scanning&&<div className="tactical-feed-scan-panel" onPointerDown={e=>e.stopPropagation()}><strong>SCAN // LAYERS</strong><div className="tactical-feed-vision-options">{(['normal','night','thermal','sonic','network'] as const).map(mode=><button type="button" key={mode} aria-pressed={vision===mode} onClick={()=>{setVision(mode);setVisionStartup(mode==='normal'?0:v=>v+1)}} title={mode==='normal'?'Normal vision':mode==='night'?'Night vision':mode==='sonic'?'Sonic vision':mode==='thermal'?'Thermal vision':'Network vision'} aria-label={mode+' vision'}>{mode==='normal'?<Eye size={23}/>:mode==='night'?<Moon size={23}/>:mode==='thermal'?<Flame size={23}/>:mode==='sonic'?<AudioLines size={23}/>:<Network size={23}/>}</button>)}</div></div>}
+        {panel&&<div className="tactical-feed-subscreen" onPointerDown={e=>e.stopPropagation()} onPointerMove={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()}><div className="tactical-feed-subscreen-top"><button type="button" onClick={()=>setPanel(null)}><ArrowLeft size={19}/> BACK TO MAP</button></div>{panel==='stats'?renderStats(()=>setPanel(null)):renderInventory(()=>setPanel(null))}</div>}
+        {selected&&<div className="tactical-feed-move-hint">MOVE MODE · DRAG YOUR MARKER</div>}{error&&<div className="tactical-feed-error">{error}</div>}</div>):<>
+      <div className="tactical-feed-grid" /><div className="tactical-feed-radar"><div className="tactical-feed-sweep" /></div>
+      <div className="tactical-feed-static" /><div className="tactical-feed-interference" />
+      <div className="tactical-feed-screen-label">◈ AREA SURVEILLANCE // {loading?'CONNECTING':'STANDBY'}</div>
+      <div className="tactical-feed-center"><div className="tactical-feed-symbol">⌁</div><strong>{loading?'ESTABLISHING TACTICAL UPLINK':'NO TACTICAL//FEED'}</strong><p>{loading?'DECODING BATTLEFIELD DATA':error?'CONNECTION ERROR: '+error:'SIGNAL SOURCE NOT DETECTED'}<br />{loading?'SYNCING UNIT POSITIONS':'AWAITING GM TRANSMISSION'}</p><div className="tactical-feed-dots"><i /><i /><i /><i /><i /></div></div>
+      <div className="tactical-feed-bottom"><span>SCAN ACTIVE</span><span>UPLINK STATUS: {loading?'CONNECTING':'IDLE'}</span></div>
+      </>}
+    </div>
+    <footer className="tactical-feed-footer"><span>GHOSTLINK OS // 2077</span><button type="button" onClick={onBack} aria-label="Exit Tactical Feed" title="Exit Tactical Feed"><LogOut size={19}/></button></footer>
+  </section>;
+}

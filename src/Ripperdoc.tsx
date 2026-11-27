@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Activity, CheckCircle2, ImageIcon, ScanLine, X } from 'lucide-react';
+import { CheckCircle2, ImageIcon, ScanLine, X } from 'lucide-react';
 import { CyberwareArtworkZoom } from './CyberwareArtworkZoom';
 import { supabase } from './supabase';
 import { anatomicalPositions } from './anatomicalPositions';
@@ -123,7 +123,7 @@ export default function Ripperdoc({ characters }: { characters: Character[] }) {
     }
   };
   return <section className="rd-page" aria-label="Ripperdoc">
-    <div className="rd-heading"><Activity size={21}/><div><strong>RIPPERDOC // OPERATING ROOM</strong><p>Prepare an installation or removal procedure for a selected character.</p></div></div>
+    
     <div className="rd-mode-switch" role="group" aria-label="Ripperdoc procedure mode">
       <button type="button" className={mode === 'install' ? 'active' : ''} aria-pressed={mode === 'install'} onClick={() => { setMode('install'); setProcedure(null); setPositionId(''); }}>INSTALL</button>
       <button type="button" className={mode === 'remove' ? 'active' : ''} aria-pressed={mode === 'remove'} onClick={() => { setMode('remove'); setProcedure(null); setPositionId(''); }}>REMOVE</button>

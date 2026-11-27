@@ -21,11 +21,12 @@ function generate(count: number, sides: number): Roll {
   });
   return { values, total: values.reduce((a,b) => a+b, 0), count, sides };
 }
-export default function DiceSpotlight({ characterId, campaignId, onClose }: {
-  characterId: string; campaignId: string | null; onClose: () => void;
+export default function DiceSpotlight({ characterId, campaignId, onClose, sharedDisplay = false, gmConfig, onGmRoll }: {
+  characterId?: string; campaignId: string | null; onClose: () => void; sharedDisplay?: boolean;
+  gmConfig?: { sides: number; rolls: number; forced: number[] | null }; onGmRoll?: (value: number) => void;
 }) {
   const [sponsor] = useState(() => __AD_BANNERS__.length ? __AD_BANNERS__[Math.floor(Math.random() * __AD_BANNERS__.length)] : null);
-  const [sides, setSides] = useState(6);
+  const [sides, setSides] = useState(gmConfig?.sides ?? 6);
   const [dice, setDice] = useState<DieState[]>([{ face: '?', style: 'idle' }]);
   const [sceneStyle, setSceneStyle] = useState('');
   const [phase, setPhase] = useState<'ready' | 'rolling' | 'revealed'>('ready');
@@ -33,6 +34,8 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
   const [error, setError] = useState('');
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const busy = useRef(false);
+  const gmRollCount = useRef(0);
+  const [gmCompleted, setGmCompleted] = useState(0);
   const later = (callback: () => void, ms: number) => { timers.current.push(setTimeout(callback, ms)); };
   const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = []; };
   useEffect(() => () => clearTimers(), []);
@@ -97,25 +100,28 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
   }
 
   async function roll() {
-    if (busy.current || !campaignId) return;
+    if (busy.current || (gmConfig && gmRollCount.current >= gmConfig.rolls) || (!gmConfig && !sharedDisplay && (!campaignId || !characterId))) return;
     busy.current = true;
     setError('');
     const next = generate(1, sides);
-    // One database transaction saves the structured roll and GM-visible history.
-    const { error: saveError } = await supabase.rpc('record_player_dice_roll', {
-      p_character_id: characterId, p_campaign_id: campaignId,
-      p_dice_sides: sides, p_results: next.values,
-    });
-    if (saveError) {
-      setError('Roll could not be recorded: ' + saveError.message + '. Apply the dice migration in Supabase and retry.');
-      busy.current = false;
-      return;
-    }
+    if (gmConfig) { const forced = gmConfig.forced?.[gmRollCount.current]; if (forced !== undefined) { next.values = [forced]; next.total = forced; } }
     clearTimers();
     setResult(null);
     setPhase('rolling');
     setSceneStyle('');
     setDice(next.values.map(() => ({ face: '?', style: 'rolling' })));
+    const publish = () => {
+      if (gmConfig) { gmRollCount.current++; setGmCompleted(gmRollCount.current); onGmRoll?.(next.values[0]); return; }
+      if (sharedDisplay || !characterId || !campaignId) return;
+      // Publish only after the roller has seen the final face.
+      later(async () => {
+        const { error: saveError } = await supabase.rpc('record_player_dice_roll', {
+          p_character_id: characterId, p_campaign_id: campaignId,
+          p_dice_sides: sides, p_results: next.values,
+        });
+        if (saveError) setError('Result shown, but could not be recorded: ' + saveError.message);
+      }, 120);
+    };
     const effect: Effect = (['normal','normal','normal','jam','blackout','matrix'] as const)[Math.floor(Math.random() * 6)];
     let finished = 0;
     next.values.forEach((value, index) => {
@@ -125,6 +131,7 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
           setResult(next);
           setPhase('revealed');
           busy.current = false;
+          publish();
         }, 1700);
         return;
       }
@@ -135,21 +142,22 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
           setResult(next);
           setPhase('revealed');
           busy.current = false;
+          publish();
         }
       });
     });
   }
-  return <div className="dice-overlay" role="dialog" aria-modal="true" aria-label="Dice rolling spotlight">
+  return <div className={"dice-overlay" + (gmConfig ? " gm-dice-spotlight" : "")} role="dialog" aria-modal="true" aria-label="Dice rolling spotlight">
     <section className="dice-scene">
       <header className="dice-heading">
         <div><span className="dice-eyebrow">NIGHT CITY // RANDOMIZER</span><h2><Dices size={22}/> DICE ROLL</h2></div>
       </header>
-      <div className="dice-selector">
+      {!gmConfig && <div className="dice-selector">
         <span>DICE TYPE</span>
         <div className="dice-types">{SIDES.map(n => <button key={n} type="button" className={sides === n ? 'selected' : ''} disabled={busy.current} onClick={() => { setSides(n); reset(); }}>d{n}</button>)}</div>
-      </div>
+      </div>}
       <div className="dice-arena live-dice-scene">
-        <div className="dice-spec">D{sides}</div>
+        <div className="dice-spec">D{sides}{gmConfig ? ` // ${gmCompleted} / ${gmConfig.rolls} ROLLS` : ""}</div>
         <div className="dice-tray">{dice.map((die, index) => <button key={index} type="button" className={sides === 2 ? 'dice-coin ' + (phase === 'rolling' ? 'coin-flipping' : die.style) : 'live-die ' + die.style} disabled={busy.current} onClick={() => void roll()} aria-label={'Roll die ' + (index + 1)}>
           {sides === 2 ? <span className="dice-coin-rim" aria-hidden="true" /> : <svg viewBox="0 0 200 200" aria-hidden="true"><polygon className="live-die-outline" points="100,8 178,66 148,170 52,170 22,66"/></svg>}
           <span className="live-die-face" data-number={die.face}>{die.face}</span>
@@ -157,8 +165,8 @@ export default function DiceSpotlight({ characterId, campaignId, onClose }: {
         <div className="live-dice-status">{phase === 'ready' ? 'TAP THE DIE TO ROLL' : phase === 'rolling' ? 'ROLLING…' : 'RESULT: ' + result?.values.join(' + ')}</div>
       </div>
       {error && <p className="dice-error" role="alert">{error}</p>}
-      <div className="dice-actions"><button className="dice-roll-action" type="button" onClick={() => void roll()} disabled={busy.current || !campaignId}>{phase === 'rolling' ? 'ROLLING...' : result ? 'ROLL AGAIN' : 'ROLL'}</button><button className="dice-close-action" type="button" onClick={onClose} disabled={busy.current}>Close</button></div>
-      {!campaignId && <p className="dice-error">Waiting for campaign connection.</p>}
+      <div className="dice-actions"><button className="dice-roll-action" type="button" onClick={() => void roll()} disabled={busy.current || (gmConfig ? gmCompleted >= gmConfig.rolls : (!sharedDisplay && !campaignId))}>{phase === 'rolling' ? 'ROLLING...' : result ? 'ROLL AGAIN' : 'ROLL'}</button><button className="dice-close-action" type="button" onClick={onClose} disabled={busy.current}>Close</button></div>
+      {!gmConfig && !sharedDisplay && !campaignId && <p className="dice-error">Waiting for campaign connection.</p>}
       {sponsor && <div className="dice-sponsor"><span className="dice-sponsor-label">SPONSORED BY</span><img src={sponsor} alt="Night City sponsor advertisement" /></div>}
     </section>
     {(sceneStyle === 'blackout' || sceneStyle === 'reboot') && <div className={'dice-screen-blackout ' + sceneStyle} aria-hidden="true" />}
