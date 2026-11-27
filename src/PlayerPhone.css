@@ -99,7 +99,7 @@
 /* Responsive messaging: allocate the available viewport to conversation history. */
 .ghost-carousel{
   box-sizing:border-box;
-  height:calc(100dvh - 190px);
+  height:calc(100dvh - 24px);
   min-height:min(440px,calc(100dvh - 24px));
   max-height:none;
 }
@@ -120,7 +120,7 @@
 .ghost-carousel .ghost-compose{padding:7px 0 2px}
 .ghost-carousel .ghost-carousel-slide{padding:12px 14px 6px}
 @media(max-height:720px){
-  .ghost-carousel{height:calc(100dvh - 135px);min-height:min(340px,calc(100dvh - 16px))}
+  .ghost-carousel{height:calc(100dvh - 16px);min-height:min(340px,calc(100dvh - 16px))}
   .ghost-carousel .ghost-top{padding:8px 12px}
   .ghost-carousel .ghost-carousel-slide{padding:7px 10px 3px}
   .ghost-carousel .ghost-heading{padding:0 0 5px}
@@ -133,5 +133,5 @@
   .ghost-carousel .ghost-footer{min-height:27px;padding:0 10px}
 }
 @media(min-height:1000px){
-  .ghost-carousel{height:calc(100dvh - 210px)}
+  .ghost-carousel{height:calc(100dvh - 24px)}
 }
