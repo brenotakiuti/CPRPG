@@ -8,7 +8,7 @@ import { getHistory, putHistory, appendHistory, removeHistoryId, historyKey } fr
 type Contact = { identity_id: string; kind: string; label: string; anonymous: boolean; can_message: boolean; can_call: boolean; has_conversation: boolean };
 type ContactNotice = { id: string; message: string; created_at: string };
 type Thread = { conversation_id: string; other_identity_id: string; other_label: string; other_anonymous: boolean; last_message_at: string | null; last_message: string | null; unread_count: number };
-type Message = { message_id: string; sender_identity_id: string; body: string; created_at: string };
+type Message = { message_id: string; sender_identity_id: string; body: string; created_at: string; database_id?: string; delivery?: 'sending'|'confirming'|'sent'|'failed' };
 const REVEAL_EVENT_PREFIX = '[GHOST//LINK IDENTITY REVEALED] ';
 const phoneErrorMessage = (error: unknown): string => {
   if (typeof error === 'string') return error;
@@ -55,6 +55,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const activeHistoryKey=useRef('');
   const historyRequests=useRef(new Map<string,Promise<void>>());
   const dmSyncAgain=useRef(new Set<string>());
+  const dmSendingKeys=useRef(new Set<string>());
   const [expandedContact, setExpandedContact] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
   const [draft, setDraft] = useState('');
@@ -177,6 +178,9 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   },[refreshDM]);
   const readDM=useCallback(async(id:string)=>{
     const key=historyKey(characterId,'player',id);
+    // Do not fetch the sender's row until its RPC has returned the database
+    // UUID; otherwise a broadcast can temporarily create a second bubble.
+    if(dmSendingKeys.current.has(key)){dmSyncAgain.current.add(key);return;}
     const existing=historyRequests.current.get(key);
     if(existing){
       // A broadcast during an in-flight request must not be discarded.
@@ -187,20 +191,20 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
       do{
         dmSyncAgain.current.delete(key);
         const cached=getHistory(key);
-        const confirmed=cached?.filter(m=>!m.message_id.startsWith('pending:'))??[];
+        const confirmed=cached?.filter(m=>m.delivery!=='sending'&&m.delivery!=='confirming'&&m.delivery!=='failed'&&!((m.message_id.startsWith('pending:'))&&!m.database_id))??[];
         const last=confirmed.at(-1);
         const result=last
           ?await supabase.rpc('phone_player_dm_since',{p_character_id:characterId,p_other_character_id:id,p_after:last.created_at,p_after_id:last.message_id})
           :await supabase.rpc('phone_player_dm_history',{p_character_id:characterId,p_other_character_id:id});
         if(result.error){console.error('[Ghost//Link DM] sync failed',result.error);throw result.error;}
         const next=((result.data??[]) as {id:string;sender_id:string;body:string;created_at:string}[]).map(m=>({
-          message_id:m.id,sender_identity_id:m.sender_id,body:m.body,created_at:m.created_at
+          message_id:m.id,database_id:m.id,delivery:'sent' as const,sender_identity_id:m.sender_id,body:m.body,created_at:m.created_at
         }));
         // Read the cache again after awaiting the network: sends may have added
         // pending messages while this request was in flight.
         const merged=putHistory(key,[...(getHistory(key)??[]),...next]);
         if(activeHistoryKey.current===key)setMessages(merged);
-        const lastSeen=merged.filter(m=>!m.message_id.startsWith('pending:')).at(-1);
+        const lastSeen=merged.filter(m=>m.delivery==='sent'||!m.message_id.startsWith('pending:')).at(-1);
         if(lastSeen){dmSeen.current[id]=lastSeen.created_at;dmAlerted.current[id]=lastSeen.created_at;}
         setDmUnread(current=>({...current,[id]:0}));
       }while(dmSyncAgain.current.has(key));
@@ -355,32 +359,25 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
       if(selected.kind==='player'){
         const key=historyKey(characterId,'player',selected.id);
         const text=draft.trim();const tempId='pending:'+crypto.randomUUID();
-        const optimistic={message_id:tempId,sender_identity_id:characterId,body:text,created_at:new Date().toISOString()};
-        setMessages(appendHistory(key,optimistic));setDraft('');
+        const optimistic:Message={message_id:tempId,sender_identity_id:characterId,body:text,created_at:new Date().toISOString(),delivery:'sending'};
+        dmSendingKeys.current.add(key);
+        if(activeHistoryKey.current===key)setMessages(appendHistory(key,optimistic));
+        else appendHistory(key,optimistic);
+        setDraft('');
         const result=await supabase.rpc('phone_player_dm_send',{p_character_id:characterId,p_recipient_character_id:selected.id,p_body:text});
-        if(result.error){setMessages(removeHistoryId(key,tempId));setDraft(text);throw result.error;}
-        const confirmedId=String(result.data);
-        // Keep the optimistic bubble visible, but do not promote its browser
-        // timestamp to a confirmed database cursor. The server timestamp is
-        // authoritative and may differ from the client's clock.
-        await readDM(selected.id);
-        const confirmed=getHistory(key)?.find(m=>m.message_id===confirmedId);
-        if(confirmed){
-          const next=removeHistoryId(key,tempId);
-          if(activeHistoryKey.current===key)setMessages(next);
-        }else{
-          // A cursor-based fetch can miss this record if another message was
-          // already newer. Fetch authoritative history before reconciling.
-          const history=await supabase.rpc('phone_player_dm_history',{
-            p_character_id:characterId,p_other_character_id:selected.id
-          });
-          if(history.error)throw history.error;
-          const serverMessages=((history.data??[]) as {id:string;sender_id:string;body:string;created_at:string}[]).map(m=>({
-            message_id:m.id,sender_identity_id:m.sender_id,body:m.body,created_at:m.created_at
-          }));
-          const next=putHistory(key,[...(getHistory(key)??[]).filter(m=>m.message_id!==tempId),...serverMessages]);
-          if(activeHistoryKey.current===key)setMessages(next);
+        if(result.error){
+          dmSendingKeys.current.delete(key);
+          const failed=putHistory(key,(getHistory(key)??[]).map(m=>m.message_id===tempId?{...m,delivery:'failed' as const}:m));
+          if(activeHistoryKey.current===key)setMessages(failed);
+          throw result.error;
         }
+        const confirmedId=String(result.data);
+        // Retain the original message_id/React key. Only associate the
+        // authoritative DB UUID; readDM will fill in the server timestamp.
+        const confirming=putHistory(key,(getHistory(key)??[]).map(m=>m.message_id===tempId?{...m,database_id:confirmedId,delivery:'confirming' as const}:m));
+        if(activeHistoryKey.current===key)setMessages(confirming);
+        dmSendingKeys.current.delete(key);
+        await readDM(selected.id);
         void refreshDM().catch(()=>{});return;
       }
       const text=draft.trim();
@@ -472,7 +469,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
               {messages.length === 0 && <p className="ghost-muted">No messages yet.</p>}
               {messages.map(m => selected.kind!=='player' && m.body.startsWith(REVEAL_EVENT_PREFIX) ?
                 <div key={m.message_id} className="ghost-reveal-event" role="status"><div className="ghost-reveal-title">GHOST//LINK · IDENTITY REVEALED</div><div className="ghost-reveal-description">{m.body.slice(REVEAL_EVENT_PREFIX.length)}</div><time className="ghost-reveal-time" dateTime={m.created_at}>{time(m.created_at)}</time></div> :
-                <div key={m.message_id} className={'ghost-bubble ' + (m.sender_identity_id === (selected.kind==='player'?characterId:selfId) ? 'outgoing' : 'incoming')}><span>{m.body}</span><small>{time(m.created_at)}</small></div>)}
+                <div key={m.message_id} className={'ghost-bubble ' + (m.sender_identity_id === (selected.kind==='player'?characterId:selfId) ? 'outgoing' : 'incoming')}><span>{m.body}</span><small>{time(m.created_at)}{selected.kind==='player'&&m.delivery&&m.delivery!=='sent'?' · '+(m.delivery==='sending'?'Sending':m.delivery==='confirming'?'Confirming':'Failed'):''}</small></div>)}
             </div>
             <form className="ghost-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input value={draft} onChange={e => setDraft(e.target.value)} maxLength={4000} placeholder="Transmit message..." aria-label="Message"/><button type="submit" disabled={busy || !draft.trim()} aria-label="Send message"><Send size={19}/></button></form>
           </>}
