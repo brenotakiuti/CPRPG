@@ -29,3 +29,12 @@
 .gl-monitor-notice-heading button svg{transition:transform .15s}
 .gl-monitor-notice-heading button svg.expanded{transform:rotate(180deg)}
 .gl-monitor-notice p{font-size:11px;line-height:1.45;margin:8px 0 2px;color:#e4d8c5}
+
+/* Monitoring details float above chat content without resizing the history. */
+.gl-monitor-notice{position:relative;z-index:5}
+.gl-monitor-notice-popover{
+ position:absolute;top:calc(100% + 5px);left:0;right:0;z-index:10;
+ padding:11px 12px;background:#222b42;border:1px solid #9c8050;
+ border-radius:6px;box-shadow:0 12px 26px #0009;
+}
+.gl-monitor-notice-popover p{margin:0;line-height:1.5}
