@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, LockKeyhole, Mail, Send, ShieldAlert, Smartphone, UserRound, LogOut, Wifi } from 'lucide-react';
 import { supabase } from './supabase';
 import './PlayerPhone.css';
-import { getHistory, putHistory, appendHistory, removeHistoryId, historyKey } from './phoneMessageCache';
+import { getHistory, putHistory, appendHistory, removeHistoryId, replaceHistoryId, historyKey } from './phoneMessageCache';
 
 type Contact = { identity_id: string; kind: string; label: string; anonymous: boolean; can_message: boolean; can_call: boolean; has_conversation: boolean };
 type ContactNotice = { id: string; message: string; created_at: string };
@@ -54,6 +54,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const [messages, setMessages] = useState<Message[]>([]);
   const activeHistoryKey=useRef('');
   const historyRequests=useRef(new Map<string,Promise<void>>());
+  const dmSyncAgain=useRef(new Set<string>());
   const [expandedContact, setExpandedContact] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
   const [draft, setDraft] = useState('');
@@ -178,28 +179,37 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
   const readDM=useCallback(async(id:string)=>{
     const key=historyKey(characterId,'player',id);
     const existing=historyRequests.current.get(key);
-    if(existing)return existing;
+    if(existing){
+      // A broadcast during an in-flight request must not be discarded.
+      dmSyncAgain.current.add(key);
+      return existing;
+    }
     const request=(async()=>{
-      const cached=getHistory(key);
-      const last=cached?.filter(m=>!m.message_id.startsWith('pending:')).at(-1);
-      const result=last
-        ?await supabase.rpc('phone_player_dm_since',{p_character_id:characterId,p_other_character_id:id,p_after:last.created_at,p_after_id:last.message_id})
-        :await supabase.rpc('phone_player_dm_history',{p_character_id:characterId,p_other_character_id:id});
-      if(result.error)throw result.error;
-      const next=((result.data??[]) as {id:string;sender_id:string;body:string;created_at:string}[]).map(m=>({
-        message_id:m.id,sender_identity_id:m.sender_id,body:m.body,created_at:m.created_at
-      }));
-      // Keep pending messages until the server confirms them, and deduplicate by UUID.
-      const merged=putHistory(key,[...(cached??[]),...next]);
-      if(activeHistoryKey.current===key)setMessages(merged);
-      if(merged.length){
+      do{
+        dmSyncAgain.current.delete(key);
+        const cached=getHistory(key);
+        const confirmed=cached?.filter(m=>!m.message_id.startsWith('pending:'))??[];
+        const last=confirmed.at(-1);
+        console.debug('[Ghost//Link DM] sync start',{characterId,peer:id,after:last?.message_id??null});
+        const result=last
+          ?await supabase.rpc('phone_player_dm_since',{p_character_id:characterId,p_other_character_id:id,p_after:last.created_at,p_after_id:last.message_id})
+          :await supabase.rpc('phone_player_dm_history',{p_character_id:characterId,p_other_character_id:id});
+        if(result.error){console.error('[Ghost//Link DM] sync failed',result.error);throw result.error;}
+        const next=((result.data??[]) as {id:string;sender_id:string;body:string;created_at:string}[]).map(m=>({
+          message_id:m.id,sender_identity_id:m.sender_id,body:m.body,created_at:m.created_at
+        }));
+        // Read the cache again after awaiting the network: sends may have added
+        // pending messages while this request was in flight.
+        const merged=putHistory(key,[...(getHistory(key)??[]),...next]);
+        console.debug('[Ghost//Link DM] sync complete',{peer:id,received:next.length,total:merged.length});
+        if(activeHistoryKey.current===key)setMessages(merged);
         const lastSeen=merged.filter(m=>!m.message_id.startsWith('pending:')).at(-1);
         if(lastSeen){dmSeen.current[id]=lastSeen.created_at;dmAlerted.current[id]=lastSeen.created_at;}
-      }
-      setDmUnread(current=>({...current,[id]:0}));
+        setDmUnread(current=>({...current,[id]:0}));
+      }while(dmSyncAgain.current.has(key));
     })();
     historyRequests.current.set(key,request);
-    try{await request}finally{historyRequests.current.delete(key)}
+    try{await request}finally{historyRequests.current.delete(key);dmSyncAgain.current.delete(key)}
   },[characterId]);
   useEffect(()=>{
     if(selected?.kind!=='player'||dmMode==='disabled')return;
@@ -211,8 +221,9 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     let channel:ReturnType<typeof supabase.channel>|null=null;
     let disposed=false;
     const connect=async()=>{
-      if(!dmCampaignId.current)return;
+      if(!dmCampaignId.current){console.warn('[Ghost//Link DM] no campaign ID for subscription');return;}
       await supabase.realtime.setAuth();
+      console.debug('[Ghost//Link DM] joining private channel',characterId);
       if(disposed)return;
       channel=supabase.channel('ghost-dm:'+characterId,{config:{private:true}})
         .on('broadcast',{event:'new-message'},({payload})=>{
@@ -220,11 +231,14 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
           const recipient=String(payload?.recipient??'');
           const other=sender===characterId?recipient:sender;
           if(!other)return;
+          console.debug('[Ghost//Link DM] broadcast received',{characterId,other,messageId:payload?.id});
           const current=selectedRef.current;
           if(current?.kind==='player'&&current.id===other)void readDM(other).catch(()=>{});
           else if(sender!==characterId)alertIncoming('messages','NEW PLAYER MESSAGE');
           void refreshDM().catch(()=>{});
-        }).subscribe(status=>{
+        }).subscribe((status,error)=>{
+          console.debug('[Ghost//Link DM] channel status',{characterId,status,error:error?.message});
+          if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')setError('Ghost//Link realtime connection failed. Check F12 Console.');
           if(status==='SUBSCRIBED'){
             void refreshDM().catch(()=>{});
             const current=selectedRef.current;
@@ -345,6 +359,13 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
         setMessages(appendHistory(key,optimistic));setDraft('');
         const result=await supabase.rpc('phone_player_dm_send',{p_character_id:characterId,p_recipient_character_id:selected.id,p_body:text});
         if(result.error){setMessages(removeHistoryId(key,tempId));setDraft(text);throw result.error;}
+        const confirmedId=String(result.data);
+        // Replace, never append, the optimistic bubble once the RPC returns its UUID.
+        const pending=getHistory(key)?.find(m=>m.message_id===tempId);
+        if(pending){
+          const next=replaceHistoryId(key,tempId,{...pending,message_id:confirmedId});
+          if(activeHistoryKey.current===key)setMessages(next);
+        }
         await readDM(selected.id);
         void refreshDM().catch(()=>{});return;
       }
