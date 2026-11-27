@@ -385,13 +385,27 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
         const result=await supabase.rpc('phone_player_dm_send',{p_character_id:characterId,p_recipient_character_id:selected.id,p_body:text});
         if(result.error){setMessages(removeHistoryId(key,tempId));setDraft(text);throw result.error;}
         const confirmedId=String(result.data);
-        // Replace, never append, the optimistic bubble once the RPC returns its UUID.
-        const pending=getHistory(key)?.find(m=>m.message_id===tempId);
-        if(pending){
-          const next=replaceHistoryId(key,tempId,{...pending,message_id:confirmedId});
+        // Keep the optimistic bubble visible, but do not promote its browser
+        // timestamp to a confirmed database cursor. The server timestamp is
+        // authoritative and may differ from the client's clock.
+        await readDM(selected.id);
+        const confirmed=getHistory(key)?.find(m=>m.message_id===confirmedId);
+        if(confirmed){
+          const next=removeHistoryId(key,tempId);
+          if(activeHistoryKey.current===key)setMessages(next);
+        }else{
+          // A cursor-based fetch can miss this record if another message was
+          // already newer. Fetch authoritative history before reconciling.
+          const history=await supabase.rpc('phone_player_dm_history',{
+            p_character_id:characterId,p_other_character_id:selected.id
+          });
+          if(history.error)throw history.error;
+          const serverMessages=((history.data??[]) as {id:string;sender_id:string;body:string;created_at:string}[]).map(m=>({
+            message_id:m.id,sender_identity_id:m.sender_id,body:m.body,created_at:m.created_at
+          }));
+          const next=putHistory(key,[...(getHistory(key)??[]).filter(m=>m.message_id!==tempId),...serverMessages]);
           if(activeHistoryKey.current===key)setMessages(next);
         }
-        await readDM(selected.id);
         void refreshDM().catch(()=>{});return;
       }
       const text=draft.trim();
