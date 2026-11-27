@@ -1,12 +1,20 @@
 // In-memory, session-scoped cache. Never persist private messages to localStorage.
-export type CachedMessage={message_id:string;sender_identity_id:string;body:string;created_at:string};
+export type CachedMessage={message_id:string;sender_identity_id:string;body:string;created_at:string;database_id?:string;delivery?:'sending'|'confirming'|'sent'|'failed'};
 const histories=new Map<string,CachedMessage[]>();
 const MAX_CHATS=80;
 export const historyKey=(owner:string,kind:'npc'|'player',id:string)=>owner+':'+kind+':'+id;
 export function getHistory(key:string):CachedMessage[]|undefined{return histories.get(key)}
 export function putHistory(key:string,items:CachedMessage[]):CachedMessage[]{
+ // A server message and its optimistic counterpart share one logical identity.
+ // Preserve the optimistic message_id as the React key when the DB row arrives.
  const unique=new Map<string,CachedMessage>();
- for(const item of items)unique.set(item.message_id,item);
+ for(const item of items){
+  const identity=item.database_id??item.message_id;
+  const previous=unique.get(identity);
+  unique.set(identity,previous?.message_id.startsWith('pending:')
+   ?{...item,message_id:previous.message_id,delivery:item.delivery??'sent'}
+   :item);
+ }
  const sorted=[...unique.values()].sort((a,b)=>a.created_at.localeCompare(b.created_at));
  histories.delete(key);histories.set(key,sorted);
  if(histories.size>MAX_CHATS)histories.delete(histories.keys().next().value!);
