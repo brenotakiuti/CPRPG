@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, LockKeyhole, Mail, Send, ShieldAlert, Smartphone, UserRound, LogOut, Wifi } from 'lucide-react';
 import { supabase } from './supabase';
 import './PlayerPhone.css';
-import { getHistory, putHistory, appendHistory, removeHistoryId, replaceHistoryId, historyKey } from './phoneMessageCache';
+import { getHistory, putHistory, appendHistory, removeHistoryId, historyKey } from './phoneMessageCache';
 
 type Contact = { identity_id: string; kind: string; label: string; anonymous: boolean; can_message: boolean; can_call: boolean; has_conversation: boolean };
 type ContactNotice = { id: string; message: string; created_at: string };
@@ -237,7 +237,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
           if(current?.kind==='player'&&current.id===other)void readDM(other).catch(()=>{});
           else if(sender!==characterId)alertIncoming('messages','NEW PLAYER MESSAGE');
           void refreshDM().catch(()=>{});
-        }).subscribe((status,error)=>{
+        }).subscribe((status)=>{
           if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')setError('Ghost//Link realtime connection failed. Check F12 Console.');
           if(status==='SUBSCRIBED'){
             void refreshDM().catch(()=>{});
