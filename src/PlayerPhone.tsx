@@ -222,7 +222,27 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
     let disposed=false;
     const connect=async()=>{
       if(!dmCampaignId.current){console.warn('[Ghost//Link DM] no campaign ID for subscription');return;}
+      const {data:{session},error:sessionError}=await supabase.auth.getSession();
+      // Log only identity and token-comparison metadata; never print JWTs.
+      const realtimeAuthBefore=(supabase.realtime as unknown as {accessToken?:string}).accessToken;
+      console.info('[Ghost//Link DM] auth diagnostic',{
+        characterId,
+        sessionUserId:session?.user?.id??null,
+        sessionRole:session?.user?.role??null,
+        sessionExpiresAt:session?.expires_at??null,
+        sessionError:sessionError?.message??null,
+        realtimeTokenPresent:!!realtimeAuthBefore,
+        realtimeTokenMatchesSession:session?.access_token
+          ?realtimeAuthBefore===session.access_token:null
+      });
       await supabase.realtime.setAuth();
+      const realtimeAuthAfter=(supabase.realtime as unknown as {accessToken?:string}).accessToken;
+      console.info('[Ghost//Link DM] realtime auth diagnostic',{
+        characterId,
+        realtimeTokenPresent:!!realtimeAuthAfter,
+        realtimeTokenMatchesSession:session?.access_token
+          ?realtimeAuthAfter===session.access_token:null
+      });
       console.debug('[Ghost//Link DM] joining private channel',characterId);
       if(disposed)return;
       channel=supabase.channel('ghost-dm:'+characterId,{config:{private:true}})
