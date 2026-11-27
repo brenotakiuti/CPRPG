@@ -191,10 +191,10 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
       do{
         dmSyncAgain.current.delete(key);
         const cached=getHistory(key);
-        const confirmed=cached?.filter(m=>m.delivery!=='sending'&&m.delivery!=='confirming'&&m.delivery!=='failed'&&!((m.message_id.startsWith('pending:'))&&!m.database_id))??[];
+        const confirmed=cached?.filter(m=>m.delivery!=='sending'&&m.delivery!=='confirming'&&m.delivery!=='failed'&&!!(m.database_id||(!m.message_id.startsWith('pending:')&&m.message_id)))??[];
         const last=confirmed.at(-1);
         const result=last
-          ?await supabase.rpc('phone_player_dm_since',{p_character_id:characterId,p_other_character_id:id,p_after:last.created_at,p_after_id:last.message_id})
+          ?await supabase.rpc('phone_player_dm_since',{p_character_id:characterId,p_other_character_id:id,p_after:last.created_at,p_after_id:last.database_id??last.message_id})
           :await supabase.rpc('phone_player_dm_history',{p_character_id:characterId,p_other_character_id:id});
         if(result.error){console.error('[Ghost//Link DM] sync failed',result.error);throw result.error;}
         // An in-flight history fetch may finish after an optimistic send begins.
