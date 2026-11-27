@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import './PlayerDirectMessages.css';
 type Mode='disabled'|'private'|'monitored';
@@ -41,6 +41,9 @@ export function GMDirectMessageMonitor({campaignId}:{campaignId:string}){
  const [selected,setSelected]=useState<string|null>(null);
  const [error,setError]=useState('');
  const [loading,setLoading]=useState(true);
+ const historyRef=useRef<HTMLDivElement|null>(null);
+ const historyNearBottom=useRef(true);
+ const historyConversation=useRef<string|null>(null);
  const refresh=useCallback(async()=>{
   const status=await supabase.rpc('phone_player_dm_mode',{p_campaign_id:campaignId});
   if(status.error)throw status.error;
@@ -79,13 +82,24 @@ export function GMDirectMessageMonitor({campaignId}:{campaignId:string}){
  const active=selected && conversations.some(c=>c.key===selected)?selected:conversations[0]?.key??null;
  const current=conversations.find(c=>c.key===active);
  const history=entries.filter(m=>conversationKey(m)===active).sort((a,b)=>a.created_at.localeCompare(b.created_at));
+ const lastMessageId=history.at(-1)?.id;
+ useLayoutEffect(()=>{
+  const viewport=historyRef.current;
+  if(!viewport)return;
+  const changed=historyConversation.current!==active;
+  historyConversation.current=active;
+  if(changed||historyNearBottom.current){
+   viewport.scrollTop=viewport.scrollHeight;
+   historyNearBottom.current=true;
+  }
+ },[active,lastMessageId,history.length]);
  return <section className="gm-ghost-dm-monitor" aria-label="Player direct message monitoring">
 
   {!loading&&mode!=='monitored'&&<div className="gm-ghost-placeholder">Player message monitoring is disabled. Private conversations cannot be viewed by the GM.</div>}
   {!loading&&mode==='monitored'&&<div className="gm-ghost-dm-workstation">
    <aside className="gm-ghost-threads">
     <div className="gm-ghost-section-title">PLAYER CONVERSATIONS <span>{conversations.length}</span></div>
-    {conversations.map(c=><button type="button" key={c.key} className={'gm-ghost-entry'+(active===c.key?' active':'')} onClick={()=>setSelected(c.key)}>
+    {conversations.map(c=><button type="button" key={c.key} className={'gm-ghost-entry'+(active===c.key?' active':'')} onClick={()=>{historyNearBottom.current=true;setSelected(c.key)}}>
      <span className="gm-ghost-avatar player">{c.participants[0]?.slice(0,1).toUpperCase()||'P'}</span>
      <span><strong>{c.participants.join(' ↔ ')}</strong><small className="gm-ghost-preview">{c.latest.sender}: {c.latest.body}</small></span>
     </button>)}
@@ -93,7 +107,10 @@ export function GMDirectMessageMonitor({campaignId}:{campaignId:string}){
    </aside>
    <main className="gm-ghost-chat">
     {current?<><div className="gm-ghost-chat-header"><div><strong>{current.participants.join(' ↔ ')}</strong><small>PLAYER DIRECT MESSAGES</small></div><span className="gm-ghost-tag">READ ONLY</span></div>
-     <div className="gm-ghost-history gm-ghost-dm-history" key={active}>
+     <div className="gm-ghost-history gm-ghost-dm-history" key={active} ref={historyRef} onScroll={e=>{
+      const el=e.currentTarget;
+      historyNearBottom.current=el.scrollHeight-el.scrollTop-el.clientHeight<72;
+     }}>
       {history.map(m=><div key={m.id} className={'gm-ghost-bubble '+(m.sender===current.participants[0]?'out':'in')}>
        <strong className="gm-ghost-dm-sender">{m.sender}</strong>
        <span>{m.body}</span><small>{new Date(m.created_at).toLocaleString()}</small>
