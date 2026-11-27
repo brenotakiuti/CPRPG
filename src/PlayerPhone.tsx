@@ -25,6 +25,20 @@ const phoneErrorMessage = (error: unknown): string => {
 export default function PlayerPhone({ characterId, onBack }: { characterId: string; onBack: () => void }) {
   const [dmMode,setDmMode]=useState<'disabled'|'private'|'monitored'>('disabled');
   const [monitorNoticeExpanded,setMonitorNoticeExpanded]=useState(false);
+  const monitorNoticeRef=useRef<HTMLDivElement|null>(null);
+  useEffect(()=>{
+    if(!monitorNoticeExpanded)return;
+    const dismiss=(event:PointerEvent)=>{
+      if(!monitorNoticeRef.current?.contains(event.target as Node))setMonitorNoticeExpanded(false);
+    };
+    const escape=(event:KeyboardEvent)=>{if(event.key==='Escape')setMonitorNoticeExpanded(false)};
+    document.addEventListener('pointerdown',dismiss,true);
+    document.addEventListener('keydown',escape);
+    return()=>{
+      document.removeEventListener('pointerdown',dismiss,true);
+      document.removeEventListener('keydown',escape);
+    };
+  },[monitorNoticeExpanded]);
   const [dmContacts,setDmContacts]=useState<{id:string;name:string}[]>([]);
   const [dmThreads,setDmThreads]=useState<{other_character_id:string;other_label:string;last_message:string;last_message_at:string}[]>([]);
   const [dmUnread,setDmUnread]=useState<Record<string,number>>({});
@@ -467,7 +481,7 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
           </> : <>
             <div className="ghost-heading"><button onClick={() => { setSelected(null); void refresh().catch(() => {}); }} aria-label="Back to inbox"><ArrowLeft size={20}/></button><UserRound size={27}/><div><h2>{selectedLabel}</h2><small>{selectedMasked ? 'IDENTITY MASKED' : 'SECURE CONNECTION'}</small></div></div>
             <div className="ghost-status"><ShieldAlert size={15}/> {selected.kind==='player' ? 'PLAYER DIRECT MESSAGE' : selectedMasked ? 'UNREGISTERED SIGNAL' : 'PRIVATE COMMUNICATION'}</div>
-            {selected.kind==='player' && dmMode==='monitored' && <div className="gl-monitor-notice" role="note"><div className="gl-monitor-notice-heading"><span><ShieldAlert size={16}/> GM MONITORING ACTIVE</span><button type="button" aria-expanded={monitorNoticeExpanded} onClick={()=>setMonitorNoticeExpanded(value=>!value)}>{monitorNoticeExpanded?'Hide details':'Details'} <ChevronDown size={14} className={monitorNoticeExpanded?'expanded':''}/></button></div>{monitorNoticeExpanded&&<p>The GM can read player-to-player messages in this campaign. Ask the GM to change this under Ghost//Link Settings if you want private conversations.</p>}</div>}
+            {selected.kind==='player' && dmMode==='monitored' && <div className="gl-monitor-notice" role="note" ref={monitorNoticeRef}><div className="gl-monitor-notice-heading"><span><ShieldAlert size={16}/> GM MONITORING ACTIVE</span><button type="button" aria-expanded={monitorNoticeExpanded} onClick={()=>setMonitorNoticeExpanded(value=>!value)}>{monitorNoticeExpanded?'Hide details':'Details'} <ChevronDown size={14} className={monitorNoticeExpanded?'expanded':''}/></button></div>{monitorNoticeExpanded&&<div className="gl-monitor-notice-popover"><p>The GM can read player-to-player messages in this campaign. Ask the GM to change this under Ghost//Link Settings if you want private conversations.</p></div>}</div>}
             <div className="ghost-messages" ref={historyRef} onScroll={handleHistoryScroll}>
               {messages.length === 0 && <p className="ghost-muted">No messages yet.</p>}
               {messages.map(m => selected.kind!=='player' && m.body.startsWith(REVEAL_EVENT_PREFIX) ?
