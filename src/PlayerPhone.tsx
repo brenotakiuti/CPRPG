@@ -235,7 +235,12 @@ export default function PlayerPhone({ characterId, onBack }: { characterId: stri
         realtimeTokenMatchesSession:session?.access_token
           ?realtimeAuthBefore===session.access_token:null
       });
-      await supabase.realtime.setAuth();
+      if(sessionError||!session?.access_token){
+        console.error('[Ghost//Link DM] session unavailable for realtime',{error:sessionError?.message??'No access token'});
+        setError('Ghost//Link realtime authentication unavailable. Check F12 Console.');
+        return;
+      }
+      await supabase.realtime.setAuth(session.access_token);
       const realtimeAuthAfter=(supabase.realtime as unknown as {accessToken?:string}).accessToken;
       console.info('[Ghost//Link DM] realtime auth diagnostic',{
         characterId,
